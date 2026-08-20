@@ -180,6 +180,22 @@
         <div class="flex-1 relative">
             <div id="canvas-container" class="w-full h-full"></div>
 
+            <div id="empty-scene-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+                <div class="bg-gray-900/90 backdrop-blur-md border border-cyan-500/40 p-6 rounded-2xl shadow-2xl text-center max-w-md pointer-events-auto transition transform hover:scale-105">
+                    <div class="w-16 h-16 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-400/40 text-2xl shadow-inner">
+                        📂
+                    </div>
+                    <h2 class="text-base font-bold text-white mb-2">3D Sahneye XML Yükleyin</h2>
+                    <p class="text-xs text-gray-300 mb-5 leading-relaxed">
+                        FlexLink 3D yerleşim projenizi yüklemek için aşağıdaki butona tıklayın veya <code class="text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/60">.xml</code> dosyanızı bu ekrana sürükleyip bırakın.
+                    </p>
+                    <button onclick="document.getElementById('xml-file-input').click()"
+                        class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-cyan-300/30 cursor-pointer">
+                        <span>📥 Bilgisayardan XML Dosyası Seç (.xml)</span>
+                    </button>
+                </div>
+            </div>
+
             <div id="hover-assembly-label"
                 class="absolute hidden pointer-events-none z-20 bg-blue-600/90 border border-blue-400/70 text-white text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
             </div>
@@ -7552,10 +7568,10 @@
 
         window.importXmlProjectFromFile = function importXmlProjectFromFile() {
             const input = document.getElementById('xml-file-input');
-            const file = input?.files?.[0];
+            let file = input?.files?.[0];
 
             if (!file) {
-                alert('Lütfen bir XML dosyası seçin.');
+                input?.click();
                 return;
             }
 
@@ -7564,6 +7580,9 @@
                 try {
                     const content = event.target.result;
                     await loadXmlProjectFromText(content, file.name);
+                    input.value = '';
+                    const overlay = document.getElementById('empty-scene-overlay');
+                    if (overlay) overlay.classList.add('hidden');
                     setTimeout(() => {
                         if (typeof generateAllConveyorPathways === 'function') {
                             generateAllConveyorPathways();
@@ -7582,6 +7601,7 @@
                 alert('Dosya okunamadı.');
             };
 
+            reader.readAsText(file);
         };
 
         function cancelActiveMode(message) {
@@ -9029,6 +9049,49 @@
                 setViewportView('iso');
             }, 250);
         };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('xml-file-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', () => {
+                    if (fileInput.files && fileInput.files.length > 0) {
+                        importXmlProjectFromFile();
+                    }
+                });
+            }
+
+            const container = document.getElementById('canvas-container');
+            if (container) {
+                container.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                container.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file && (file.name.endsWith('.xml') || file.type.includes('xml'))) {
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            try {
+                                await loadXmlProjectFromText(event.target.result, file.name);
+                                const overlay = document.getElementById('empty-scene-overlay');
+                                if (overlay) overlay.classList.add('hidden');
+                                setTimeout(() => {
+                                    if (typeof generateAllConveyorPathways === 'function') {
+                                        generateAllConveyorPathways();
+                                    }
+                                }, 300);
+                            } catch (err) {
+                                alert(`XML Yükleme hatası: ${err.message}`);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                });
+            }
+        });
     </script>
 
     <!-- Parametrik Ceiling Support Tasarım Penceresi Modal -->

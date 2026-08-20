@@ -1,0 +1,18 @@
+# Python Virtual Environments
+.venv/
+.venv-1/
+__pycache__/
+*.pyc
+
+# Backup HTML versions
+index_*.html
+
+# Downloads & Scratch
+Downloads/
+scratch/
+*.tmp
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
