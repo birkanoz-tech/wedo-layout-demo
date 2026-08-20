@@ -9018,7 +9018,7 @@
 
             let restored = false;
 
-            // Yalnızca dışa aktarılmış bağımsız HTML dosyasında (EMBEDDED_DEFAULT_STATE var ise) otomatik yükle
+            // 1. Dışa aktarılmış bağımsız HTML dosyasında (EMBEDDED_DEFAULT_STATE var ise)
             if (window.EMBEDDED_DEFAULT_STATE) {
                 localStorage.removeItem('PROPOSAL_APP_SCENE_STATE');
                 localStorage.removeItem('PROPOSAL_APP_AUTOSAVE');
@@ -9027,13 +9027,64 @@
                 } catch (e) {
                     console.warn('Gömülü varsayılan state yükleme hatası:', e);
                 }
-            } else {
-                // Ana uygulamada / GitHub üzerinde HER ZAMAN %100 BOŞ 3D Sahne ile başla
+            }
+            // 2. URL Parametresi İle Canlı Proje Çağırma (Örn: ?project=firma-a VEYA ?xml=OPP-0106989-1-R1)
+            else {
+                const urlParams = new URLSearchParams(window.location.search);
+                let projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
+
+                if (projectQuery) {
+                    projectQuery = projectQuery.trim();
+                    if (!projectQuery.toLowerCase().endsWith('.xml')) {
+                        projectQuery += '.xml';
+                    }
+
+                    const searchPaths = [];
+                    if (projectQuery.startsWith('projects/')) {
+                        searchPaths.push(projectQuery);
+                        searchPaths.push(projectQuery.replace('projects/', ''));
+                    } else {
+                        searchPaths.push(`projects/${projectQuery}`);
+                        searchPaths.push(projectQuery);
+                    }
+
+                    const statusEl = document.getElementById('import-status');
+                    if (statusEl) {
+                        statusEl.innerText = `⏳ "${projectQuery}" projesi canlı bağlantıdan çekiliyor...`;
+                    }
+
+                    for (const path of searchPaths) {
+                        try {
+                            const res = await fetch(path);
+                            if (res.ok) {
+                                const xmlText = await res.text();
+                                await loadXmlProjectFromText(xmlText, projectQuery);
+                                restored = true;
+                                const overlay = document.getElementById('empty-scene-overlay');
+                                if (overlay) overlay.classList.add('hidden');
+                                if (statusEl) {
+                                    statusEl.innerText = `🌐 "${projectQuery}" projesi canlı bağlantıdan yüklendi.`;
+                                }
+                                break;
+                            }
+                        } catch (err) {
+                            console.warn(`URL projesi yüklenemedi: ${path}`, err);
+                        }
+                    }
+
+                    if (!restored && statusEl) {
+                        statusEl.innerText = `❌ "${projectQuery}" bulunamadı. Lütfen "projects/" klasörünü kontrol edin.`;
+                    }
+                }
+            }
+
+            // 3. Eğer URL parametresi yoksa veya proje bulunamadıysa %100 BOŞ 3D Sahne aç
+            if (!restored) {
                 localStorage.removeItem('PROPOSAL_APP_SCENE_STATE');
                 localStorage.removeItem('PROPOSAL_APP_AUTOSAVE');
 
                 const statusEl = document.getElementById('import-status');
-                if (statusEl) {
+                if (statusEl && !window.location.search) {
                     statusEl.innerText = '📂 Boş 3D Sahne Hazır. Başlamak için sol menüden ".xml" dosyunuzu seçin.';
                 }
                 const treeEl = document.getElementById('model-tree');
@@ -9047,6 +9098,9 @@
                     onWindowResize();
                 }
                 setViewportView('iso');
+                if (typeof generateAllConveyorPathways === 'function' && restored) {
+                    generateAllConveyorPathways();
+                }
             }, 250);
         };
 
