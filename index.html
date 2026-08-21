@@ -17,6 +17,16 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
     <!-- Gömülü 3D Kütüphane Modelleri ve XML Yedeği -->
     <script src="library_assets.js"></script>
+
+    <!-- EmailJS SDK Real SMTP Email Dispatch -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init("wWtwSg39RWUdSe_gH");
+            }
+        })();
+    </script>
     <style>
         /* Custom Slim Scrollbars to prevent content clipping & blocking */
         ::-webkit-scrollbar {
@@ -9370,15 +9380,30 @@
 
             // Gerçek e-posta gönderimi (EmailJS entegrasyonu)
             if (typeof emailjs !== 'undefined') {
-                try {
-                    emailjs.send("service_wedo", "template_otp", {
-                        to_name: name,
-                        to_email: email,
-                        otp_code: activeOtpCode,
-                    });
-                } catch (err) {
-                    console.warn('EmailJS e-posta gönderim hatası:', err);
-                }
+                const templateParams = {
+                    to_name: name,
+                    to_email: email,
+                    user_email: email,
+                    otp_code: activeOtpCode,
+                    message: `FlexLink 3D Proposal erişim doğrulama kodunuz: ${activeOtpCode}`,
+                    reply_to: email
+                };
+
+                const serviceID = "service_ewtuurq";
+                const publicKey = "wWtwSg39RWUdSe_gH";
+
+                // EmailJS API ile mail gönder
+                emailjs.send(serviceID, "template_contact_us", templateParams, publicKey)
+                    .catch(() => emailjs.send(serviceID, "Contact Us", templateParams, publicKey))
+                    .catch(() => emailjs.send(serviceID, "contact_form", templateParams, publicKey))
+                    .then(
+                        function(response) {
+                            console.log('✅ OTP E-posta Başarıyla Gönderildi!', response);
+                        },
+                        function(error) {
+                            console.warn('EmailJS Gönderim Uyarısı:', error);
+                        }
+                    );
             } else {
                 console.log(`[SECURE LOG] OTP Code generated for ${email}: ${activeOtpCode}`);
             }
