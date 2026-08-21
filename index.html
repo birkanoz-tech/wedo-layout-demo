@@ -6722,80 +6722,180 @@
         }
 
         function updateXmlDocPositionsFrom3DScene(xmlDoc) {
-            if (!importedProjectRoot) return;
+            if (!xmlDoc) return;
+            const root = xmlDoc.documentElement;
+            let assembliesGroup = xmlDoc.querySelector('assemblies');
+            if (!assembliesGroup) {
+                assembliesGroup = xmlDoc.createElement('assemblies');
+                root.appendChild(assembliesGroup);
+            }
 
-            const meshByGuid = new Map();
-            const meshByAssemblyAndSeq = new Map();
-
-            importedProjectRoot.traverse((node) => {
-                if (node.userData?.type === 'xml-product' && node.userData?.product) {
-                    const p = node.userData.product;
-                    const assyName = node.userData?.assemblyName || p.assemblyName || 'Montaj';
-                    if (p.guid) {
-                        meshByGuid.set(p.guid, node);
+            // 1. Eklenen Panoları (addedPanels) XML assemblies içine senkronize et
+            if (Array.isArray(addedPanels)) {
+                addedPanels.forEach((p) => {
+                    const assyName = p.name || p.id || 'Pano';
+                    let assyNode = Array.from(assembliesGroup.children).find(c => c.getAttribute('name') === assyName);
+                    if (!assyNode) {
+                        assyNode = xmlDoc.createElement('assembly');
+                        assyNode.setAttribute('name', assyName);
+                        assembliesGroup.appendChild(assyNode);
                     }
-                    const seqKey = `${assyName}::${p.sequence}`;
-                    meshByAssemblyAndSeq.set(seqKey, node);
-                }
-            });
 
-            const assemblyNodes = Array.from(xmlDoc.getElementsByTagName('assembly'));
-            let globalSeqCount = 0;
+                    let pNode = Array.from(assyNode.children).find(c => c.tagName.toLowerCase() === 'product');
+                    if (!pNode) {
+                        pNode = xmlDoc.createElement('product');
+                        pNode.setAttribute('name', assyName);
+                        pNode.setAttribute('path', 'parametric:panel');
+                        assyNode.appendChild(pNode);
+                    }
 
-            assemblyNodes.forEach((assemblyNode) => {
-                const assyName = assemblyNode.getAttribute('name') || 'Bilinmeyen Montaj';
-                const productNodes = Array.from(assemblyNode.getElementsByTagName('product'));
-
-                productNodes.forEach((pNode, pIndex) => {
-                    const guidNode = Array.from(pNode.children).find((c) => c.tagName.toLowerCase() === 'guid');
-                    const guid = guidNode ? guidNode.textContent.trim() : '';
-
-                    const seqKey = `${assyName}::${globalSeqCount + pIndex}`;
-                    const targetMesh = (guid && meshByGuid.get(guid)) || meshByAssemblyAndSeq.get(seqKey);
-
-                    if (targetMesh) {
-                        let posNode = Array.from(pNode.children).find((c) => c.tagName.toLowerCase() === 'position');
+                    const mesh = p.mesh;
+                    if (mesh) {
+                        const worldPos = new THREE.Vector3();
+                        mesh.getWorldPosition(worldPos);
+                        let posNode = Array.from(pNode.children).find(c => c.tagName.toLowerCase() === 'position');
                         if (!posNode) {
                             posNode = xmlDoc.createElement('position');
                             pNode.appendChild(posNode);
                         }
-
-                        const worldPos = new THREE.Vector3();
-                        targetMesh.getWorldPosition(worldPos);
-
-                        const px = (worldPos.x * 1000).toFixed(4);
-                        const py = (worldPos.y * 1000).toFixed(4);
-                        const pz = (worldPos.z * 1000).toFixed(4);
-
-                        posNode.setAttribute('px', px);
-                        posNode.setAttribute('py', py);
-                        posNode.setAttribute('pz', pz);
+                        posNode.setAttribute('px', (worldPos.x * 1000).toFixed(4));
+                        posNode.setAttribute('py', (worldPos.y * 1000).toFixed(4));
+                        posNode.setAttribute('pz', (worldPos.z * 1000).toFixed(4));
 
                         const worldQuat = new THREE.Quaternion();
-                        targetMesh.getWorldQuaternion(worldQuat);
+                        mesh.getWorldQuaternion(worldQuat);
+                        let rotNode = Array.from(pNode.children).find(c => c.tagName.toLowerCase() === 'rotation');
+                        if (!rotNode) {
+                            rotNode = xmlDoc.createElement('rotation');
+                            pNode.appendChild(rotNode);
+                        }
+                        rotNode.setAttribute('qx', worldQuat.x.toFixed(6));
+                        rotNode.setAttribute('qy', worldQuat.y.toFixed(6));
+                        rotNode.setAttribute('qz', worldQuat.z.toFixed(6));
+                        rotNode.setAttribute('qw', worldQuat.w.toFixed(6));
 
-                        const basisMatrix = new THREE.Matrix4().makeRotationFromQuaternion(worldQuat);
-                        const basisX = new THREE.Vector3();
-                        const basisY = new THREE.Vector3();
-                        const basisZ = new THREE.Vector3();
-                        basisMatrix.extractBasis(basisX, basisY, basisZ);
+                        const params = mesh.userData?.parametric || p.parametricParams;
+                        if (params) {
+                            let paramsNode = Array.from(pNode.children).find(c => c.tagName.toLowerCase() === 'parametricparams');
+                            if (!paramsNode) {
+                                paramsNode = xmlDoc.createElement('parametricparams');
+                                pNode.appendChild(paramsNode);
+                            }
+                            paramsNode.textContent = JSON.stringify(params);
+                        }
+                    }
+                });
+            }
 
-                        posNode.setAttribute('nx', basisX.x.toFixed(6));
-                        posNode.setAttribute('ny', basisX.y.toFixed(6));
-                        posNode.setAttribute('nz', basisX.z.toFixed(6));
+            // 2. Eklenen Manuel Modelleri / Tavan Askılarını XML assemblies içine senkronize et
+            if (Array.isArray(addedManualModels)) {
+                addedManualModels.forEach((m) => {
+                    const assyName = m.label || 'Manuel_Model';
+                    let assyNode = Array.from(assembliesGroup.children).find(c => c.getAttribute('name') === assyName);
+                    if (!assyNode) {
+                        assyNode = xmlDoc.createElement('assembly');
+                        assyNode.setAttribute('name', assyName);
+                        assembliesGroup.appendChild(assyNode);
+                    }
 
-                        posNode.setAttribute('ox', basisY.x.toFixed(6));
-                        posNode.setAttribute('oy', basisY.y.toFixed(6));
-                        posNode.setAttribute('oz', basisY.z.toFixed(6));
+                    let pNode = Array.from(assyNode.children).find(c => c.tagName.toLowerCase() === 'product');
+                    if (!pNode) {
+                        pNode = xmlDoc.createElement('product');
+                        pNode.setAttribute('name', assyName);
+                        pNode.setAttribute('path', m.path || 'manual:model');
+                        assyNode.appendChild(pNode);
+                    }
 
-                        posNode.setAttribute('ax', basisZ.x.toFixed(6));
-                        posNode.setAttribute('ay', basisZ.y.toFixed(6));
-                        posNode.setAttribute('az', basisZ.z.toFixed(6));
+                    const refMesh = m.ref;
+                    if (refMesh) {
+                        const worldPos = new THREE.Vector3();
+                        refMesh.getWorldPosition(worldPos);
+                        let posNode = Array.from(pNode.children).find(c => c.tagName.toLowerCase() === 'position');
+                        if (!posNode) {
+                            posNode = xmlDoc.createElement('position');
+                            pNode.appendChild(posNode);
+                        }
+                        posNode.setAttribute('px', (worldPos.x * 1000).toFixed(4));
+                        posNode.setAttribute('py', (worldPos.y * 1000).toFixed(4));
+                        posNode.setAttribute('pz', (worldPos.z * 1000).toFixed(4));
+
+                        const worldQuat = new THREE.Quaternion();
+                        refMesh.getWorldQuaternion(worldQuat);
+                        let rotNode = Array.from(pNode.children).find(c => c.tagName.toLowerCase() === 'rotation');
+                        if (!rotNode) {
+                            rotNode = xmlDoc.createElement('rotation');
+                            pNode.appendChild(rotNode);
+                        }
+                        rotNode.setAttribute('qx', worldQuat.x.toFixed(6));
+                        rotNode.setAttribute('qy', worldQuat.y.toFixed(6));
+                        rotNode.setAttribute('qz', worldQuat.z.toFixed(6));
+                        rotNode.setAttribute('qw', worldQuat.w.toFixed(6));
+                    }
+                });
+            }
+
+            // 3. XML İle İçe Aktarılan Ürünlerin Konumlarını Senkronize Et
+            if (importedProjectRoot) {
+                const meshByGuid = new Map();
+                const meshByAssemblyAndSeq = new Map();
+
+                importedProjectRoot.traverse((node) => {
+                    if (node.userData?.type === 'xml-product' && node.userData?.product) {
+                        const p = node.userData.product;
+                        const assyName = node.userData?.assemblyName || p.assemblyName || 'Montaj';
+                        if (p.guid) {
+                            meshByGuid.set(p.guid, node);
+                        }
+                        const seqKey = `${assyName}::${p.sequence}`;
+                        meshByAssemblyAndSeq.set(seqKey, node);
                     }
                 });
 
-                globalSeqCount += productNodes.length;
-            });
+                const assemblyNodes = Array.from(xmlDoc.getElementsByTagName('assembly'));
+                let globalSeqCount = 0;
+
+                assemblyNodes.forEach((assemblyNode) => {
+                    const assyName = assemblyNode.getAttribute('name') || 'Bilinmeyen Montaj';
+                    const productNodes = Array.from(assemblyNode.getElementsByTagName('product'));
+
+                    productNodes.forEach((pNode, pIndex) => {
+                        const guidNode = Array.from(pNode.children).find((c) => c.tagName.toLowerCase() === 'guid');
+                        const guid = guidNode ? guidNode.textContent.trim() : '';
+
+                        const seqKey = `${assyName}::${globalSeqCount + pIndex}`;
+                        const targetMesh = (guid && meshByGuid.get(guid)) || meshByAssemblyAndSeq.get(seqKey);
+
+                        if (targetMesh) {
+                            let posNode = Array.from(pNode.children).find((c) => c.tagName.toLowerCase() === 'position');
+                            if (!posNode) {
+                                posNode = xmlDoc.createElement('position');
+                                pNode.appendChild(posNode);
+                            }
+
+                            const worldPos = new THREE.Vector3();
+                            targetMesh.getWorldPosition(worldPos);
+
+                            posNode.setAttribute('px', (worldPos.x * 1000).toFixed(4));
+                            posNode.setAttribute('py', (worldPos.y * 1000).toFixed(4));
+                            posNode.setAttribute('pz', (worldPos.z * 1000).toFixed(4));
+
+                            const worldQuat = new THREE.Quaternion();
+                            targetMesh.getWorldQuaternion(worldQuat);
+
+                            let rotNode = Array.from(pNode.children).find((c) => c.tagName.toLowerCase() === 'rotation');
+                            if (!rotNode) {
+                                rotNode = xmlDoc.createElement('rotation');
+                                pNode.appendChild(rotNode);
+                            }
+                            rotNode.setAttribute('qx', worldQuat.x.toFixed(6));
+                            rotNode.setAttribute('qy', worldQuat.y.toFixed(6));
+                            rotNode.setAttribute('qz', worldQuat.z.toFixed(6));
+                            rotNode.setAttribute('qw', worldQuat.w.toFixed(6));
+                        }
+                    });
+                    globalSeqCount += productNodes.length;
+                });
+            }
         }
 
         function getUpdatedXmlString() {
@@ -6942,10 +7042,16 @@
         }
 
         async function restoreStateData(data) {
-            if (!data || !data.rawXmlText) return false;
+            if (!data) return false;
 
-            // 1. Orijinal/Güncellenmiş XML'i yükle
-            await loadXmlProjectFromText(data.rawXmlText, data.filename || 'Kaydedilmiş Oturum', true);
+            // 1. Orijinal/Güncellenmiş XML'i yükle (eğer XML verisi var ise)
+            if (data.rawXmlText && data.rawXmlText.trim() !== '') {
+                try {
+                    await loadXmlProjectFromText(data.rawXmlText, data.filename || 'Kaydedilmiş Oturum', true);
+                } catch (e) {
+                    console.warn('XML restore hatası:', e);
+                }
+            }
 
             // 2. Eklenen Panoları (addedPanels) Sahnede Doğru Konum ve Dönü İle Oluştur
             addedPanels = [];
