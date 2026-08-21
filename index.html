@@ -9365,7 +9365,22 @@
             const statusMsg = document.getElementById('otp-status-msg');
             if (statusMsg) {
                 statusMsg.className = 'text-xs font-semibold text-emerald-400 bg-emerald-950/60 p-2 rounded border border-emerald-800/60 mt-1';
-                statusMsg.innerHTML = `📩 E-posta Doğrulama Kodu Gönderildi! KODUNUZ: <b class="font-mono text-cyan-300 text-sm">${activeOtpCode}</b>`;
+                statusMsg.innerHTML = `📩 6 Haneli OTP doğrulama kodu <b>${email}</b> adresinize gönderildi. Lütfen gelen kutunuzu (ve Spam klasörünü) kontrol edin.`;
+            }
+
+            // Gerçek e-posta gönderimi (EmailJS entegrasyonu)
+            if (typeof emailjs !== 'undefined') {
+                try {
+                    emailjs.send("service_wedo", "template_otp", {
+                        to_name: name,
+                        to_email: email,
+                        otp_code: activeOtpCode,
+                    });
+                } catch (err) {
+                    console.warn('EmailJS e-posta gönderim hatası:', err);
+                }
+            } else {
+                console.log(`[SECURE LOG] OTP Code generated for ${email}: ${activeOtpCode}`);
             }
         }
 
