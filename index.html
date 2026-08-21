@@ -9392,33 +9392,26 @@
                 };
 
                 const serviceID = "service_ewtuurq";
+                const templateID = "template_damqlew";
                 const publicKey = "wWtwSg39RWUdSe_gH";
 
-                // EmailJS API ile mail gönderimi (birden fazla olası template ID ile deneme)
-                const possibleTemplates = ["template_contact_us", "Contact Us", "template_otp", "contact_form"];
-
-                let sent = false;
-                async function trySendEmail() {
-                    for (const tId of possibleTemplates) {
-                        try {
-                            const res = await emailjs.send(serviceID, tId, templateParams, publicKey);
-                            console.log(`✅ OTP E-posta Başarıyla Gönderildi! (Template: ${tId})`, res);
+                emailjs.send(serviceID, templateID, templateParams, publicKey)
+                    .then(
+                        function(response) {
+                            console.log('✅ OTP E-posta Başarıyla Gönderildi!', response);
                             if (statusMsg) {
                                 statusMsg.className = 'text-xs font-semibold text-emerald-400 bg-emerald-950/60 p-2 rounded border border-emerald-800/60 mt-1';
-                                statusMsg.innerHTML = `✅ 6 Haneli OTP doğrulama kodu <b>${email}</b> adresinize gönderildi! (Gelen kutunuzu & Spam klasörünü kontrol edin)`;
+                                statusMsg.innerHTML = `✅ 6 Haneli OTP doğrulama kodu <b>${email}</b> adresinize başarıyla gönderildi! (Gelen kutunuzu & Spam klasörünü kontrol edin)`;
                             }
-                            sent = true;
-                            break;
-                        } catch (err) {
-                            console.warn(`Template ID '${tId}' deneniyor...`, err);
+                        },
+                        function(error) {
+                            console.warn('EmailJS Gönderim Uyarısı:', error);
+                            if (statusMsg) {
+                                statusMsg.className = 'text-xs font-semibold text-amber-300 bg-amber-950/80 p-2 rounded border border-amber-700/80 mt-1';
+                                statusMsg.innerHTML = `⚠️ E-posta Gönderim Uyarısı: ${error.text || error.status || 'Lütfen tekrar deneyin.'}`;
+                            }
                         }
-                    }
-                    if (!sent && statusMsg) {
-                        statusMsg.className = 'text-xs font-semibold text-amber-300 bg-amber-950/80 p-2 rounded border border-amber-700/80 mt-1';
-                        statusMsg.innerHTML = `⚠️ E-posta servisi bağlandı ancak Template ID uyuşmadı. Lütfen EmailJS panelinizdeki 7 haneli 'template_xxxxxx' kodunu iletin.`;
-                    }
-                }
-                trySendEmail();
+                    );
             } else {
                 console.log(`[SECURE LOG] OTP Code generated for ${email}: ${activeOtpCode}`);
             }
