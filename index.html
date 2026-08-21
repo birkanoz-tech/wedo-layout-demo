@@ -7101,15 +7101,38 @@
             }
         }
 
+        function ensureBaseXmlExists() {
+            if (!currentRawXmlText || currentRawXmlText.trim() === '') {
+                currentRawXmlText = `<?xml version="1.0" encoding="utf-8"?>\n` +
+                    `<flexport xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.6">\n` +
+                    `  <header>\n` +
+                    `    <appname>ProposalApp 3D</appname>\n` +
+                    `    <appversion>1.0.1</appversion>\n` +
+                    `    <creationdate>${new Date().toISOString()}</creationdate>\n` +
+                    `  </header>\n` +
+                    `  <assemblies />\n` +
+                    `</flexport>`;
+                currentXmlFilename = 'Yeni_Proje.xml';
+            }
+        }
+
         function exportXmlProjectAsNewFile() {
-            if (!currentRawXmlText) {
-                alert('Dışa aktarılacak aktif bir XML projesi bulunamadı.');
+            ensureBaseXmlExists();
+
+            const stateData = getSerializableState();
+            const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
+                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+
+            if (!hasContent) {
+                alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
                 return;
             }
 
-            const baseName = (currentXmlFilename || 'OPP-0106989-1-R1').replace(/\.[^/.]+$/, '');
+            const baseName = (currentXmlFilename || 'Yeni_Proje').replace(/\.[^/.]+$/, '');
             const defaultName = `${baseName}_MODIFIED.xml`;
-            const userFilename = prompt('Farklı kaydetmek istediğiniz yeni dosya adını yazın (Orijinal XML bozulmayacaktır):', defaultName);
+            const userFilename = prompt('Farklı kaydetmek istediğiniz yeni dosya adını yazın:', defaultName);
 
             if (!userFilename) {
                 return;
@@ -7133,7 +7156,7 @@
 
                 const statusEl = document.getElementById('import-status');
                 if (statusEl) {
-                    statusEl.innerText = `💾 Güncel 3D konumlar "${finalFilename}" dosyasına yazıldı ve indirildi.`;
+                    statusEl.innerText = `💾 Proje "${finalFilename}" dosyasına kaydedildi ve indirildi.`;
                 }
             } catch (err) {
                 alert('XML Dışa aktarma sırasında bir hata oluştu: ' + err.message);
@@ -7174,71 +7197,32 @@
         }
 
         function exportXmlWithEmbeddedAssets() {
-            if (!currentRawXmlText) {
-                alert('Dışa aktarılacak aktif bir XML projesi bulunamadı.');
+            ensureBaseXmlExists();
+
+            const stateData = getSerializableState();
+            const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
+                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+
+            if (!hasContent) {
+                alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
                 return;
             }
 
-            const baseName = (currentXmlFilename || 'OPP-0106989-1-R1').replace(/\.[^/.]+$/, '');
+            const baseName = (currentXmlFilename || 'Yeni_Proje').replace(/\.[^/.]+$/, '');
             const defaultName = `${baseName}_EMBEDDED.xml`;
-            const userFilename = prompt('Modelleri gömülü olarak kaydedeceğiniz dosya adını yazın (Orijinal kütüphane bağımsız hale gelecektir):', defaultName);
+            const userFilename = prompt('Modelleri gömülü olarak kaydedeceğiniz dosya adını yazın:', defaultName);
 
             if (!userFilename) {
                 return;
             }
 
             try {
-                let updatedXmlStr = getUpdatedXmlString();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(updatedXmlStr, 'application/xml');
-                const root = xmlDoc.documentElement;
-
-                let embeddedGroup = xmlDoc.querySelector('EmbeddedAssets');
-                if (embeddedGroup) {
-                    embeddedGroup.parentNode.removeChild(embeddedGroup);
-                }
-                embeddedGroup = xmlDoc.createElement('EmbeddedAssets');
-
-                const assetsToEmbed = new Set();
-                
-                if (Array.isArray(addedManualModels)) {
-                    addedManualModels.forEach(m => {
-                        if (m.path && !m.path.startsWith('parametric:')) {
-                            assetsToEmbed.add(m.path);
-                        }
-                    });
-                }
-
-                if (window.EMBEDDED_GLB_ASSETS) {
-                    Object.keys(window.EMBEDDED_GLB_ASSETS).forEach(path => {
-                        assetsToEmbed.add(path);
-                    });
-                }
-
-                let embedCount = 0;
-                assetsToEmbed.forEach(path => {
-                    const dataUri = window.EMBEDDED_GLB_ASSETS ? window.EMBEDDED_GLB_ASSETS[path] : null;
-                    if (dataUri) {
-                        const assetNode = xmlDoc.createElement('Asset');
-                        assetNode.setAttribute('path', path);
-                        assetNode.textContent = dataUri;
-                        embeddedGroup.appendChild(assetNode);
-                        embedCount++;
-                    }
-                });
-
-                if (embedCount > 0) {
-                    root.appendChild(embeddedGroup);
-                }
-
-                const serializer = new XMLSerializer();
-                let finalXmlString = serializer.serializeToString(xmlDoc);
-                if (!finalXmlString.startsWith('<?xml')) {
-                    finalXmlString = '<?xml version="1.0" encoding="utf-8"?>\n' + finalXmlString;
-                }
-
+                const { xmlString, embedCount } = buildEmbeddedXmlString();
                 const finalFilename = userFilename.toLowerCase().endsWith('.xml') ? userFilename : `${userFilename}.xml`;
-                const blob = new Blob([finalXmlString], { type: 'application/xml;charset=utf-8' });
+
+                const blob = new Blob([xmlString], { type: 'application/xml;charset=utf-8' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = finalFilename;
@@ -7248,11 +7232,10 @@
 
                 const statusEl = document.getElementById('import-status');
                 if (statusEl) {
-                    statusEl.innerText = `📦 ${embedCount} adet 3D model ile birlikte "${finalFilename}" dosyasına yazıldı ve indirildi.`;
+                    statusEl.innerText = `📦 Modelli XML "${finalFilename}" olarak indirildi (${embedCount} model gömüldü).`;
                 }
             } catch (err) {
-                console.error('Gömülü XML Dışa aktarma hatası:', err);
-                alert('Gömülü XML aktarımı sırasında bir hata oluştu: ' + err.message);
+                alert('Modelli XML dışa aktarma hatası: ' + err.message);
             }
         }
 
@@ -7323,12 +7306,20 @@
         }
 
         function exportStandaloneInteractiveHtml() {
-            if (!currentRawXmlText) {
-                alert('Dışa aktarılacak aktif bir 3D proje bulunamadı.');
+            ensureBaseXmlExists();
+
+            const stateData = getSerializableState();
+            const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
+                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+
+            if (!hasContent) {
+                alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
                 return;
             }
 
-            const baseName = (currentXmlFilename || 'OPP-0106989-1-R1').replace(/\.[^/.]+$/, '');
+            const baseName = (currentXmlFilename || 'Yeni_Proje').replace(/\.[^/.]+$/, '');
             const defaultName = `${baseName}_INTERACTIVE_VIEWER.html`;
             const userFilename = prompt('Çift tıklanabilir 3D HTML dosya adını yazın (Müşterilerinizin bilgisayarında doğrudan açılacaktır):', defaultName);
 
@@ -7343,7 +7334,6 @@
                 }
 
                 // Tüm state verisini al
-                const stateData = getSerializableState();
                 const { xmlString, embedCount } = buildEmbeddedXmlString();
                 stateData.rawXmlText = xmlString;
 
