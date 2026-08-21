@@ -9170,6 +9170,9 @@
                         searchPaths.push(`projects/${projectQuery}`);
                         searchPaths.push(projectQuery);
                     }
+                    // Gerçek ana proje dosyası yedek yolları (Fallback)
+                    searchPaths.push('projects/OPP-0106989-1-R1.xml');
+                    searchPaths.push('OPP-0106989-1-R1.xml');
 
                     const statusEl = document.getElementById('import-status');
                     if (statusEl) {
@@ -9564,21 +9567,9 @@
         const DEFAULT_PROJECT_REGISTRY = [
             {
                 id: 'OPP-0106989-1-R1',
-                name: 'OPP-0106989-1-R1 Tesis Yerleşimi (Örnek)',
+                name: 'OPP-0106989-1-R1 Tesis Yerleşimi',
                 allowedEmails: ['*'],
-                desc: '36 Hat Konveyör & Motor Yerleşim Projesi'
-            },
-            {
-                id: 'ford-otosan',
-                name: 'Ford Otosan Kocaeli Montaj Hattı',
-                allowedEmails: ['ford.com', 'ford.com.tr', 'ahmet@ford.com'],
-                desc: 'Ford Otosan 3D Tesis Çizimi'
-            },
-            {
-                id: 'firma-a',
-                name: 'Firma A Paketleme & Ambalaj Tesis Çizimi',
-                allowedEmails: ['firmaa.com'],
-                desc: 'Firma A 3D Yerleşim Çizimi'
+                desc: 'FlexLink 36 Hat Konveyör & Motor Yerleşim Projesi'
             }
         ];
 
@@ -9587,7 +9578,11 @@
                 const stored = localStorage.getItem('PROPOSAL_APP_PROJECT_PERMISSIONS');
                 if (stored) {
                     const parsed = JSON.parse(stored);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        // Sahte örnek projeleri temizle, gerçek projeleri koru
+                        const cleaned = parsed.filter(p => p.id !== 'ford-otosan' && p.id !== 'firma-a');
+                        if (cleaned.length > 0) return cleaned;
+                    }
                 }
             } catch (e) {
                 console.warn('Proje yetki okuma hatası:', e);
