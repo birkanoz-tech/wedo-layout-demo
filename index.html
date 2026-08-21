@@ -9448,6 +9448,22 @@
             }
         }
 
+        function openUserProfileModal() {
+            const profile = getActiveUserProfile();
+            updateUserProfileUI(profile);
+            const modal = document.getElementById('user-profile-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeUserProfileModal() {
+            const modal = document.getElementById('user-profile-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
         window.openUserProfileModal = openUserProfileModal;
         window.closeUserProfileModal = closeUserProfileModal;
         window.saveUserProfile = saveUserProfile;
