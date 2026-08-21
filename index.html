@@ -9382,13 +9382,16 @@
             if (typeof emailjs !== 'undefined') {
                 const templateParams = {
                     to_name: name,
+                    name: name,
                     to_email: email,
-                    user_email: email,
                     email: email,
+                    user_email: email,
+                    recipient: email,
+                    send_to: email,
                     otp_code: activeOtpCode,
                     code: activeOtpCode,
                     message: `FlexLink 3D Proposal erişim doğrulama kodunuz: ${activeOtpCode}`,
-                    reply_to: email
+                    reply_to: 'support@wedo-layout-demo.com'
                 };
 
                 const serviceID = "service_ewtuurq";
