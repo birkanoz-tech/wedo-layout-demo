@@ -135,9 +135,14 @@
                     <span>🏗️ Ceiling Support Tasarla</span>
                     <span class="text-xs bg-emerald-800/80 px-2 py-0.5 rounded font-mono">Parametrik</span>
                 </button>
+                <button onclick="openAdminProjectManagerModal()" type="button"
+                    class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-2.5 rounded-lg flex items-center justify-between text-xs font-bold transition cursor-pointer shadow border border-amber-400/40">
+                    <span class="flex items-center gap-1.5"><span>📁</span> Tüm Projeler & Yetki Yönetimi</span>
+                    <span class="text-[9px] bg-amber-950 text-amber-200 px-1.5 py-0.5 rounded font-mono border border-amber-700/60">👑 Admin</span>
+                </button>
+
                 <p id="import-status" class="text-xs text-gray-400">Henüz bir XML yüklenmedi.</p>
-                <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik
-                    kaydedildi.</p>
+                <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik kaydedildi.</p>
             </div>
 
             <!-- Pano & Kablo Eşleştirme Yönetimi (Yalnızca Yönetici Görür) -->
@@ -9349,6 +9354,38 @@
         </div>
     </div>
 
+    <!-- Admin Proje & Yetki Yönetimi Modalı -->
+    <div id="admin-project-manager-modal"
+        class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-amber-500/40 rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>📁</span> Müşteri Projeleri & Yetki Yönetimi
+                </h3>
+                <button onclick="closeAdminProjectManagerModal()" class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
+            </div>
+
+            <p class="text-xs text-gray-300">Sistemdeki tüm 3D projeleri yönetebilir, projelere mail adresi veya şirket domain'i ekleyerek yetkilendirebilirsiniz:</p>
+
+            <div id="admin-project-list-container" class="space-y-3 overflow-y-auto flex-1 pr-1">
+                <!-- JS ile dinamik doldurulur -->
+            </div>
+
+            <!-- Yeni Proje Ekleme Formu -->
+            <div class="border-t border-gray-800 pt-3 space-y-2">
+                <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">➕ Yeni Müşteri Projesi Kaydet</h4>
+                <div class="grid grid-cols-3 gap-2">
+                    <input id="new-proj-id" type="text" placeholder="Proje ID (Örn: ford-otosan)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <input id="new-proj-name" type="text" placeholder="Proje Başlığı (Örn: Ford Otosan)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <input id="new-proj-email" type="text" placeholder="Yetkili Mail/Domain (Örn: ford.com)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                </div>
+                <button onclick="addNewProjectToRegistry()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-white font-bold text-xs py-2 rounded-lg shadow cursor-pointer transition">
+                    ➕ Projeyi Yetkilerle Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Yetkisiz Erişim Engeli Modalı -->
     <div id="access-denied-modal"
         class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -9524,26 +9561,69 @@
             checkProjectAuthorization();
         }
 
-        const CUSTOMER_PROJECTS_LIST = [
+        const DEFAULT_PROJECT_REGISTRY = [
             {
                 id: 'OPP-0106989-1-R1',
                 name: 'OPP-0106989-1-R1 Tesis Yerleşimi (Örnek)',
-                allowedDomains: ['*'],
+                allowedEmails: ['*'],
                 desc: '36 Hat Konveyör & Motor Yerleşim Projesi'
             },
             {
                 id: 'ford-otosan',
                 name: 'Ford Otosan Kocaeli Montaj Hattı',
-                allowedDomains: ['ford.com', 'ford.com.tr'],
+                allowedEmails: ['ford.com', 'ford.com.tr', 'ahmet@ford.com'],
                 desc: 'Ford Otosan 3D Tesis Çizimi'
             },
             {
                 id: 'firma-a',
                 name: 'Firma A Paketleme & Ambalaj Tesis Çizimi',
-                allowedDomains: ['firmaa.com'],
+                allowedEmails: ['firmaa.com'],
                 desc: 'Firma A 3D Yerleşim Çizimi'
             }
         ];
+
+        function getProjectRegistry() {
+            try {
+                const stored = localStorage.getItem('PROPOSAL_APP_PROJECT_PERMISSIONS');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+            } catch (e) {
+                console.warn('Proje yetki okuma hatası:', e);
+            }
+            return DEFAULT_PROJECT_REGISTRY;
+        }
+
+        function saveProjectRegistry(list) {
+            localStorage.setItem('PROPOSAL_APP_PROJECT_PERMISSIONS', JSON.stringify(list));
+        }
+
+        function isUserAuthorizedForProject(profile, projectId) {
+            if (!profile) return false;
+            if (profile.role === 'admin') return true;
+
+            const registry = getProjectRegistry();
+            const cleanEmail = profile.email.toLowerCase().trim();
+            const cleanProject = projectId.toLowerCase().trim();
+
+            const proj = registry.find(p => p.id.toLowerCase() === cleanProject);
+            if (!proj) {
+                const cleanProjectName = cleanProject.replace(/\.[^/.]+$/, '').replace(/[-_]/g, '');
+                const cleanUserEmail = cleanEmail.replace(/[-_]/g, '');
+                return cleanUserEmail.includes(cleanProjectName);
+            }
+
+            if (proj.allowedEmails.includes('*')) return true;
+
+            return proj.allowedEmails.some(rule => {
+                const cleanRule = rule.toLowerCase().trim();
+                if (!cleanRule) return false;
+                if (cleanRule.startsWith('@')) return cleanEmail.endsWith(cleanRule);
+                if (cleanRule.includes('@')) return cleanEmail === cleanRule;
+                return cleanEmail.endsWith('@' + cleanRule) || cleanEmail.includes(cleanRule);
+            });
+        }
 
         function renderCustomerProjectDashboard(profile) {
             const panel = document.getElementById('customer-project-selector-panel');
@@ -9559,15 +9639,15 @@
             panel.classList.remove('hidden');
             listEl.innerHTML = '';
 
-            const cleanEmail = profile.email.toLowerCase();
-
-            const userProjects = CUSTOMER_PROJECTS_LIST.filter(p => {
-                if (p.allowedDomains.includes('*')) return true;
-                return p.allowedDomains.some(d => cleanEmail.includes(d.toLowerCase()));
-            });
+            const registry = getProjectRegistry();
+            const userProjects = registry.filter(p => isUserAuthorizedForProject(profile, p.id));
 
             if (userProjects.length === 0) {
-                listEl.innerHTML = `<div class="p-3 bg-gray-800 rounded border border-gray-700 text-xs text-gray-400">Şu anda tanımlı yetkili projeniz bulunmamaktadır.</div>`;
+                listEl.innerHTML = `
+                    <div class="p-3 bg-gray-800 rounded-lg border border-gray-700 text-xs text-gray-400 space-y-1">
+                        <p class="font-semibold text-amber-300">⚠️ Henüz yetkili olduğunuz bir proje bulunmamaktadır.</p>
+                        <p class="text-[11px]">Proje erişimi için lütfen sistem yöneticinize (${ADMIN_DOMAIN}) başvurun.</p>
+                    </div>`;
                 return;
             }
 
@@ -9579,14 +9659,148 @@
                         <h4 class="font-bold text-white text-xs text-blue-300">${p.name}</h4>
                         <span class="text-[9px] bg-blue-950 text-blue-300 px-1 py-0.5 rounded font-mono">${p.id}</span>
                     </div>
-                    <p class="text-[10px] text-gray-400">${p.desc}</p>
+                    <p class="text-[10px] text-gray-400">${p.desc || ''}</p>
                     <button onclick="window.location.href='?project=${p.id}'"
-                        class="w-full mt-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] py-1 rounded shadow cursor-pointer transition flex items-center justify-center gap-1">
+                        class="w-full mt-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] py-1.5 rounded shadow cursor-pointer transition flex items-center justify-center gap-1">
                         <span>👁️ 3D Projeyi İncele</span>
                     </button>
                 `;
                 listEl.appendChild(card);
             });
+        }
+
+        function openAdminProjectManagerModal() {
+            renderAdminProjectList();
+            const modal = document.getElementById('admin-project-manager-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeAdminProjectManagerModal() {
+            const modal = document.getElementById('admin-project-manager-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function renderAdminProjectList() {
+            const container = document.getElementById('admin-project-list-container');
+            if (!container) return;
+
+            const registry = getProjectRegistry();
+            container.innerHTML = '';
+
+            registry.forEach((proj, idx) => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800/90 p-3.5 rounded-xl border border-gray-700 space-y-2.5 shadow';
+
+                const tagsHtml = proj.allowedEmails.map((emailRule, tagIdx) => `
+                    <span class="inline-flex items-center gap-1 bg-gray-900 text-cyan-300 text-[11px] px-2 py-0.5 rounded border border-cyan-800/50 font-mono">
+                        ${emailRule}
+                        <button type="button" onclick="removeProjectPermission(${idx}, ${tagIdx})" class="text-rose-400 hover:text-rose-300 font-bold ml-1 cursor-pointer">&times;</button>
+                    </span>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-gray-700/60 pb-2">
+                        <div>
+                            <h4 class="font-bold text-white text-xs text-amber-300 flex items-center gap-2">
+                                <span>📁</span> ${proj.name}
+                            </h4>
+                            <span class="text-[10px] text-gray-400 font-mono">ID: ${proj.id}</span>
+                        </div>
+                        <button onclick="deleteProjectFromRegistry(${idx})" class="text-rose-400 hover:text-rose-300 text-xs px-2 py-1 bg-rose-950/60 rounded border border-rose-800/40 cursor-pointer">
+                            🗑️ Projeyi Sil
+                        </button>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Yetkili Mail Adresleri / Domainler:</label>
+                        <div class="flex flex-wrap gap-1.5 min-h-[24px]">
+                            ${tagsHtml || '<span class="text-xs text-gray-500 italic">Henüz yetkili mail eklenmedi</span>'}
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <input id="add-permission-input-${idx}" type="text" placeholder="Yeni mail adresi veya domain (Örn: ahmet@ford.com veya ford.com)"
+                            class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                        <button onclick="addProjectPermission(${idx})" type="button"
+                            class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow cursor-pointer transition whitespace-nowrap">
+                            ➕ Yetki Ekle
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function addProjectPermission(projIndex) {
+            const input = document.getElementById(`add-permission-input-${projIndex}`);
+            const value = input?.value?.trim();
+            if (!value) return;
+
+            const registry = getProjectRegistry();
+            if (registry[projIndex]) {
+                if (!registry[projIndex].allowedEmails.includes(value)) {
+                    registry[projIndex].allowedEmails.push(value);
+                    saveProjectRegistry(registry);
+                    renderAdminProjectList();
+                }
+            }
+        }
+
+        function removeProjectPermission(projIndex, tagIndex) {
+            const registry = getProjectRegistry();
+            if (registry[projIndex] && registry[projIndex].allowedEmails[tagIndex] !== undefined) {
+                registry[projIndex].allowedEmails.splice(tagIndex, 1);
+                saveProjectRegistry(registry);
+                renderAdminProjectList();
+            }
+        }
+
+        function deleteProjectFromRegistry(projIndex) {
+            if (confirm('Bu projeyi ve tüm yetkilerini silmek istediğinize emin misiniz?')) {
+                const registry = getProjectRegistry();
+                registry.splice(projIndex, 1);
+                saveProjectRegistry(registry);
+                renderAdminProjectList();
+            }
+        }
+
+        function addNewProjectToRegistry() {
+            const idInput = document.getElementById('new-proj-id');
+            const nameInput = document.getElementById('new-proj-name');
+            const emailInput = document.getElementById('new-proj-email');
+
+            const id = idInput?.value?.trim();
+            const name = nameInput?.value?.trim();
+            const email = emailInput?.value?.trim();
+
+            if (!id || !name) {
+                alert('Lütfen Proje ID ve Proje Başlığı alanlarını doldurun.');
+                return;
+            }
+
+            const registry = getProjectRegistry();
+            const existing = registry.find(p => p.id.toLowerCase() === id.toLowerCase());
+            if (existing) {
+                alert('Bu Proje ID zaten kayıtlı!');
+                return;
+            }
+
+            const allowedEmails = email ? [email] : ['*'];
+            registry.push({
+                id,
+                name,
+                allowedEmails,
+                desc: `${name} 3D Müşteri Projesi`
+            });
+
+            saveProjectRegistry(registry);
+            renderAdminProjectList();
+
+            if (idInput) idInput.value = '';
+            if (nameInput) nameInput.value = '';
+            if (emailInput) emailInput.value = '';
+
+            alert(`✅ "${name}" projesi başarıyla eklendi!`);
         }
 
         function updateUserProfileUI(profile) {
@@ -9672,21 +9886,8 @@
                 return false;
             }
 
-            // 2. Yönetici (Her Projeye Erişebilir)
-            if (profile.role === 'admin') {
-                if (deniedModal) deniedModal.classList.add('hidden');
-                return true;
-            }
-
-            // 3. Dinamik E-posta / Şirket Eşleşme Kontrolü (Kod İçinde Müşteri Maili Barındırılmaz!)
-            const cleanProject = projectQuery.toLowerCase().replace(/\.[^/.]+$/, '').replace(/[-_]/g, '');
-            const cleanEmail = profile.email.toLowerCase().replace(/[-_]/g, '');
-            const cleanName = profile.name.toLowerCase().replace(/[-_]/g, '');
-
-            // E-posta adresi veya firma ismi proje adı ile uyuşuyor mu?
-            const isAuthorized = cleanEmail.includes(cleanProject) ||
-                cleanName.includes(cleanProject) ||
-                cleanProject.includes(cleanName.split(' ')[0]);
+            // 2. Proje Yetkisi Kontrol Et
+            const isAuthorized = isUserAuthorizedForProject(profile, projectQuery);
 
             if (isAuthorized) {
                 if (deniedModal) deniedModal.classList.add('hidden');
