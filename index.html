@@ -9579,8 +9579,13 @@
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        // Sahte örnek projeleri temizle, gerçek projeleri koru
-                        const cleaned = parsed.filter(p => p.id !== 'ford-otosan' && p.id !== 'firma-a');
+                        // Sahte örnek projeleri temizle, '(Örnek)' ibaresini isimlerden kaldır
+                        const cleaned = parsed
+                            .filter(p => p.id !== 'ford-otosan' && p.id !== 'firma-a')
+                            .map(p => {
+                                if (p.name) p.name = p.name.replace(/\s*\(Örnek\)/gi, '').replace(/\s*Örnek/gi, '');
+                                return p;
+                            });
                         if (cleaned.length > 0) return cleaned;
                     }
                 }
