@@ -9364,7 +9364,7 @@
             return null;
         }
 
-        const ADMIN_DOMAIN = 'wedo.com.tr';
+        const ADMIN_DOMAIN = 'medo.com.tr';
 
         let activeOtpCode = null;
         let otpExpiryTimestamp = 0;
@@ -9450,7 +9450,7 @@
             }
 
             const cleanEmail = email.toLowerCase();
-            const isAdmin = cleanEmail.endsWith('@wedo.com.tr') || cleanEmail.includes('@wedo.com.tr');
+            const isAdmin = cleanEmail.endsWith('@medo.com.tr') || cleanEmail.includes('@medo.com.tr');
 
             // Eğer Yönetici değilse ve yeni oturum açıyorsa OTP doğrulaması yap
             const activeProfile = getActiveUserProfile();
