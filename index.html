@@ -9352,6 +9352,8 @@
             return null;
         }
 
+        const ADMIN_EMAILS = ['birkan', 'birkanoz', 'admin', 'birkanoz-tech', 'wedo'];
+
         let activeOtpCode = null;
         let otpExpiryTimestamp = 0;
 
@@ -9422,17 +9424,26 @@
 
         function saveUserProfile(event) {
             if (event) event.preventDefault();
-            const name = document.getElementById('profile-input-name')?.value?.trim();
-            const email = document.getElementById('profile-input-email')?.value?.trim();
-            const userOtp = document.getElementById('profile-input-otp')?.value?.trim();
+            const nameInput = document.getElementById('profile-input-name');
+            const emailInput = document.getElementById('profile-input-email');
+            const otpInput = document.getElementById('profile-input-otp');
+
+            const name = nameInput?.value?.trim();
+            const email = emailInput?.value?.trim();
+            const userOtp = otpInput?.value?.trim();
 
             if (!name || !email) {
                 alert('Lütfen ad ve e-posta alanlarını doldurun.');
                 return;
             }
 
+            const cleanEmail = email.toLowerCase();
+            const cleanName = name.toLowerCase();
+            const isAdmin = ADMIN_EMAILS.some(a => cleanEmail.includes(a) || cleanName.includes(a));
+
+            // Eğer Yönetici değilse ve yeni oturum açıyorsa OTP doğrulaması yap
             const activeProfile = getActiveUserProfile();
-            if (!activeProfile || activeProfile.email !== email) {
+            if (!isAdmin && (!activeProfile || activeProfile.email !== email)) {
                 if (!activeOtpCode || userOtp !== activeOtpCode) {
                     alert('Lütfen e-posta adresinize gönderilen 6 haneli OTP doğrulama kodunu doğru girin.');
                     return;
@@ -9443,12 +9454,7 @@
                 }
             }
 
-            let role = 'customer';
-            const cleanEmail = email.toLowerCase();
-            const cleanName = name.toLowerCase();
-            if (ADMIN_EMAILS.some(a => cleanEmail.includes(a) || cleanName.includes(a))) {
-                role = 'admin';
-            }
+            const role = isAdmin ? 'admin' : 'customer';
 
             const profile = {
                 name,
@@ -9461,6 +9467,9 @@
             localStorage.setItem('PROPOSAL_APP_USER_PROFILE', JSON.stringify(profile));
             updateUserProfileUI(profile);
             closeUserProfileModal();
+
+            const deniedModal = document.getElementById('access-denied-modal');
+            if (deniedModal) deniedModal.classList.add('hidden');
 
             checkProjectAuthorization();
         }
