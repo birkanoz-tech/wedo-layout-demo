@@ -82,8 +82,20 @@
             </div>
 
 
-            <!-- XML İçe/Dışa Aktar -->
-            <div class="space-y-2.5 border-t border-gray-700 pt-4">
+            <!-- Müşteri Özel Proje Seçim Ekranı (Müşteri Girişinde Görünür) -->
+            <div id="customer-project-selector-panel" class="hidden space-y-3 border-t border-gray-700 pt-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 Yetkili Müşteri Projeleriniz</h3>
+                    <span class="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded font-mono border border-emerald-800/40">👁️ İnceleme Modu</span>
+                </div>
+                <p class="text-[11px] text-gray-400">Yetkili olduğunuz 3D müşteri projelerinden birini seçip canlı inceleyebilirsiniz:</p>
+                <div id="customer-projects-list" class="space-y-2">
+                    <!-- JS ile dinamik doldurulur -->
+                </div>
+            </div>
+
+            <!-- XML İçe/Dışa Aktar (Yalnızca Yönetici Görür) -->
+            <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">📁 XML Dosya Yönetimi</h3>
                 
                 <button onclick="document.getElementById('xml-file-input').click()"
@@ -123,8 +135,8 @@
                 <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik kaydedildi.</p>
             </div>
 
-            <!-- Pano & Kablo Eşleştirme Yönetimi -->
-            <div class="space-y-2.5 border-t border-gray-700 pt-4">
+            <!-- Pano & Kablo Eşleştirme Yönetimi (Yalnızca Yönetici Görür) -->
+            <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">⚡ Pano & Kablo Eşleştirme</h3>
                     <span id="cable-link-count-badge"
@@ -156,7 +168,7 @@
                 </div>
             </div>
             <div id="mode-status"
-                class="bg-gray-900 border border-blue-500/40 p-3 rounded-lg text-xs text-blue-300 hidden">
+                class="admin-only-ui bg-gray-900 border border-blue-500/40 p-3 rounded-lg text-xs text-blue-300 hidden">
                 <p class="font-bold mb-1" id="mode-title">Mod: Pano Ekleme</p>
                 <p id="mode-desc">3D sahnede tıklandığı yere Elektrik Panosu eklenecek.</p>
             </div>
@@ -9480,10 +9492,98 @@
             checkProjectAuthorization();
         }
 
+        const CUSTOMER_PROJECTS_LIST = [
+            {
+                id: 'OPP-0106989-1-R1',
+                name: 'OPP-0106989-1-R1 Tesis Yerleşimi (Örnek)',
+                allowedDomains: ['*'],
+                desc: '36 Hat Konveyör & Motor Yerleşim Projesi'
+            },
+            {
+                id: 'ford-otosan',
+                name: 'Ford Otosan Kocaeli Montaj Hattı',
+                allowedDomains: ['ford.com', 'ford.com.tr'],
+                desc: 'Ford Otosan 3D Tesis Çizimi'
+            },
+            {
+                id: 'firma-a',
+                name: 'Firma A Paketleme & Ambalaj Tesis Çizimi',
+                allowedDomains: ['firmaa.com'],
+                desc: 'Firma A 3D Yerleşim Çizimi'
+            }
+        ];
+
+        function renderCustomerProjectDashboard(profile) {
+            const panel = document.getElementById('customer-project-selector-panel');
+            const listEl = document.getElementById('customer-projects-list');
+
+            if (!panel || !listEl) return;
+
+            if (!profile || profile.role === 'admin') {
+                panel.classList.add('hidden');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            listEl.innerHTML = '';
+
+            const cleanEmail = profile.email.toLowerCase();
+
+            const userProjects = CUSTOMER_PROJECTS_LIST.filter(p => {
+                if (p.allowedDomains.includes('*')) return true;
+                return p.allowedDomains.some(d => cleanEmail.includes(d.toLowerCase()));
+            });
+
+            if (userProjects.length === 0) {
+                listEl.innerHTML = `<div class="p-3 bg-gray-800 rounded border border-gray-700 text-xs text-gray-400">Şu anda tanımlı yetkili projeniz bulunmamaktadır.</div>`;
+                return;
+            }
+
+            userProjects.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 hover:bg-gray-750 p-2.5 rounded-lg border border-gray-700 shadow space-y-1 transition';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-white text-xs text-blue-300">${p.name}</h4>
+                        <span class="text-[9px] bg-blue-950 text-blue-300 px-1 py-0.5 rounded font-mono">${p.id}</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400">${p.desc}</p>
+                    <button onclick="window.location.href='?project=${p.id}'"
+                        class="w-full mt-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-[11px] py-1 rounded shadow cursor-pointer transition flex items-center justify-center gap-1">
+                        <span>👁️ 3D Projeyi İncele</span>
+                    </button>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
         function updateUserProfileUI(profile) {
             const nameEl = document.getElementById('user-display-name');
             const avatarEl = document.getElementById('user-avatar-badge');
             const roleEl = document.getElementById('user-role-badge');
+            const adminUiElements = document.querySelectorAll('.admin-only-ui');
+
+            const isAdmin = profile && profile.role === 'admin';
+
+            // Yönetici değilse tüm düzenleme butonlarını gizle
+            adminUiElements.forEach(el => {
+                if (isAdmin) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            const gizmoBar = document.getElementById('gizmo-mode-bar');
+            if (gizmoBar) {
+                if (isAdmin) {
+                    gizmoBar.classList.remove('hidden');
+                } else {
+                    gizmoBar.classList.add('hidden');
+                }
+            }
+
+            renderCustomerProjectDashboard(profile);
 
             if (profile) {
                 if (nameEl) nameEl.innerText = profile.name;
