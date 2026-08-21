@@ -72,28 +72,22 @@
             </div>
 
 
-            <!-- XML Dosya Yönetimi -->
-            <div class="space-y-3 border-t border-gray-700 pt-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">📁 XML Dosya Yönetimi</h3>
-                <label class="block">
-                    <input id="xml-file-input" type="file" accept=".xml,text/xml"
-                        class="block w-full text-xs text-gray-300 file:mr-2 file:py-1.5 file:px-2.5 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer" />
-                </label>
+            <!-- XML İçe/Dışa Aktar -->
+            <div class="space-y-2.5 border-t border-gray-700 pt-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">📁 XML Dosya Yönetimi</h3>
+                
+                <button onclick="document.getElementById('xml-file-input').click()"
+                    class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer shadow border border-blue-400/40">
+                    <span>📥 XML Proje Dosyası Yükle (.xml)</span>
+                </button>
+
+                <input id="xml-file-input" type="file" accept=".xml,text/xml" class="hidden" />
 
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="importXmlProjectFromFile()"
-                        class="bg-blue-700 hover:bg-blue-600 text-white px-2 py-2 rounded flex items-center justify-center gap-1 text-xs font-medium transition cursor-pointer shadow">
-                        <span>📥 XML Aç</span>
-                    </button>
                     <button onclick="exportXmlProjectAsNewFile()"
                         class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-2 py-2 rounded flex items-center justify-center gap-1 text-xs font-medium transition cursor-pointer shadow">
                         <span>📄 XML Farklı Kaydet</span>
                     </button>
-                </div>
-
-                <button onclick="exportXmlWithEmbeddedAssets()"
-                    class="w-full bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-2 rounded flex items-center justify-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow border border-emerald-500/30">
-                    <span>📦 Modelli XML İndir (.xml)</span>
                 </button>
 
                 <button onclick="exportStandaloneInteractiveHtml()"
@@ -179,22 +173,6 @@
     <div class="flex-1 flex">
         <div class="flex-1 relative">
             <div id="canvas-container" class="w-full h-full"></div>
-
-            <div id="empty-scene-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
-                <div class="bg-gray-900/90 backdrop-blur-md border border-cyan-500/40 p-6 rounded-2xl shadow-2xl text-center max-w-md pointer-events-auto transition transform hover:scale-105">
-                    <div class="w-16 h-16 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-400/40 text-2xl shadow-inner">
-                        📂
-                    </div>
-                    <h2 class="text-base font-bold text-white mb-2">3D Sahneye XML Yükleyin</h2>
-                    <p class="text-xs text-gray-300 mb-5 leading-relaxed">
-                        FlexLink 3D yerleşim projenizi yüklemek için aşağıdaki butona tıklayın veya <code class="text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/60">.xml</code> dosyanızı bu ekrana sürükleyip bırakın.
-                    </p>
-                    <button onclick="document.getElementById('xml-file-input').click()"
-                        class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-cyan-300/30 cursor-pointer">
-                        <span>📥 Bilgisayardan XML Dosyası Seç (.xml)</span>
-                    </button>
-                </div>
-            </div>
 
             <div id="hover-assembly-label"
                 class="absolute hidden pointer-events-none z-20 bg-blue-600/90 border border-blue-400/70 text-white text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
@@ -7581,8 +7559,6 @@
                     const content = event.target.result;
                     await loadXmlProjectFromText(content, file.name);
                     input.value = '';
-                    const overlay = document.getElementById('empty-scene-overlay');
-                    if (overlay) overlay.classList.add('hidden');
                     setTimeout(() => {
                         if (typeof generateAllConveyorPathways === 'function') {
                             generateAllConveyorPathways();
@@ -9060,8 +9036,6 @@
                                 const xmlText = await res.text();
                                 await loadXmlProjectFromText(xmlText, projectQuery);
                                 restored = true;
-                                const overlay = document.getElementById('empty-scene-overlay');
-                                if (overlay) overlay.classList.add('hidden');
                                 if (statusEl) {
                                     statusEl.innerText = `🌐 "${projectQuery}" projesi canlı bağlantıdan yüklendi.`;
                                 }
@@ -9130,8 +9104,6 @@
                         reader.onload = async (event) => {
                             try {
                                 await loadXmlProjectFromText(event.target.result, file.name);
-                                const overlay = document.getElementById('empty-scene-overlay');
-                                if (overlay) overlay.classList.add('hidden');
                                 setTimeout(() => {
                                     if (typeof generateAllConveyorPathways === 'function') {
                                         generateAllConveyorPathways();
