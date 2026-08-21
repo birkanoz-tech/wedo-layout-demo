@@ -2407,6 +2407,10 @@
 
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('keydown', (event) => {
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName) || event.target?.isContentEditable) {
+                    return;
+                }
+
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     cancelActiveMode('Yerleştirme modu ESC ile kapatıldı.');
@@ -2428,10 +2432,6 @@
                             controls.update();
                         }
                     }
-                    return;
-                }
-
-                if (!event.target || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName)) {
                     return;
                 }
 
@@ -4221,6 +4221,9 @@
         }
 
         window.addEventListener('keydown', (e) => {
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable) {
+                return;
+            }
             if (e.key === 'Shift') isShiftPressed = true;
             if (!isBuildPathActive) return;
 
