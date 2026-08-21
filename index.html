@@ -192,6 +192,16 @@
                 <div id="axis-gizmo-container" class="w-[110px] h-[110px] overflow-visible"></div>
             </div>
 
+            <!-- User Profile & Authentication Widget -->
+            <div id="user-profile-bar" class="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+                <button id="user-profile-btn" onclick="openUserProfileModal()"
+                    class="bg-gray-800/90 hover:bg-gray-700/90 text-white border border-blue-500/40 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur text-xs font-semibold flex items-center gap-2 transition cursor-pointer">
+                    <span id="user-avatar-badge" class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs text-white">👤</span>
+                    <span id="user-display-name">Giriş Yap / Profil Oluştur</span>
+                    <span id="user-role-badge" class="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50 hidden">Yönetici</span>
+                </button>
+            </div>
+
             <div
                 class="absolute top-4 right-4 bg-gray-800/80 backdrop-blur border border-gray-700 px-3 py-2 rounded text-xs text-gray-300 space-y-1 shadow z-20">
                 <p>🖱️ <b>Sol Tık + Sürükle:</b> Döndür</p>
@@ -9131,6 +9141,12 @@
 
                     for (const path of searchPaths) {
                         try {
+                            // Yetki kontrolü yap
+                            if (!checkProjectAuthorization()) {
+                                restored = false;
+                                break;
+                            }
+
                             const res = await fetch(path);
                             if (res.ok) {
                                 const xmlText = await res.text();
@@ -9179,6 +9195,9 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            const initialProfile = getActiveUserProfile();
+            updateUserProfileUI(initialProfile);
+
             const fileInput = document.getElementById('xml-file-input');
             if (fileInput) {
                 fileInput.addEventListener('change', () => {
@@ -9220,7 +9239,220 @@
         });
     </script>
 
-    <!-- Parametrik Ceiling Support Tasarım Penceresi Modal -->
+    <!-- Kullanıcı Profili ve Yetki Yönetimi Modal -->
+    <div id="user-profile-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-blue-500/40 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>👤</span> Kullanıcı Profili & Oturum
+                </h3>
+                <button onclick="closeUserProfileModal()" class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
+            </div>
+
+            <div id="profile-active-view" class="space-y-3">
+                <div class="bg-gray-800/80 p-4 rounded-xl border border-gray-700/80 flex items-center gap-3">
+                    <div id="modal-avatar" class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xl text-white font-bold shadow">
+                        👤
+                    </div>
+                    <div>
+                        <h4 id="modal-user-name" class="font-bold text-white text-sm">Giriş Yapılmadı</h4>
+                        <p id="modal-user-email" class="text-xs text-gray-400">Henüz profil oluşturulmadı</p>
+                        <span id="modal-user-role-tag" class="inline-block mt-1 text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800/60 font-mono">Ziyaretçi</span>
+                    </div>
+                </div>
+
+                <form id="profile-form" onsubmit="saveUserProfile(event)" class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Ad Soyad / Firma Adı:</label>
+                        <input id="profile-input-name" type="text" required placeholder="Örn: Ahmet Yılmaz (Ford Otosan)"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">E-posta Adresi:</label>
+                        <input id="profile-input-email" type="email" required placeholder="Örn: ahmet@ford.com"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Profil Türü / Yetki Rolü:</label>
+                        <select id="profile-input-role" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none">
+                            <option value="customer">👁️ Müşteri / Temsilci (Yalnızca Yetkili Projeyi İnceleme)</option>
+                            <option value="admin">👑 Proje Sorumlusu / Yönetici (Tam Düzenleme ve Kaydetme)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
+                            💾 Profili Kaydet & Giriş Yap
+                        </button>
+                        <button type="button" onclick="logoutUserProfile()" class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-xs px-3 py-2.5 rounded-lg shadow transition cursor-pointer">
+                            Çıkış Yap
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yetkisiz Erişim Engeli Modalı -->
+    <div id="access-denied-modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-rose-500/50 p-6 rounded-2xl shadow-2xl max-w-md text-center space-y-4">
+            <div class="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto border border-rose-400/40 text-3xl shadow-inner">
+                ⛔
+            </div>
+            <h2 class="text-base font-bold text-white">Erişim Engellendi</h2>
+            <p id="access-denied-reason" class="text-xs text-gray-300 leading-relaxed">
+                Bu müşteri projesini görüntüleme yetkiniz bulunmamaktadır. Lütfen yetkili kullanıcı profilinizle giriş yapın.
+            </p>
+            <div class="pt-2 flex flex-col gap-2">
+                <button onclick="openUserProfileModal(); document.getElementById('access-denied-modal').classList.add('hidden');"
+                    class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-xl shadow transition cursor-pointer">
+                    👤 Yetkili Profil İle Giriş Yap
+                </button>
+                <button onclick="window.location.href = window.location.pathname;"
+                    class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs py-2 rounded-xl border border-gray-700 transition cursor-pointer">
+                    🏠 Boş 3D Sahneye Dön
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getActiveUserProfile() {
+            try {
+                const stored = localStorage.getItem('PROPOSAL_APP_USER_PROFILE');
+                if (stored) return JSON.parse(stored);
+            } catch (e) {
+                console.warn('Profil okuma hatası:', e);
+            }
+            return null;
+        }
+
+        function saveUserProfile(event) {
+            if (event) event.preventDefault();
+            const name = document.getElementById('profile-input-name')?.value?.trim();
+            const email = document.getElementById('profile-input-email')?.value?.trim();
+            const role = document.getElementById('profile-input-role')?.value || 'customer';
+
+            if (!name || !email) {
+                alert('Lütfen ad ve e-posta alanlarını doldurun.');
+                return;
+            }
+
+            const profile = {
+                name,
+                email,
+                role,
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem('PROPOSAL_APP_USER_PROFILE', JSON.stringify(profile));
+            updateUserProfileUI(profile);
+            closeUserProfileModal();
+
+            checkProjectAuthorization();
+        }
+
+        function logoutUserProfile() {
+            localStorage.removeItem('PROPOSAL_APP_USER_PROFILE');
+            updateUserProfileUI(null);
+            closeUserProfileModal();
+            checkProjectAuthorization();
+        }
+
+        function updateUserProfileUI(profile) {
+            const nameEl = document.getElementById('user-display-name');
+            const avatarEl = document.getElementById('user-avatar-badge');
+            const roleEl = document.getElementById('user-role-badge');
+
+            if (profile) {
+                if (nameEl) nameEl.innerText = profile.name;
+                if (avatarEl) avatarEl.innerText = profile.name.charAt(0).toUpperCase();
+                if (roleEl) {
+                    roleEl.classList.remove('hidden');
+                    roleEl.innerText = profile.role === 'admin' ? '👑 Yönetici' : '👁️ Müşteri';
+                    roleEl.className = profile.role === 'admin' ?
+                        'bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50' :
+                        'bg-blue-950 text-blue-300 text-[10px] px-1.5 py-0.5 rounded border border-blue-800/50';
+                }
+
+                const modalName = document.getElementById('modal-user-name');
+                const modalEmail = document.getElementById('modal-user-email');
+                const modalRole = document.getElementById('modal-user-role-tag');
+                if (modalName) modalName.innerText = profile.name;
+                if (modalEmail) modalEmail.innerText = profile.email;
+                if (modalRole) modalRole.innerText = profile.role === 'admin' ? '👑 Proje Sorumlusu (Yönetici)' : '👁️ Müşteri / Temsilci';
+
+                const inputName = document.getElementById('profile-input-name');
+                const inputEmail = document.getElementById('profile-input-email');
+                const inputRole = document.getElementById('profile-input-role');
+                if (inputName) inputName.value = profile.name;
+                if (inputEmail) inputEmail.value = profile.email;
+                if (inputRole) inputRole.value = profile.role;
+            } else {
+                if (nameEl) nameEl.innerText = 'Giriş Yap / Profil Oluştur';
+                if (avatarEl) avatarEl.innerText = '👤';
+                if (roleEl) roleEl.classList.add('hidden');
+
+                const modalName = document.getElementById('modal-user-name');
+                const modalEmail = document.getElementById('modal-user-email');
+                const modalRole = document.getElementById('modal-user-role-tag');
+                if (modalName) modalName.innerText = 'Giriş Yapılmadı';
+                if (modalEmail) modalEmail.innerText = 'Henüz profil oluşturulmadı';
+                if (modalRole) modalRole.innerText = 'Ziyaretçi';
+            }
+        }
+
+        function checkProjectAuthorization() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
+
+            if (!projectQuery) return true;
+
+            const profile = getActiveUserProfile();
+            const deniedModal = document.getElementById('access-denied-modal');
+
+            if (!profile) {
+                if (deniedModal) {
+                    const reasonEl = document.getElementById('access-denied-reason');
+                    if (reasonEl) reasonEl.innerText = `🔒 "${projectQuery}" projesini görüntülemek için lütfen kullanıcı profilinizle giriş yapın.`;
+                    deniedModal.classList.remove('hidden');
+                }
+                return false;
+            }
+
+            if (profile.role === 'admin') {
+                if (deniedModal) deniedModal.classList.add('hidden');
+                return true;
+            }
+
+            const cleanProject = projectQuery.toLowerCase().replace(/\.[^/.]+$/, '');
+            const cleanEmail = profile.email.toLowerCase();
+            const cleanName = profile.name.toLowerCase();
+
+            const isAuthorized = cleanEmail.includes(cleanProject) ||
+                                 cleanName.includes(cleanProject) ||
+                                 cleanProject.includes(cleanName.split(' ')[0]);
+
+            if (isAuthorized) {
+                if (deniedModal) deniedModal.classList.add('hidden');
+                return true;
+            } else {
+                if (deniedModal) {
+                    const reasonEl = document.getElementById('access-denied-reason');
+                    if (reasonEl) reasonEl.innerText = `⛔ Sayın ${profile.name}, "${projectQuery}" müşteri projesini görüntüleme yetkiniz bulunmamaktadır.`;
+                    deniedModal.classList.remove('hidden');
+                }
+                return false;
+            }
+        }
+
+        window.openUserProfileModal = openUserProfileModal;
+        window.closeUserProfileModal = closeUserProfileModal;
+        window.saveUserProfile = saveUserProfile;
+        window.logoutUserProfile = logoutUserProfile;
+    </script>
     <div id="modal-ceiling-support-designer"
         class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div
