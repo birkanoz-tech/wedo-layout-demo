@@ -9357,7 +9357,16 @@
         function getActiveUserProfile() {
             try {
                 const stored = localStorage.getItem('PROPOSAL_APP_USER_PROFILE');
-                if (stored) return JSON.parse(stored);
+                if (stored) {
+                    const profile = JSON.parse(stored);
+                    if (profile && profile.email) {
+                        const cleanEmail = profile.email.toLowerCase();
+                        if (cleanEmail.includes('medo.com.tr')) {
+                            profile.role = 'admin';
+                        }
+                    }
+                    return profile;
+                }
             } catch (e) {
                 console.warn('Profil okuma hatası:', e);
             }
