@@ -21,7 +21,7 @@
     <!-- EmailJS SDK Real SMTP Email Dispatch -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
-        (function() {
+        (function () {
             if (typeof emailjs !== 'undefined') {
                 emailjs.init("wWtwSg39RWUdSe_gH");
             }
@@ -63,7 +63,7 @@
     <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col z-10 shadow-lg">
         <div class="p-4 border-b border-gray-700 bg-gray-850">
             <h1 class="text-lg font-bold text-blue-400 flex items-center justify-between gap-2">
-                <span class="flex items-center gap-2"><span>⚙️</span> FlexLink 3D Yerleşim</span>
+                <span class="flex items-center gap-2"><span>⚙️</span> WEDO App</span>
                 <span
                     class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded border border-blue-700/50 font-mono">v1.0.1</span>
             </h1>
@@ -85,10 +85,14 @@
             <!-- Müşteri Özel Proje Seçim Ekranı (Müşteri Girişinde Görünür) -->
             <div id="customer-project-selector-panel" class="hidden space-y-3 border-t border-gray-700 pt-4">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 Yetkili Müşteri Projeleriniz</h3>
-                    <span class="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded font-mono border border-emerald-800/40">👁️ İnceleme Modu</span>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 Yetkili Müşteri
+                        Projeleriniz</h3>
+                    <span
+                        class="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded font-mono border border-emerald-800/40">👁️
+                        İnceleme Modu</span>
                 </div>
-                <p class="text-[11px] text-gray-400">Yetkili olduğunuz 3D müşteri projelerinden birini seçip canlı inceleyebilirsiniz:</p>
+                <p class="text-[11px] text-gray-400">Yetkili olduğunuz 3D müşteri projelerinden birini seçip canlı
+                    inceleyebilirsiniz:</p>
                 <div id="customer-projects-list" class="space-y-2">
                     <!-- JS ile dinamik doldurulur -->
                 </div>
@@ -97,7 +101,7 @@
             <!-- XML İçe/Dışa Aktar (Yalnızca Yönetici Görür) -->
             <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">📁 XML Dosya Yönetimi</h3>
-                
+
                 <button onclick="document.getElementById('xml-file-input').click()"
                     class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer shadow border border-blue-400/40">
                     <span>📥 XML Proje Dosyası Yükle (.xml)</span>
@@ -132,7 +136,8 @@
                     <span class="text-xs bg-emerald-800/80 px-2 py-0.5 rounded font-mono">Parametrik</span>
                 </button>
                 <p id="import-status" class="text-xs text-gray-400">Henüz bir XML yüklenmedi.</p>
-                <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik kaydedildi.</p>
+                <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik
+                    kaydedildi.</p>
             </div>
 
             <!-- Pano & Kablo Eşleştirme Yönetimi (Yalnızca Yönetici Görür) -->
@@ -218,9 +223,11 @@
             <div id="user-profile-bar" class="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
                 <button id="user-profile-btn" onclick="openUserProfileModal()"
                     class="bg-gray-800/90 hover:bg-gray-700/90 text-white border border-blue-500/40 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur text-xs font-semibold flex items-center gap-2 transition cursor-pointer">
-                    <span id="user-avatar-badge" class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs text-white">👤</span>
+                    <span id="user-avatar-badge"
+                        class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs text-white">👤</span>
                     <span id="user-display-name">Giriş Yap / Profil Oluştur</span>
-                    <span id="user-role-badge" class="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50 hidden">Yönetici</span>
+                    <span id="user-role-badge"
+                        class="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50 hidden">Yönetici</span>
                 </button>
             </div>
 
@@ -261,7 +268,7 @@
                 <g id="svg-vertex-dots"></g>
             </svg>
 
-            <div class="absolute top-44 left-4 z-20 flex flex-col gap-2">
+            <div class="admin-only-ui absolute top-44 left-4 z-20 flex flex-col gap-2">
                 <div class="flex gap-1.5">
                     <button id="library-panel-toggle" type="button"
                         class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs px-2.5 py-1.5 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer">
@@ -834,7 +841,7 @@
             </div>
 
             <div id="world-position-editor"
-                class="absolute top-4 right-4 bg-gray-900/95 backdrop-blur border border-gray-700/80 p-3 rounded-lg shadow-2xl text-[11px] text-gray-300 z-20 w-56 space-y-3">
+                class="admin-only-ui absolute top-4 right-4 bg-gray-900/95 backdrop-blur border border-gray-700/80 p-3 rounded-lg shadow-2xl text-[11px] text-gray-300 z-20 w-56 space-y-3">
                 <div>
                     <div class="mb-1.5 flex items-center justify-between gap-3">
                         <div class="text-[10px] uppercase tracking-[0.3em] text-blue-400 font-semibold">World Position
@@ -3696,7 +3703,7 @@
                 window.finishBuildPath = finishBuildPath;
                 window.cancelBuildPath = cancelBuildPath;
 
-        // ==========================================
+                // ==========================================
                 // 🔌 PATH-BASED CABLE ROUTING & LINK ENGINE
                 // ==========================================
 
@@ -7262,9 +7269,9 @@
 
             const stateData = getSerializableState();
             const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
-                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
-                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
-                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+                (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
 
             if (!hasContent) {
                 alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
@@ -7342,9 +7349,9 @@
 
             const stateData = getSerializableState();
             const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
-                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
-                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
-                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+                (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
 
             if (!hasContent) {
                 alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
@@ -7451,9 +7458,9 @@
 
             const stateData = getSerializableState();
             const hasContent = (importedProjectRoot && importedProjectRoot.children && importedProjectRoot.children.length > 0) ||
-                               (stateData.addedPanels && stateData.addedPanels.length > 0) ||
-                               (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
-                               (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
+                (stateData.addedPanels && stateData.addedPanels.length > 0) ||
+                (stateData.addedManualModels && stateData.addedManualModels.length > 0) ||
+                (stateData.savedCableLinks && stateData.savedCableLinks.length > 0);
 
             if (!hasContent) {
                 alert('Sahnede kaydedilecek herhangi bir pano, model veya yerleşim bulunamadı. Lütfen kütüphaneden pano veya ekipman ekleyin.');
@@ -7534,7 +7541,7 @@
 
             // Dönüştürme öncesi TransformControls seçimlerini ayır
             if (transformControls) {
-                try { transformControls.detach(); } catch (e) {}
+                try { transformControls.detach(); } catch (e) { }
             }
 
             // Izgara, yardımcı eksenler ve kontrol nesnelerini geçici olarak gizle
@@ -9265,31 +9272,36 @@
     </script>
 
     <!-- Kullanıcı Profili ve Yetki Yönetimi Modal -->
-    <div id="user-profile-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div id="user-profile-modal"
+        class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-blue-500/40 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
                     <span>👤</span> Kullanıcı Profili & Oturum
                 </h3>
-                <button onclick="closeUserProfileModal()" class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
+                <button onclick="closeUserProfileModal()"
+                    class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
             </div>
 
             <div id="profile-active-view" class="space-y-3">
                 <div class="bg-gray-800/80 p-4 rounded-xl border border-gray-700/80 flex items-center gap-3">
-                    <div id="modal-avatar" class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xl text-white font-bold shadow">
+                    <div id="modal-avatar"
+                        class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xl text-white font-bold shadow">
                         👤
                     </div>
                     <div>
                         <h4 id="modal-user-name" class="font-bold text-white text-sm">Giriş Yapılmadı</h4>
                         <p id="modal-user-email" class="text-xs text-gray-400">Henüz profil oluşturulmadı</p>
-                        <span id="modal-user-role-tag" class="inline-block mt-1 text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800/60 font-mono">Ziyaretçi</span>
+                        <span id="modal-user-role-tag"
+                            class="inline-block mt-1 text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800/60 font-mono">Ziyaretçi</span>
                     </div>
                 </div>
 
                 <form id="profile-form" onsubmit="saveUserProfile(event)" class="space-y-3 pt-2">
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 mb-1">Ad Soyad / Firma Adı:</label>
-                        <input id="profile-input-name" type="text" required placeholder="Örn: Ahmet Yılmaz (Ford Otosan)"
+                        <input id="profile-input-name" type="text" required
+                            placeholder="Örn: Ahmet Yılmaz (Ford Otosan)"
                             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
                     </div>
 
@@ -9305,23 +9317,30 @@
                         </div>
                     </div>
 
-                    <div id="otp-input-container" class="hidden space-y-1.5 bg-gray-850 p-3 rounded-xl border border-indigo-500/40">
-                        <label class="block text-xs font-semibold text-indigo-300">📩 E-postanıza Gönderilen 6 Haneli OTP Kod:</label>
+                    <div id="otp-input-container"
+                        class="hidden space-y-1.5 bg-gray-850 p-3 rounded-xl border border-indigo-500/40">
+                        <label class="block text-xs font-semibold text-indigo-300">📩 E-postanıza Gönderilen 6 Haneli
+                            OTP Kod:</label>
                         <input id="profile-input-otp" type="text" maxlength="6" placeholder="Örn: 842915"
                             class="w-full bg-gray-900 border border-indigo-500/60 rounded-lg px-3 py-2 text-sm font-mono tracking-widest text-cyan-300 focus:border-cyan-400 outline-none text-center" />
                         <div id="otp-status-msg" class="text-[11px] text-gray-400"></div>
                     </div>
 
-                    <div class="bg-gray-800/60 p-2.5 rounded-lg border border-gray-700/60 flex items-center justify-between text-xs text-gray-300">
+                    <div
+                        class="bg-gray-800/60 p-2.5 rounded-lg border border-gray-700/60 flex items-center justify-between text-xs text-gray-300">
                         <span class="text-gray-400">Erişim Güvenliği:</span>
-                        <span class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-emerald-800/60">🔐 OTP & AES-256 Korumalı</span>
+                        <span
+                            class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-emerald-800/60">🔐
+                            OTP & AES-256 Korumalı</span>
                     </div>
 
                     <div class="flex gap-2 pt-2">
-                        <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
+                        <button type="submit"
+                            class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
                             ✅ Kodu Doğrula & Giriş Yap
                         </button>
-                        <button type="button" onclick="logoutUserProfile()" class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-xs px-3 py-2.5 rounded-lg shadow transition cursor-pointer">
+                        <button type="button" onclick="logoutUserProfile()"
+                            class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-xs px-3 py-2.5 rounded-lg shadow transition cursor-pointer">
                             Çıkış Yap
                         </button>
                     </div>
@@ -9331,17 +9350,21 @@
     </div>
 
     <!-- Yetkisiz Erişim Engeli Modalı -->
-    <div id="access-denied-modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div id="access-denied-modal"
+        class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-rose-500/50 p-6 rounded-2xl shadow-2xl max-w-md text-center space-y-4">
-            <div class="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto border border-rose-400/40 text-3xl shadow-inner">
+            <div
+                class="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto border border-rose-400/40 text-3xl shadow-inner">
                 ⛔
             </div>
             <h2 class="text-base font-bold text-white">Erişim Engellendi</h2>
             <p id="access-denied-reason" class="text-xs text-gray-300 leading-relaxed">
-                Bu müşteri projesini görüntüleme yetkiniz bulunmamaktadır. Lütfen yetkili kullanıcı profilinizle giriş yapın.
+                Bu müşteri projesini görüntüleme yetkiniz bulunmamaktadır. Lütfen yetkili kullanıcı profilinizle giriş
+                yapın.
             </p>
             <div class="pt-2 flex flex-col gap-2">
-                <button onclick="openUserProfileModal(); document.getElementById('access-denied-modal').classList.add('hidden');"
+                <button
+                    onclick="openUserProfileModal(); document.getElementById('access-denied-modal').classList.add('hidden');"
                     class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-xl shadow transition cursor-pointer">
                     👤 Yetkili Profil İle Giriş Yap
                 </button>
@@ -9423,14 +9446,14 @@
 
                 emailjs.send(serviceID, templateID, templateParams, publicKey)
                     .then(
-                        function(response) {
+                        function (response) {
                             console.log('✅ OTP E-posta Başarıyla Gönderildi!', response);
                             if (statusMsg) {
                                 statusMsg.className = 'text-xs font-semibold text-emerald-400 bg-emerald-950/60 p-2 rounded border border-emerald-800/60 mt-1';
                                 statusMsg.innerHTML = `✅ 6 Haneli OTP doğrulama kodu <b>${email}</b> adresinize başarıyla gönderildi! (Gelen kutunuzu & Spam klasörünü kontrol edin)`;
                             }
                         },
-                        function(error) {
+                        function (error) {
                             console.warn('EmailJS Gönderim Uyarısı:', error);
                             if (statusMsg) {
                                 statusMsg.className = 'text-xs font-semibold text-amber-300 bg-amber-950/80 p-2 rounded border border-amber-700/80 mt-1';
@@ -9662,8 +9685,8 @@
 
             // E-posta adresi veya firma ismi proje adı ile uyuşuyor mu?
             const isAuthorized = cleanEmail.includes(cleanProject) ||
-                                 cleanName.includes(cleanProject) ||
-                                 cleanProject.includes(cleanName.split(' ')[0]);
+                cleanName.includes(cleanProject) ||
+                cleanProject.includes(cleanName.split(' ')[0]);
 
             if (isAuthorized) {
                 if (deniedModal) deniedModal.classList.add('hidden');
