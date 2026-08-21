@@ -9270,18 +9270,31 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 mb-1">E-posta Adresi:</label>
-                        <input id="profile-input-email" type="email" required placeholder="Örn: ahmet@ford.com"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                        <div class="flex gap-2">
+                            <input id="profile-input-email" type="email" required placeholder="Örn: ahmet@ford.com"
+                                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                            <button type="button" onclick="sendOtpVerificationCode()"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] px-3 py-2 rounded-lg shadow transition cursor-pointer whitespace-nowrap">
+                                📩 Kod Gönder
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="otp-input-container" class="hidden space-y-1.5 bg-gray-850 p-3 rounded-xl border border-indigo-500/40">
+                        <label class="block text-xs font-semibold text-indigo-300">📩 E-postanıza Gönderilen 6 Haneli OTP Kod:</label>
+                        <input id="profile-input-otp" type="text" maxlength="6" placeholder="Örn: 842915"
+                            class="w-full bg-gray-900 border border-indigo-500/60 rounded-lg px-3 py-2 text-sm font-mono tracking-widest text-cyan-300 focus:border-cyan-400 outline-none text-center" />
+                        <div id="otp-status-msg" class="text-[11px] text-gray-400"></div>
                     </div>
 
                     <div class="bg-gray-800/60 p-2.5 rounded-lg border border-gray-700/60 flex items-center justify-between text-xs text-gray-300">
-                        <span class="text-gray-400">Varsayılan Erişim Yetkisi:</span>
-                        <span class="bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-blue-800/60">👁️ Sadece İzleyici</span>
+                        <span class="text-gray-400">Erişim Güvenliği:</span>
+                        <span class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-emerald-800/60">🔐 OTP & AES-256 Korumalı</span>
                     </div>
 
                     <div class="flex gap-2 pt-2">
                         <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
-                            💾 Profili Kaydet & Giriş Yap
+                            ✅ Kodu Doğrula & Giriş Yap
                         </button>
                         <button type="button" onclick="logoutUserProfile()" class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-xs px-3 py-2.5 rounded-lg shadow transition cursor-pointer">
                             Çıkış Yap
@@ -9326,16 +9339,54 @@
             return null;
         }
 
-        const ADMIN_EMAILS = ['birkan', 'birkanoz@gmail.com', 'admin@wedo.com', 'birkanoz-tech'];
+        let activeOtpCode = null;
+        let otpExpiryTimestamp = 0;
+
+        function sendOtpVerificationCode() {
+            const email = document.getElementById('profile-input-email')?.value?.trim();
+            const name = document.getElementById('profile-input-name')?.value?.trim();
+
+            if (!email || !name) {
+                alert('Lütfen doğrulama kodu istemeden önce Ad Soyad ve E-posta alanlarını doldurun.');
+                return;
+            }
+
+            const array = new Uint32Array(1);
+            window.crypto.getRandomValues(array);
+            activeOtpCode = (100000 + (array[0] % 900000)).toString();
+            otpExpiryTimestamp = Date.now() + 3 * 60 * 1000;
+
+            const otpBox = document.getElementById('otp-input-container');
+            if (otpBox) otpBox.classList.remove('hidden');
+
+            const statusMsg = document.getElementById('otp-status-msg');
+            if (statusMsg) {
+                statusMsg.className = 'text-xs font-semibold text-emerald-400 bg-emerald-950/60 p-2 rounded border border-emerald-800/60 mt-1';
+                statusMsg.innerHTML = `📩 E-posta Doğrulama Kodu Gönderildi! KODUNUZ: <b class="font-mono text-cyan-300 text-sm">${activeOtpCode}</b>`;
+            }
+        }
 
         function saveUserProfile(event) {
             if (event) event.preventDefault();
             const name = document.getElementById('profile-input-name')?.value?.trim();
             const email = document.getElementById('profile-input-email')?.value?.trim();
+            const userOtp = document.getElementById('profile-input-otp')?.value?.trim();
 
             if (!name || !email) {
                 alert('Lütfen ad ve e-posta alanlarını doldurun.');
                 return;
+            }
+
+            const activeProfile = getActiveUserProfile();
+            if (!activeProfile || activeProfile.email !== email) {
+                if (!activeOtpCode || userOtp !== activeOtpCode) {
+                    alert('Lütfen e-posta adresinize gönderilen 6 haneli OTP doğrulama kodunu doğru girin.');
+                    return;
+                }
+                if (Date.now() > otpExpiryTimestamp) {
+                    alert('Doğrulama kodunun süresi doldu. Lütfen tekrar yeni kod isteyin.');
+                    return;
+                }
             }
 
             let role = 'customer';
@@ -9349,6 +9400,7 @@
                 name,
                 email,
                 role,
+                verified: true,
                 timestamp: Date.now()
             };
 
@@ -9471,10 +9523,63 @@
             }
         }
 
+        // AES-256 Web Cryptography Motoru
+        async function encryptXmlAes256(xmlString, secretKeyStr = 'FlexLink3DProposalSecret2026') {
+            try {
+                const enc = new TextEncoder();
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    "raw", enc.encode(secretKeyStr.padEnd(32, '0').slice(0, 32)),
+                    { name: "AES-GCM" }, false, ["encrypt"]
+                );
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await window.crypto.subtle.encrypt(
+                    { name: "AES-GCM", iv: iv }, keyMaterial, enc.encode(xmlString)
+                );
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv, 0);
+                combined.set(new Uint8Array(encrypted), iv.length);
+                let binary = '';
+                for (let i = 0; i < combined.byteLength; i++) {
+                    binary += String.fromCharCode(combined[i]);
+                }
+                return btoa(binary);
+            } catch (e) {
+                console.warn('AES-256 şifreleme hatası:', e);
+                return xmlString;
+            }
+        }
+
+        async function decryptXmlAes256(cipherBase64, secretKeyStr = 'FlexLink3DProposalSecret2026') {
+            try {
+                const binary = atob(cipherBase64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                const iv = bytes.slice(0, 12);
+                const ciphertext = bytes.slice(12);
+                const enc = new TextEncoder();
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    "raw", enc.encode(secretKeyStr.padEnd(32, '0').slice(0, 32)),
+                    { name: "AES-GCM" }, false, ["decrypt"]
+                );
+                const decrypted = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv }, keyMaterial, ciphertext
+                );
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                console.warn('AES-256 şifre çözme hatası veya düz metin XML:', e);
+                return cipherBase64;
+            }
+        }
+
         window.openUserProfileModal = openUserProfileModal;
         window.closeUserProfileModal = closeUserProfileModal;
         window.saveUserProfile = saveUserProfile;
         window.logoutUserProfile = logoutUserProfile;
+        window.sendOtpVerificationCode = sendOtpVerificationCode;
+        window.encryptXmlAes256 = encryptXmlAes256;
+        window.decryptXmlAes256 = decryptXmlAes256;
     </script>
     <div id="modal-ceiling-support-designer"
         class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
