@@ -9407,6 +9407,13 @@
             }
         }
 
+        // Proje Bazlı E-posta / Domain İzin Listesi
+        const PROJECT_ACCESS_RULES = {
+            'opp-0106989-1-r1': '*', // Herkese açık test projesi
+            'ford-otosan': ['ford.com', 'ahmet@ford.com'],
+            'firma-a': ['firmaa.com', 'mehmet@firmaa.com']
+        };
+
         function checkProjectAuthorization() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
@@ -9416,27 +9423,40 @@
             const profile = getActiveUserProfile();
             const deniedModal = document.getElementById('access-denied-modal');
 
+            // 1. E-posta Girilmeden Hiçbir Proje Açılamaz!
             if (!profile) {
                 if (deniedModal) {
                     const reasonEl = document.getElementById('access-denied-reason');
-                    if (reasonEl) reasonEl.innerText = `🔒 "${projectQuery}" projesini görüntülemek için lütfen kullanıcı profilinizle giriş yapın.`;
+                    if (reasonEl) reasonEl.innerText = `🔒 "${projectQuery}" projesini görüntülemek için lütfen e-posta adresinizle giriş yapın.`;
                     deniedModal.classList.remove('hidden');
                 }
                 return false;
             }
 
+            // 2. Yönetici (Her Projeye Erişebilir)
             if (profile.role === 'admin') {
                 if (deniedModal) deniedModal.classList.add('hidden');
                 return true;
             }
 
+            // 3. Proje Bazlı E-posta ve İzin Kontrolü
             const cleanProject = projectQuery.toLowerCase().replace(/\.[^/.]+$/, '');
             const cleanEmail = profile.email.toLowerCase();
             const cleanName = profile.name.toLowerCase();
 
-            const isAuthorized = cleanEmail.includes(cleanProject) ||
-                                 cleanName.includes(cleanProject) ||
-                                 cleanProject.includes(cleanName.split(' ')[0]);
+            const allowedRules = PROJECT_ACCESS_RULES[cleanProject];
+
+            let isAuthorized = false;
+            if (allowedRules === '*') {
+                isAuthorized = true;
+            } else if (Array.isArray(allowedRules)) {
+                isAuthorized = allowedRules.some(rule => cleanEmail.includes(rule.toLowerCase()) || cleanName.includes(rule.toLowerCase()));
+            } else {
+                // Varsayılan eşleşme: E-posta adresi veya müşteri ismi proje adı ile uyuşuyor mu?
+                isAuthorized = cleanEmail.includes(cleanProject) ||
+                               cleanName.includes(cleanProject) ||
+                               cleanProject.includes(cleanName.split(' ')[0]);
+            }
 
             if (isAuthorized) {
                 if (deniedModal) deniedModal.classList.add('hidden');
@@ -9444,7 +9464,7 @@
             } else {
                 if (deniedModal) {
                     const reasonEl = document.getElementById('access-denied-reason');
-                    if (reasonEl) reasonEl.innerText = `⛔ Sayın ${profile.name}, "${projectQuery}" müşteri projesini görüntüleme yetkiniz bulunmamaktadır.`;
+                    if (reasonEl) reasonEl.innerText = `⛔ Sayın ${profile.name} (${profile.email}), "${projectQuery}" müşteri projesini görüntüleme yetkiniz bulunmamaktadır.`;
                     deniedModal.classList.remove('hidden');
                 }
                 return false;
