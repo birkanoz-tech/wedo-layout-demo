@@ -135,8 +135,8 @@
                 <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik kaydedildi.</p>
             </div>
 
-            <!-- Pano & Kablo Eşleştirme Yönetimi (Yalnızca Yönetici Görür) -->
-            <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
+            <!-- Pano & Kablo Eşleştirme Yönetimi -->
+            <div class="space-y-2.5 border-t border-gray-700 pt-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">⚡ Pano & Kablo Eşleştirme</h3>
                     <span id="cable-link-count-badge"
@@ -168,7 +168,7 @@
                 </div>
             </div>
             <div id="mode-status"
-                class="admin-only-ui bg-gray-900 border border-blue-500/40 p-3 rounded-lg text-xs text-blue-300 hidden">
+                class="bg-gray-900 border border-blue-500/40 p-3 rounded-lg text-xs text-blue-300 hidden">
                 <p class="font-bold mb-1" id="mode-title">Mod: Pano Ekleme</p>
                 <p id="mode-desc">3D sahnede tıklandığı yere Elektrik Panosu eklenecek.</p>
             </div>
@@ -9585,11 +9585,7 @@
 
             const gizmoBar = document.getElementById('gizmo-mode-bar');
             if (gizmoBar) {
-                if (isAdmin) {
-                    gizmoBar.classList.remove('hidden');
-                } else {
-                    gizmoBar.classList.add('hidden');
-                }
+                gizmoBar.classList.remove('hidden');
             }
 
             renderCustomerProjectDashboard(profile);
