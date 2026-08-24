@@ -134,7 +134,7 @@
             <div id="ribbon-tab-content-file" class="top-ribbon-content flex items-center gap-3">
                 <!-- Customer Project Dropdown Selector (Single-line Dropdown inside FILE tab) -->
                 <div id="customer-project-selector-panel"
-                    class="hidden flex items-center gap-2 bg-emerald-950/80 border border-emerald-700/60 px-2.5 py-1 rounded-lg border-r border-[#3a3a3a] pr-3 shadow-sm">
+                    class="flex items-center gap-2 bg-emerald-950/80 border border-emerald-700/60 px-2.5 py-1 rounded-lg border-r border-[#3a3a3a] pr-3 shadow-sm">
                     <span class="text-xs text-emerald-300 font-bold flex items-center gap-1.5 whitespace-nowrap">
                         <span>📁</span> Projeleriniz:
                     </span>
@@ -9786,16 +9786,21 @@
 
             if (!panel || !selectEl) return;
 
-            if (!profile || profile.role === 'admin') {
-                panel.classList.add('hidden');
-                return;
-            }
-
             panel.classList.remove('hidden');
-            selectEl.innerHTML = '<option value="">-- Proje Seçin --</option>';
 
             const registry = getProjectRegistry();
-            const userProjects = registry.filter(p => isUserAuthorizedForProject(profile, p.id));
+            let userProjects = [];
+
+            if (profile && profile.role === 'admin') {
+                selectEl.innerHTML = '<option value="">-- Tüm Sistem Projeleri --</option>';
+                userProjects = registry;
+            } else if (profile) {
+                selectEl.innerHTML = '<option value="">-- Yetkili Projeleriniz --</option>';
+                userProjects = registry.filter(p => isUserAuthorizedForProject(profile, p.id));
+            } else {
+                selectEl.innerHTML = '<option value="">-- Demolar & Projeler --</option>';
+                userProjects = registry;
+            }
 
             if (userProjects.length === 0) {
                 const opt = document.createElement('option');
@@ -9967,12 +9972,13 @@
 
             const isAdmin = profile && profile.role === 'admin';
 
-            // Yönetici değilse tüm düzenleme butonlarını gizle
+            // Yönetici değilse yetkisiz butonları gizlemek yerine pasif (disabled/gri) göster
             adminUiElements.forEach(el => {
+                el.classList.remove('hidden');
                 if (isAdmin) {
-                    el.classList.remove('hidden');
+                    el.classList.remove('opacity-50', 'pointer-events-none');
                 } else {
-                    el.classList.add('hidden');
+                    el.classList.add('opacity-50', 'pointer-events-none');
                 }
             });
 
