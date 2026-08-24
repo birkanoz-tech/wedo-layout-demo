@@ -6144,9 +6144,21 @@
             if (meshes.length > 0) {
                 meshes.forEach((mesh) => {
                     getMeshChildren(mesh).forEach((childMesh) => {
-                        childMesh.material.emissive?.setHex(0x00674F);
-                        childMesh.material.opacity = 1;
-                        childMesh.material.transparent = false;
+                        if (childMesh.material) {
+                            if (Array.isArray(childMesh.material)) {
+                                childMesh.material.forEach((m) => {
+                                    m.emissive?.setHex(0x00674F);
+                                    if ('emissiveIntensity' in m) m.emissiveIntensity = 0.8;
+                                    m.opacity = 1;
+                                    m.transparent = false;
+                                });
+                            } else {
+                                childMesh.material.emissive?.setHex(0x00674F);
+                                if ('emissiveIntensity' in childMesh.material) childMesh.material.emissiveIntensity = 0.8;
+                                childMesh.material.opacity = 1;
+                                childMesh.material.transparent = false;
+                            }
+                        }
                     });
                 });
             }
@@ -6163,24 +6175,6 @@
                         ${entries.length > meshes.length ? `<p class="text-amber-400/90 text-xs italic">⚠️ ${entries.length - meshes.length} ürünün 3D GLB modeli bulunmamaktadır.</p>` : ''}
                     </div>
                 `;
-            }
-
-            if (meshes.length > 0) {
-                const box = new THREE.Box3();
-                meshes.forEach((mesh) => box.expandByObject(mesh));
-                if (!box.isEmpty()) {
-                    const center = box.getCenter(new THREE.Vector3());
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-                    const fov = camera.fov * (Math.PI / 180);
-                    const distance = (maxDim / 2) / Math.tan(fov / 2) * 1.2;
-                    camera.position.set(center.x + distance * 1.2, center.y + distance * 0.9, center.z + distance * 0.75);
-                    camera.near = 0.1;
-                    camera.far = 1000;
-                    camera.updateProjectionMatrix();
-                    controls.target.copy(center);
-                    controls.update();
-                }
             }
         }
 
@@ -6202,7 +6196,8 @@
             renderModelTree();
 
             if (entry.mesh) {
-                focusOnMesh(entry.mesh);
+                const targetMesh = findRootMesh(entry.mesh) || entry.mesh;
+                selectMesh(targetMesh);
             } else {
                 clearSelection();
                 const product = entry.product;
@@ -6231,18 +6226,20 @@
         }
 
         function fitCameraToObject(object, padding = 1.2) {
+            if (!object) return;
             const box = new THREE.Box3().setFromObject(object);
             if (box.isEmpty()) return;
 
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z) || 1;
-            const fov = camera.fov * (Math.PI / 180);
+            const fovVal = (camera && camera.fov) ? camera.fov : 50;
+            const fov = fovVal * (Math.PI / 180);
             const distance = (maxDim / 2) / Math.tan(fov / 2) * padding;
 
             camera.position.set(center.x + distance * 1.2, center.y + distance * 0.8, center.z + distance * 1.0);
-            camera.near = 0.1;
-            camera.far = 1000;
+            camera.near = 0.05;
+            camera.far = 5000;
             camera.updateProjectionMatrix();
 
             controls.target.copy(center);
@@ -6250,11 +6247,10 @@
         }
 
         function focusOnMesh(mesh) {
-            const targetMesh = findRootMesh(mesh);
+            const targetMesh = findRootMesh(mesh) || mesh;
             if (!targetMesh) return;
 
             selectMesh(targetMesh);
-            fitCameraToObject(targetMesh);
         }
 
         function isSelectionDeletable(mesh) {
