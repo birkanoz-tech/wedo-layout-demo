@@ -778,19 +778,19 @@
                             <div class="grid grid-cols-3 gap-1.5">
                                 <label class="space-y-1 text-[10px] text-gray-400">
                                     <span>X (m)</span>
-                                    <input id="world-pos-x" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                    <input id="world-pos-x" type="number" step="0.001" oninput="applySelectedWorldPosition()"
                                         onchange="applySelectedWorldPosition()"
                                         class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
                                 </label>
                                 <label class="space-y-1 text-[10px] text-gray-400">
                                     <span>Y (m)</span>
-                                    <input id="world-pos-y" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                    <input id="world-pos-y" type="number" step="0.001" oninput="applySelectedWorldPosition()"
                                         onchange="applySelectedWorldPosition()"
                                         class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
                                 </label>
                                 <label class="space-y-1 text-[10px] text-gray-400">
                                     <span>Z (m)</span>
-                                    <input id="world-pos-z" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                    <input id="world-pos-z" type="number" step="0.001" oninput="applySelectedWorldPosition()"
                                         onchange="applySelectedWorldPosition()"
                                         class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
                                 </label>
@@ -5258,6 +5258,13 @@
                         if (event.key === 'Enter') {
                             event.preventDefault();
                             applySelectedWorldPosition();
+                            input.blur();
+                        }
+                    });
+                    input.addEventListener('blur', () => {
+                        const val = Number(input.value);
+                        if (Number.isFinite(val)) {
+                            input.value = val.toFixed(3);
                         }
                     });
                 }
@@ -5271,6 +5278,13 @@
                         if (event.key === 'Enter') {
                             event.preventDefault();
                             applySelectedWorldRotation();
+                            input.blur();
+                        }
+                    });
+                    input.addEventListener('blur', () => {
+                        const val = Number(input.value);
+                        if (Number.isFinite(val)) {
+                            input.value = val.toFixed(1);
                         }
                     });
                 }
@@ -6592,7 +6606,7 @@
                     <p><span class="text-gray-500">Parça Tipi:</span> ${product.type || '-'}</p>
                     <p><span class="text-gray-500">Montaj:</span> ${product.assemblyName || '-'}</p>
                     <p><span class="text-gray-500">Grup:</span> ${product.group || '-'}</p>
-                    <p><span class="text-gray-500">Konum:</span> X ${product.position.x.toFixed(2)} / Y ${product.position.y.toFixed(2)} / Z ${product.position.z.toFixed(2)}</p>
+                    <p><span class="text-gray-500">Konum:</span> X ${product.position.x.toFixed(3)} / Y ${product.position.y.toFixed(3)} / Z ${product.position.z.toFixed(3)}</p>
                     <p><span class="text-gray-500">Model Origin (World):</span> X ${modelOriginWorld ? modelOriginWorld.x.toFixed(3) : '-'} / Y ${modelOriginWorld ? modelOriginWorld.y.toFixed(3) : '-'} / Z ${modelOriginWorld ? modelOriginWorld.z.toFixed(3) : '-'}</p>
                     <p><span class="text-gray-500">Basis:</span> nx ${product.position.basisX?.x.toFixed(2) ?? '-'} / ny ${product.position.basisX?.y.toFixed(2) ?? '-'} / nz ${product.position.basisX?.z.toFixed(2) ?? '-'} </p>
                     <p><span class="text-gray-500">Uzunluk:</span> ${product.length ? `${product.length} mm` : '-'}</p>
@@ -6605,7 +6619,7 @@
                 <div class="space-y-0.5 text-[11px]">
                     <p class="font-bold text-[#9FE2D0] text-xs truncate" title="${product.name}">${product.name}</p>
                     <p><span class="text-gray-400">Montaj:</span> <span class="text-gray-200">${product.assemblyName || '-'}</span></p>
-                    <p><span class="text-gray-400">Konum:</span> <span class="text-gray-200">X ${product.position.x.toFixed(2)} / Y ${product.position.y.toFixed(2)} / Z ${product.position.z.toFixed(2)}</span></p>
+                    <p><span class="text-gray-400">Konum:</span> <span class="text-gray-200">X ${product.position.x.toFixed(3)} / Y ${product.position.y.toFixed(3)} / Z ${product.position.z.toFixed(3)}</span></p>
                     ${parametricText}
                 </div>
             `;
