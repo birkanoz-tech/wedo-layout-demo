@@ -1766,8 +1766,8 @@
                             </td>
                             <td class="p-2 text-right font-bold font-mono text-emerald-400 text-xs">${(link.totalCableDist || 0).toFixed(2)} m</td>
                             <td class="p-2 text-center">
-                                <button onclick="deleteCableLink('${link.id}'); updateCabinetNetworkModalUI();" class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 px-2.5 py-1 rounded text-[11px] font-sans border border-rose-800/50 transition cursor-pointer">
-                                    Bağlantıyı Kes
+                                <button onclick="removePanelEquipmentLink('${link.id}')" class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 px-2.5 py-1 rounded text-[11px] font-sans border border-rose-800/50 transition cursor-pointer">
+                                    Kaldır / Sil
                                 </button>
                             </td>
                         </tr>
@@ -1785,23 +1785,41 @@
         }
 
         function deleteCableLink(linkId) {
-            const idx = pathCableLinks.findIndex(l => l.id === linkId);
+            if (!linkId) return;
+            const idx = pathCableLinks.findIndex(l => l.id === linkId || String(l.id) === String(linkId));
             if (idx !== -1) {
                 const link = pathCableLinks[idx];
+                const sourcePanelId = link.sourcePanelId || link.sourceName;
+
                 if (link.cableGroup) {
                     scene.remove(link.cableGroup);
-                    disposeGroup(link.cableGroup);
+                    if (typeof disposeGroup === 'function') {
+                        disposeGroup(link.cableGroup);
+                    }
                 }
                 pathCableLinks.splice(idx, 1);
-                updateCableLinksTableUI();
+
+                if (typeof updateCableLinksTableUI === 'function') {
+                    updateCableLinksTableUI();
+                }
 
                 let grandSum = 0;
-                pathCableLinks.forEach(l => grandSum += l.totalCableDist);
+                pathCableLinks.forEach(l => grandSum += (l.totalCableDist || 0));
                 const finalMeters = Math.round(grandSum);
                 setSafeInnerText('cnt-cable', `${finalMeters} m`);
                 setSafeInnerText('est-cable-m', `${finalMeters} metre`);
 
-                showNotice('Kablo eşleştirmesi silindi.');
+                // Her iki modal listesini de anında senkronize et
+                if (typeof renderConnectedEquipmentsTab === 'function') {
+                    renderConnectedEquipmentsTab();
+                }
+                if (typeof updateCabinetNetworkModalUI === 'function') {
+                    updateCabinetNetworkModalUI(sourcePanelId || window.activeCabinetNetworkTab);
+                }
+
+                if (typeof showNotice === 'function') {
+                    showNotice('Kablo eşleştirmesi ve ekipman bağlantısı silindi.');
+                }
             }
         }
 
@@ -8866,12 +8884,18 @@
         }
 
         function removePanelEquipmentLink(linkId) {
+            if (!linkId) return;
+            const link = (pathCableLinks || []).find(l => l.id === linkId || String(l.id) === String(linkId));
+            const sourcePanelId = link ? (link.sourcePanelId || link.sourceName) : (typeof getActivePanelIdForModal === 'function' ? getActivePanelIdForModal() : null);
+
             if (typeof deleteCableLink === 'function') {
                 deleteCableLink(linkId);
             }
-            renderConnectedEquipmentsTab();
+            if (typeof renderConnectedEquipmentsTab === 'function') {
+                renderConnectedEquipmentsTab();
+            }
             if (typeof updateCabinetNetworkModalUI === 'function') {
-                updateCabinetNetworkModalUI();
+                updateCabinetNetworkModalUI(sourcePanelId || window.activeCabinetNetworkTab);
             }
         }
 
