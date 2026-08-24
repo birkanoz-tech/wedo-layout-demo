@@ -122,6 +122,10 @@
                     class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
                     &lt;VIEW&gt;
                 </button>
+                <button onclick="switchTopRibbonTab('building')" id="ribbon-tab-btn-building"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    <span>🏢</span> &lt;BİNA&gt;
+                </button>
             </div>
 
             <p id="import-status" class="text-[11px] text-gray-400 font-mono truncate max-w-xs">📂 Boş 3D Sahne Hazır.
@@ -244,7 +248,11 @@
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
                     <button onclick="addParametricWallFromLibrary()" type="button"
                         class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm">
-                        <span>🧱</span> Duvar Ekle
+                        <span>🧱</span> Tek Duvar Ekle
+                    </button>
+                    <button id="btn-draw-wall-path" onclick="activateDrawWallPathMode()" type="button"
+                        class="bg-gradient-to-r from-cyan-700 to-blue-700 hover:from-cyan-600 hover:to-blue-600 text-white px-2.5 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer border border-cyan-400/40">
+                        <span>🧱</span> Çizgi Çizerek Duvar Ekle
                     </button>
                     <button onclick="openCeilingSupportDesignerModal()" type="button"
                         class="bg-emerald-900/70 hover:bg-emerald-800 text-emerald-300 px-2.5 py-1.5 rounded text-xs transition border border-emerald-500/40 font-semibold cursor-pointer flex items-center gap-1 shadow-sm">
@@ -329,10 +337,56 @@
                         <span id="camera-projection-icon">📐</span>
                         <span id="camera-projection-text">Kamera: Ortografik</span>
                     </button>
+                    <button onclick="openBuildingLevelsModal()" type="button"
+                        class="bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded shadow font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-500/40">
+                        <span>🏢</span>
+                        <span>Kat Yöneticisi (Şeffaf Zeminler)</span>
+                    </button>
                     <button onclick="toggleRightPropertiesPanel()" type="button"
                         class="bg-cyan-700 hover:bg-cyan-600 active:bg-cyan-800 text-white text-xs px-3 py-1.5 rounded shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span>⚙️</span>
                         <span>Sağ Panel (Özellikler & Konum) Göster/Gizle</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 7: <BUILDING> (BİNA & KAT YÖNETİMİ & ŞEFFAF ZEMİNLER) -->
+            <div id="ribbon-tab-content-building" class="top-ribbon-content hidden flex items-center gap-3">
+                <!-- Kat Seçimi & Çalışma Kotu -->
+                <div class="flex items-center gap-2 border-r border-[#3a3a3a] pr-3">
+                    <span class="text-cyan-300 font-bold text-xs flex items-center gap-1">
+                        <span>🏢</span> Aktif Çalışma Katı:
+                    </span>
+                    <div id="ribbon-level-selector-buttons" class="flex items-center gap-1">
+                        <!-- Dynamic floor level buttons -->
+                    </div>
+                </div>
+
+                <!-- Kat Görünümü & İzolasyon Filtresi -->
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button onclick="isolateActiveBuildingLevel()" type="button" title="Sadece Aktif Katı ve O Kotta Duran Ekipmanları Göster"
+                        class="bg-amber-950/80 hover:bg-amber-900 text-amber-300 px-2.5 py-1.5 rounded text-xs font-bold border border-amber-600/50 transition cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span>🎯</span> Sadece Aktif Katı İzole Et
+                    </button>
+                    <button onclick="showAllBuildingLevels()" type="button" title="Tüm Katları ve Tüm Ekipmanları Göster"
+                        class="bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 px-2.5 py-1.5 rounded text-xs font-bold border border-emerald-600/50 transition cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span>🌐</span> Tüm Katları Göster
+                    </button>
+                </div>
+
+                <!-- Kat Yönetim & Yapı Elemanları -->
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button onclick="openBuildingLevelsModal()" type="button"
+                        class="bg-cyan-900/80 hover:bg-cyan-800 text-cyan-200 px-3 py-1.5 rounded text-xs font-bold border border-cyan-500/50 transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                        <span>⚙️</span> Kat Yöneticisi & Şeffaf Zeminler
+                    </button>
+                    <button onclick="activateDrawWallPathMode()" type="button"
+                        class="bg-gradient-to-r from-cyan-700 to-blue-700 hover:from-cyan-600 hover:to-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer border border-cyan-400/50">
+                        <span>🧱</span> Çizgi Çizerek Duvar Ekle
+                    </button>
+                    <button onclick="addParametricWallFromLibrary()" type="button"
+                        class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm">
+                        <span>🧱</span> Tek Duvar Ekle
                     </button>
                 </div>
             </div>
@@ -1874,6 +1928,7 @@
             scene.add(ground);
 
             initAxisGizmo();
+            renderBuildingLevelPlanes();
 
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
@@ -3341,9 +3396,405 @@
         }
 
         // ==========================================
+        // 🏢 MULTI-FLOOR TRANSLUCENT LEVELS ENGINE
+        // ==========================================
+        let buildingLevels = [
+            { id: 'level-0', name: 'Zemin Kat', elevation: 0.0, width: 60, depth: 40, opacity: 0.25, color: '#00f3ff', visible: true }
+        ];
+        let activeLevelId = 'level-0';
+        let buildingLevelGroup = null;
+
+        function getActiveLevelElevation() {
+            const activeLevel = buildingLevels.find(l => l.id === activeLevelId);
+            return activeLevel ? Number(activeLevel.elevation || 0.0) : 0.0;
+        }
+
+        function setActiveLevel(levelId) {
+            const targetLevel = buildingLevels.find(l => l.id === levelId);
+            if (!targetLevel) return;
+
+            activeLevelId = levelId;
+            renderLevelSelectorWidget();
+            renderBuildingLevelsTable();
+
+            if (typeof showNotice === 'function') {
+                showNotice(`🏢 Aktif Çalışma Katı Değiştirildi: ${targetLevel.name} (${targetLevel.elevation >= 0 ? '+' : ''}${targetLevel.elevation}m)`);
+            }
+        }
+
+        function renderBuildingLevelPlanes() {
+            if (!scene) return;
+
+            if (buildingLevelGroup) {
+                scene.remove(buildingLevelGroup);
+                buildingLevelGroup.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose?.());
+                        else child.material.dispose?.();
+                    }
+                });
+                buildingLevelGroup = null;
+            }
+
+            buildingLevelGroup = new THREE.Group();
+            buildingLevelGroup.name = 'BuildingLevelPlanesGroup';
+            buildingLevelGroup.userData.persistent = true;
+
+            // Remove previous floor level entries from addedManualModels
+            addedManualModels = addedManualModels.filter(m => m.path !== 'parametric:building-level-floor');
+
+            buildingLevels.forEach((level) => {
+                const levelGroup = new THREE.Group();
+                levelGroup.name = `LevelGroup_${level.id}`;
+                levelGroup.position.z = Number(level.elevation || 0);
+
+                const width = Number(level.width || 60);
+                const depth = Number(level.depth || 40);
+                const opacity = Number(level.opacity || 0.25);
+                const colorHex = level.color || '#00f3ff';
+
+                levelGroup.userData = {
+                    type: 'xml-product',
+                    isParametric: true,
+                    parametricKind: 'building-level-floor',
+                    isBuildingLevelFloor: true,
+                    levelId: level.id,
+                    elevation: level.elevation,
+                    product: {
+                        name: `${level.name} Zemini (${level.elevation >= 0 ? '+' : ''}${level.elevation}m)`,
+                        type: 'building-level-floor',
+                        group: '🏢 Fabrika Katları & Zeminler',
+                        assemblyName: '🏢 Fabrika Katları & Zeminler',
+                        position: { x: 0, y: 0, z: level.elevation }
+                    }
+                };
+
+                // Translucent Floor Glass Plane
+                const planeGeo = new THREE.PlaneGeometry(width, depth);
+                const planeMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(colorHex),
+                    transparent: true,
+                    opacity: opacity,
+                    roughness: 0.2,
+                    metalness: 0.1,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+                const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+                planeMesh.name = `LevelPlaneMesh_${level.id}`;
+                levelGroup.add(planeMesh);
+
+                // Border Edges
+                const edgesGeo = new THREE.EdgesGeometry(planeGeo);
+                const edgesMat = new THREE.LineBasicMaterial({
+                    color: new THREE.Color(colorHex),
+                    transparent: true,
+                    opacity: 0.85
+                });
+                const edgesLine = new THREE.LineSegments(edgesGeo, edgesMat);
+                edgesLine.renderOrder = 5;
+                levelGroup.add(edgesLine);
+
+                // Grid Helper on Plane
+                const maxDim = Math.max(width, depth);
+                const gridHelper = new THREE.GridHelper(maxDim, Math.round(maxDim / 2), new THREE.Color(colorHex), new THREE.Color(0x3b82f6));
+                gridHelper.rotation.x = Math.PI / 2;
+                gridHelper.position.z = 0.01;
+                if (gridHelper.material) {
+                    gridHelper.material.transparent = true;
+                    gridHelper.material.opacity = 0.35;
+                    gridHelper.material.depthWrite = false;
+                }
+                levelGroup.add(gridHelper);
+
+                levelGroup.visible = level.visible !== false;
+                buildingLevelGroup.add(levelGroup);
+
+                addedManualModels.push({
+                    path: 'parametric:building-level-floor',
+                    label: `${level.name} Zemini (${level.elevation >= 0 ? '+' : ''}${level.elevation}m)`,
+                    point: new THREE.Vector3(0, 0, level.elevation),
+                    ref: levelGroup
+                });
+            });
+
+            scene.add(buildingLevelGroup);
+            renderLevelSelectorWidget();
+            renderBuildingLevelsTable();
+            if (typeof rebuildModelTreeFromScene === 'function') {
+                rebuildModelTreeFromScene();
+            }
+        }
+
+        function renderLevelSelectorWidget() {
+            const container = document.getElementById('ribbon-level-selector-buttons') || document.getElementById('level-selector-buttons');
+            if (!container) return;
+
+            let html = '';
+            buildingLevels.forEach((level) => {
+                const isActive = level.id === activeLevelId;
+                const activeClass = isActive
+                    ? 'bg-cyan-600 text-white font-bold border-cyan-400 shadow-md ring-1 ring-cyan-300'
+                    : 'bg-slate-800 text-gray-300 hover:text-white border-gray-700 hover:border-cyan-500/50';
+
+                html += `
+                    <button onclick="setActiveLevel('${level.id}')" type="button"
+                        class="${activeClass} px-2.5 py-1 rounded text-xs border transition cursor-pointer flex items-center gap-1">
+                        <span>${isActive ? '📍' : '🏢'}</span>
+                        <span>${level.name}</span>
+                        <span class="font-mono text-[10px] opacity-85">(${level.elevation >= 0 ? '+' : ''}${level.elevation}m)</span>
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderBuildingLevelsTable() {
+            const tbody = document.getElementById('building-levels-table-body');
+            if (!tbody) return;
+
+            let html = '';
+            buildingLevels.forEach((level) => {
+                const isActive = level.id === activeLevelId;
+                html += `
+                    <tr class="${isActive ? 'bg-cyan-950/50 border-l-2 border-cyan-400' : 'hover:bg-gray-800/40'} transition">
+                        <td class="px-3 py-2 font-semibold text-gray-100 flex items-center gap-1.5">
+                            <span>${isActive ? '📍' : '🏢'}</span>
+                            <span>${level.name}</span>
+                            ${isActive ? '<span class="text-[9px] bg-cyan-900 text-cyan-300 px-1 rounded font-bold border border-cyan-700">Aktif</span>' : ''}
+                        </td>
+                        <td class="px-3 py-2 font-mono text-cyan-300 font-bold">${level.elevation >= 0 ? '+' : ''}${level.elevation} m</td>
+                        <td class="px-3 py-2 font-mono text-gray-400">${level.width}m × ${level.depth}m</td>
+                        <td class="px-3 py-2 text-gray-400">%${Math.round(level.opacity * 100)}</td>
+                        <td class="px-3 py-2">
+                            <button onclick="toggleBuildingLevelVisibility('${level.id}')" type="button"
+                                class="px-2 py-0.5 rounded text-[10px] transition cursor-pointer ${level.visible ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60' : 'bg-gray-800 text-gray-500 border border-gray-700'}">
+                                ${level.visible ? '👁️ Açık' : '🙈 Gizli'}
+                            </button>
+                        </td>
+                        <td class="px-3 py-2 text-right space-x-1">
+                            <button onclick="isolateBuildingLevel('${level.id}')" type="button" class="bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-700/60 px-2 py-0.5 rounded text-[10px] transition font-semibold shadow-sm">🎯 İzole Et</button>
+                            ${!isActive ? `<button onclick="setActiveLevel('${level.id}')" type="button" class="bg-cyan-800 hover:bg-cyan-700 text-white px-2 py-0.5 rounded text-[10px] transition font-semibold shadow-sm">Aktif Yap</button>` : ''}
+                            ${buildingLevels.length > 1 ? `<button onclick="deleteBuildingLevel('${level.id}')" type="button" class="bg-rose-900/80 hover:bg-rose-800 text-rose-200 px-2 py-0.5 rounded text-[10px] transition shadow-sm">Sil</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function openBuildingLevelsModal() {
+            renderBuildingLevelsTable();
+            document.getElementById('modal-building-levels')?.classList.remove('hidden');
+        }
+
+        function closeBuildingLevelsModal() {
+            document.getElementById('modal-building-levels')?.classList.add('hidden');
+        }
+
+        function addNewBuildingLevel() {
+            const nameEl = document.getElementById('new-level-name');
+            const elevEl = document.getElementById('new-level-elevation');
+            const widthEl = document.getElementById('new-level-width');
+            const depthEl = document.getElementById('new-level-depth');
+            const opacityEl = document.getElementById('new-level-opacity');
+            const colorEl = document.getElementById('new-level-color');
+
+            const name = nameEl?.value.trim() || `Kat ${buildingLevels.length}`;
+            const elevation = Number(elevEl?.value || 0.0);
+            const width = Math.max(5, Number(widthEl?.value || 60));
+            const depth = Math.max(5, Number(depthEl?.value || 40));
+            const opacity = Number(opacityEl?.value || 0.25);
+            const color = colorEl?.value || '#00f3ff';
+
+            const newId = `level-${Date.now()}`;
+            const newLevel = { id: newId, name, elevation, width, depth, opacity, color, visible: true };
+
+            buildingLevels.push(newLevel);
+            activeLevelId = newId;
+
+            renderBuildingLevelPlanes();
+            updateLevelEquipmentVisibility();
+
+            if (typeof showNotice === 'function') {
+                showNotice(`✨ Yeni Kat Tanımlandı: ${name} (${elevation >= 0 ? '+' : ''}${elevation}m)`);
+            }
+        }
+
+        function deleteBuildingLevel(levelId) {
+            if (buildingLevels.length <= 1) {
+                if (typeof showNotice === 'function') showNotice('⚠️ En az bir fabrika katı kalmalıdır.');
+                return;
+            }
+            buildingLevels = buildingLevels.filter(l => l.id !== levelId);
+            if (activeLevelId === levelId) {
+                activeLevelId = buildingLevels[0].id;
+            }
+            renderBuildingLevelPlanes();
+            updateLevelEquipmentVisibility();
+        }
+
+        function toggleBuildingLevelVisibility(levelId) {
+            const level = buildingLevels.find(l => l.id === levelId);
+            if (level) {
+                level.visible = !level.visible;
+                renderBuildingLevelPlanes();
+                updateLevelEquipmentVisibility();
+            }
+        }
+
+        function updateLevelEquipmentVisibility() {
+            if (!buildingLevels || buildingLevels.length === 0 || !scene) return;
+
+            const sortedLevels = [...buildingLevels].sort((a, b) => Number(a.elevation || 0) - Number(b.elevation || 0));
+
+            const levelZones = sortedLevels.map((lvl, idx) => {
+                const zMin = Number(lvl.elevation || 0);
+                const nextLvl = sortedLevels[idx + 1];
+                const zMax = nextLvl ? Number(nextLvl.elevation || 0) : Infinity;
+                return {
+                    level: lvl,
+                    zMin,
+                    zMax,
+                    visible: lvl.visible !== false
+                };
+            });
+
+            // Ensure top-level assembly containers remain visible so children can be rendered
+            scene.children.forEach((child) => {
+                if (
+                    child &&
+                    child.name !== 'BuildingLevelPlanesGroup' &&
+                    child.name !== 'BuildPathPreviewPolylineGroup' &&
+                    child.name !== 'WallPreviewMesh' &&
+                    child !== osnapBoxMesh &&
+                    child !== transformControls &&
+                    child.type === 'Group'
+                ) {
+                    child.visible = true;
+                }
+            });
+
+            const worldPosVec = new THREE.Vector3();
+
+            scene.traverse((obj) => {
+                if (
+                    !obj ||
+                    obj.userData?.persistent ||
+                    obj.type === 'Scene' ||
+                    obj.type === 'DirectionalLight' ||
+                    obj.type === 'AmbientLight' ||
+                    obj.type === 'PerspectiveCamera' ||
+                    obj.type === 'OrthographicCamera' ||
+                    obj.name === 'BuildingLevelPlanesGroup' ||
+                    obj.name === 'BuildPathPreviewPolylineGroup' ||
+                    obj.name === 'WallPreviewMesh' ||
+                    obj === osnapBoxMesh ||
+                    obj === transformControls
+                ) {
+                    return;
+                }
+
+                if (obj.userData?.parametricKind === 'building-level-floor' || obj.userData?.isBuildingLevelFloor) {
+                    return;
+                }
+
+                const isDiscreteModel = (
+                    obj.userData?.type === 'xml-product' ||
+                    obj.userData?.isParametric ||
+                    obj.userData?.isPanel ||
+                    obj.userData?.isCableTray ||
+                    (obj.isMesh && obj.parent && obj.parent.name !== 'BuildingLevelPlanesGroup' && !obj.parent.userData?.isBuildingLevelFloor)
+                );
+
+                if (!isDiscreteModel && (obj.type === 'Group' || obj.children.length > 0)) {
+                    obj.visible = true;
+                    return;
+                }
+
+                if (!isDiscreteModel) return;
+
+                let zBottom = 0, zTop = 0;
+                const box = new THREE.Box3().setFromObject(obj);
+                if (!box.isEmpty()) {
+                    zBottom = box.min.z;
+                    zTop = box.max.z;
+                } else {
+                    obj.getWorldPosition(worldPosVec);
+                    zBottom = worldPosVec.z;
+                    zTop = worldPosVec.z + 0.1;
+                }
+
+                const matchingZones = levelZones.filter(z => zTop >= (z.zMin - 0.4) && zBottom < (z.zMax - 0.05));
+
+                if (matchingZones.length > 0) {
+                    const isVisibleInAnyZone = matchingZones.some(z => z.visible);
+                    obj.visible = isVisibleInAnyZone;
+                } else {
+                    const firstZone = levelZones[0];
+                    obj.visible = firstZone ? firstZone.visible : true;
+                }
+            });
+
+            if (typeof rebuildModelTreeFromScene === 'function') {
+                rebuildModelTreeFromScene();
+            }
+        }
+
+        function isolateBuildingLevel(levelId) {
+            const targetLevel = buildingLevels.find(l => l.id === levelId);
+            if (!targetLevel) return;
+
+            buildingLevels.forEach(l => {
+                l.visible = (l.id === levelId);
+            });
+
+            activeLevelId = levelId;
+            renderBuildingLevelPlanes();
+            updateLevelEquipmentVisibility();
+
+            if (typeof showNotice === 'function') {
+                showNotice(`🎯 Kat İzolasyonu: Sadece ${targetLevel.name} (${targetLevel.elevation >= 0 ? '+' : ''}${targetLevel.elevation}m) ve Ekipmanları Gösteriliyor`);
+            }
+        }
+
+        function isolateActiveBuildingLevel() {
+            isolateBuildingLevel(activeLevelId);
+        }
+
+        function showAllBuildingLevels() {
+            buildingLevels.forEach(l => {
+                l.visible = true;
+            });
+            renderBuildingLevelPlanes();
+            updateLevelEquipmentVisibility();
+
+            if (typeof showNotice === 'function') {
+                showNotice('🌐 Tüm Fabrika Katları ve Ekipmanları Gösteriliyor');
+            }
+        }
+
+        window.getActiveLevelElevation = getActiveLevelElevation;
+        window.setActiveLevel = setActiveLevel;
+        window.renderBuildingLevelPlanes = renderBuildingLevelPlanes;
+        window.openBuildingLevelsModal = openBuildingLevelsModal;
+        window.closeBuildingLevelsModal = closeBuildingLevelsModal;
+        window.addNewBuildingLevel = addNewBuildingLevel;
+        window.deleteBuildingLevel = deleteBuildingLevel;
+        window.toggleBuildingLevelVisibility = toggleBuildingLevelVisibility;
+        window.updateLevelEquipmentVisibility = updateLevelEquipmentVisibility;
+        window.isolateBuildingLevel = isolateBuildingLevel;
+        window.isolateActiveBuildingLevel = isolateActiveBuildingLevel;
+        window.showAllBuildingLevels = showAllBuildingLevels;
+
+        // ==========================================
         // 📐 SVG + 3D OSNAP + CAMERA PASS-THROUGH + ORTHO ENGINE
         // ==========================================
         let isBuildPathActive = false;
+        let isDrawWallPathActive = false;
+        let wallPathNodes3D = [];
+        let wallPreviewMesh = null;
         let sketchNodes3D = [];
         let sketchPoints2D = [];
         let isOrthoModeActive = false;
@@ -3448,17 +3899,21 @@
                 dom.dataset.sketchListenersAttached = 'true';
 
                 dom.addEventListener('pointerdown', (e) => {
-                    if (!isBuildPathActive) return;
+                    if (!isBuildPathActive && !isDrawWallPathActive) return;
                     pointerDownPos = { x: e.clientX, y: e.clientY };
                 });
 
                 dom.addEventListener('pointerup', (e) => {
-                    if (!isBuildPathActive) return;
+                    if (!isBuildPathActive && !isDrawWallPathActive) return;
                     const distMoved = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
                     if (distMoved > 5 || e.button === 2 || e.button === 1) {
+                        if (isDrawWallPathActive && e.button === 2) {
+                            cancelDrawWallPathMode();
+                        }
                         return; // Camera Orbit/Pan Drag
                     }
-                    handleViewportClick(e);
+                    if (isBuildPathActive) handleViewportClick(e);
+                    else if (isDrawWallPathActive) handleDrawWallPathClick(e);
                 });
 
                 window.toggleDrawingToolsPanel = toggleDrawingToolsPanel;
@@ -3541,14 +3996,19 @@
                 let panelCounter = 0;
 
                 dom.addEventListener('pointermove', (e) => {
-                    if (!isBuildPathActive) return;
-                    handleViewportMouseMove(e);
+                    if (!isBuildPathActive && !isDrawWallPathActive) return;
+                    if (isBuildPathActive) handleViewportMouseMove(e);
+                    else if (isDrawWallPathActive) handleDrawWallPathMouseMove(e);
                 });
 
                 dom.addEventListener('dblclick', (e) => {
-                    if (!isBuildPathActive) return;
-                    e.preventDefault();
-                    finishBuildPath();
+                    if (isBuildPathActive) {
+                        e.preventDefault();
+                        finishBuildPath();
+                    } else if (isDrawWallPathActive) {
+                        e.preventDefault();
+                        cancelDrawWallPathMode();
+                    }
                 });
             }
         }
@@ -3740,6 +4200,264 @@
             }
 
             updateSVGPolylineElements();
+        }
+
+        let typedDistanceBuffer = '';
+        let latestMouseWorldPoint = null;
+
+        function createWallFromSegment(p1, p2, options = {}) {
+            if (!p1 || !p2) return null;
+            const length = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+            if (length < 0.1) {
+                return null;
+            }
+
+            const activeElev = typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0.0;
+            const baseZ = (options.elevation !== undefined) ? options.elevation : (p1.z !== undefined ? p1.z : activeElev);
+
+            const widthInput = document.getElementById('wall-width-input');
+            const heightInput = document.getElementById('wall-height-input');
+            const thicknessInput = document.getElementById('wall-thickness-input');
+
+            const height = options.height || Math.max(0.1, Number(heightInput?.value) || 3.0);
+            const thickness = options.thickness || Math.max(0.05, Number(thicknessInput?.value) || 0.25);
+
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+            const wallGroup = createParametricWallGroup({
+                width: length,
+                height: height,
+                thickness: thickness
+            });
+
+            wallGroup.position.set(midX, midY, baseZ);
+            wallGroup.rotation.z = angle;
+
+            scene.add(wallGroup);
+            addedManualModels.push({
+                path: 'parametric:wall',
+                label: `Wall (+${baseZ}m)`,
+                point: new THREE.Vector3(midX, midY, baseZ),
+                ref: wallGroup
+            });
+
+            rebuildModelTreeFromScene();
+            syncSelectedProductDataFromMesh(wallGroup);
+            selectMesh(wallGroup);
+
+            return wallGroup;
+        }
+
+        function activateDrawWallPathMode() {
+            if (typeof cancelBuildPath === 'function') cancelBuildPath();
+            isDrawWallPathActive = true;
+            activeMode = 'draw-wall-path';
+            wallPathNodes3D = [];
+            typedDistanceBuffer = '';
+
+            if (!osnapBoxMesh) {
+                osnapBoxMesh = createOSNapMarkerGizmo();
+                scene.add(osnapBoxMesh);
+            }
+
+            initViewportSketchListeners();
+
+            const svgOverlay = document.getElementById('sketch-svg-overlay');
+            if (svgOverlay) svgOverlay.classList.remove('hidden');
+
+            const hud = document.getElementById('build-path-hud');
+            if (hud) hud.classList.remove('hidden');
+
+            const activeElev = getActiveLevelElevation();
+            const activeLvl = buildingLevels.find(l => l.id === activeLevelId);
+            const levelName = activeLvl ? activeLvl.name : 'Zemin';
+
+            if (typeof showNotice === 'function') {
+                showNotice(`🧱 Duvar Çizimi Başladı (${levelName} - Kot: +${activeElev}m): Zemine tıklayarak hattı çizin. Klavye ile ölçü girebilirsiniz (Sağ Tık / Esc ile Çıkış)`);
+            }
+        }
+
+        function cancelDrawWallPathMode() {
+            isDrawWallPathActive = false;
+            if (activeMode === 'draw-wall-path') {
+                activeMode = null;
+            }
+            wallPathNodes3D = [];
+            typedDistanceBuffer = '';
+
+            if (wallPreviewMesh) {
+                scene.remove(wallPreviewMesh);
+                if (wallPreviewMesh.geometry) wallPreviewMesh.geometry.dispose();
+                if (wallPreviewMesh.material) wallPreviewMesh.material.dispose();
+                wallPreviewMesh = null;
+            }
+
+            const svgOverlay = document.getElementById('sketch-svg-overlay');
+            if (svgOverlay) svgOverlay.classList.add('hidden');
+
+            if (osnapBoxMesh) osnapBoxMesh.visible = false;
+
+            const hud = document.getElementById('build-path-hud');
+            if (hud) hud.classList.add('hidden');
+
+            clearSVGPolylineElements();
+        }
+
+        function addWallSegmentByDistance(targetLen) {
+            if (!isDrawWallPathActive || wallPathNodes3D.length === 0) return;
+
+            const lastNode = wallPathNodes3D[wallPathNodes3D.length - 1];
+            const activeElev = getActiveLevelElevation();
+            lastNode.z = activeElev;
+
+            let dirUnit = new THREE.Vector3(1, 0, 0);
+            if (latestMouseWorldPoint) {
+                dirUnit = latestMouseWorldPoint.clone().sub(lastNode);
+                dirUnit.z = 0;
+                if (dirUnit.lengthSq() > 0.001) {
+                    dirUnit.normalize();
+                } else {
+                    dirUnit.set(1, 0, 0);
+                }
+            }
+
+            const orthoPoint = lastNode.clone().add(dirUnit.multiplyScalar(targetLen));
+            orthoPoint.z = activeElev;
+
+            const createdWall = createWallFromSegment(lastNode, orthoPoint);
+            if (createdWall) {
+                wallPathNodes3D.push(orthoPoint.clone());
+                sketchNodes3D.push(orthoPoint.clone());
+                updateSVGPolylineElements();
+                typedDistanceBuffer = '';
+                if (typeof showNotice === 'function') {
+                    showNotice(`🧱 Hassas Ölçülü Duvar Eklendi: ${targetLen.toFixed(2)}m (Kot: +${activeElev}m)`);
+                }
+            }
+        }
+        window.addWallSegmentByDistance = addWallSegmentByDistance;
+
+        function handleDrawWallPathClick(e) {
+            if (!isDrawWallPathActive) return;
+
+            const rawPoint = get3DWorldPointFromScreen(e.clientX, e.clientY);
+            const activeElev = getActiveLevelElevation();
+            rawPoint.z = activeElev;
+
+            if (wallPathNodes3D.length === 0) {
+                wallPathNodes3D.push(rawPoint.clone());
+                sketchNodes3D = [rawPoint.clone()];
+                updateSVGPolylineElements();
+                typedDistanceBuffer = '';
+                if (typeof showNotice === 'function') {
+                    const activeLvl = buildingLevels.find(l => l.id === activeLevelId);
+                    const levelName = activeLvl ? activeLvl.name : 'Zemin';
+                    showNotice(`🧱 Duvar Başlangıç Noktası Koyuldu (${levelName} - Kot: +${activeElev}m)`);
+                }
+            } else {
+                const lastNode = wallPathNodes3D[wallPathNodes3D.length - 1];
+                lastNode.z = activeElev;
+                const orthoPoint = applyOrthoLock(rawPoint, lastNode);
+                orthoPoint.z = activeElev;
+                const segDist = lastNode.distanceTo(orthoPoint);
+
+                if (segDist >= 0.1) {
+                    const createdWall = createWallFromSegment(lastNode, orthoPoint);
+                    if (createdWall) {
+                        wallPathNodes3D.push(orthoPoint.clone());
+                        sketchNodes3D.push(orthoPoint.clone());
+                        updateSVGPolylineElements();
+                        typedDistanceBuffer = '';
+                        if (typeof showNotice === 'function') {
+                            showNotice(`🧱 Parametrik Duvar Oluşturuldu: ${segDist.toFixed(2)}m (Kot: +${activeElev}m)`);
+                        }
+                    }
+                }
+            }
+        }
+
+        function handleDrawWallPathMouseMove(e) {
+            if (!isDrawWallPathActive) return;
+
+            const rawPoint = get3DWorldPointFromScreen(e.clientX, e.clientY);
+            const activeElev = getActiveLevelElevation();
+            rawPoint.z = activeElev;
+            latestMouseWorldPoint = rawPoint.clone();
+
+            const hud = document.getElementById('build-path-hud');
+            const lenEl = document.getElementById('build-path-hud-len');
+            const axisBadge = document.getElementById('build-path-hud-axis');
+            const previewLine = document.getElementById('svg-preview-line');
+
+            if (hud) {
+                hud.style.left = `${e.clientX}px`;
+                hud.style.top = `${e.clientY}px`;
+            }
+
+            if (wallPathNodes3D.length > 0) {
+                const lastNode = wallPathNodes3D[wallPathNodes3D.length - 1];
+                lastNode.z = activeElev;
+                const orthoPoint = applyOrthoLock(rawPoint, lastNode);
+                orthoPoint.z = activeElev;
+
+                const last2D = project3DTo2D(lastNode);
+                const cur2D = project3DTo2D(orthoPoint);
+
+                if (previewLine) {
+                    previewLine.setAttribute('x1', last2D.x);
+                    previewLine.setAttribute('y1', last2D.y);
+                    previewLine.setAttribute('x2', cur2D.x);
+                    previewLine.setAttribute('y2', cur2D.y);
+                    previewLine.classList.remove('hidden');
+                }
+
+                const segDist = lastNode.distanceTo(orthoPoint);
+
+                if (hud) hud.classList.remove('hidden');
+
+                if (typedDistanceBuffer.length > 0) {
+                    if (lenEl) lenEl.innerText = `⌨️ ${typedDistanceBuffer} m (Enter: Tamamla)`;
+                    if (axisBadge) axisBadge.innerText = `Ölçü Girişi`;
+                } else {
+                    if (lenEl) lenEl.innerText = `🧱 ${segDist.toFixed(2)} m (+${activeElev}m)`;
+                    if (axisBadge) axisBadge.innerText = `Duvar Hat`;
+                }
+
+                const heightInput = document.getElementById('wall-height-input');
+                const thicknessInput = document.getElementById('wall-thickness-input');
+                const height = Math.max(0.1, Number(heightInput?.value) || 3.0);
+                const thickness = Math.max(0.05, Number(thicknessInput?.value) || 0.25);
+
+                const midX = (lastNode.x + orthoPoint.x) / 2;
+                const midY = (lastNode.y + orthoPoint.y) / 2;
+                const angle = Math.atan2(orthoPoint.y - lastNode.y, orthoPoint.x - lastNode.x);
+
+                if (segDist >= 0.05) {
+                    if (!wallPreviewMesh) {
+                        const mat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.45 });
+                        wallPreviewMesh = new THREE.Mesh(new THREE.BoxGeometry(segDist, thickness, height), mat);
+                        wallPreviewMesh.name = 'WallPreviewMesh';
+                        scene.add(wallPreviewMesh);
+                    } else {
+                        if (wallPreviewMesh.geometry) wallPreviewMesh.geometry.dispose();
+                        wallPreviewMesh.geometry = new THREE.BoxGeometry(segDist, thickness, height);
+                    }
+                    wallPreviewMesh.position.set(midX, midY, activeElev + height / 2);
+                    wallPreviewMesh.rotation.z = angle;
+                    wallPreviewMesh.visible = true;
+                } else if (wallPreviewMesh) {
+                    wallPreviewMesh.visible = false;
+                }
+            } else {
+                if (previewLine) previewLine.classList.add('hidden');
+                if (hud) hud.classList.remove('hidden');
+                if (lenEl) lenEl.innerText = `Başlangıç Noktası (+${activeElev}m)`;
+                if (axisBadge) axisBadge.innerText = `🧱 Tıklayın`;
+                if (wallPreviewMesh) wallPreviewMesh.visible = false;
+            }
         }
 
         function activateBuildPathMode() {
@@ -4018,7 +4736,40 @@
                 return;
             }
             if (e.key === 'Shift') isShiftPressed = true;
-            if (!isBuildPathActive) return;
+            if (!isBuildPathActive && !isDrawWallPathActive) return;
+
+            // Handle Wall Sketching keyboard distance entry
+            if (isDrawWallPathActive && wallPathNodes3D.length > 0) {
+                if ((e.key >= '0' && e.key <= '9') || e.key === '.' || e.key === ',') {
+                    const char = e.key === ',' ? '.' : e.key;
+                    typedDistanceBuffer += char;
+                    const lenEl = document.getElementById('build-path-hud-len');
+                    const axisBadge = document.getElementById('build-path-hud-axis');
+                    if (lenEl) lenEl.innerText = `⌨️ ${typedDistanceBuffer} m (Enter: Ekle)`;
+                    if (axisBadge) axisBadge.innerText = `Ölçü Girişi`;
+                    if (typeof showNotice === 'function') {
+                        showNotice(`📏 Klavye Ölçüsü: ${typedDistanceBuffer}m (Eskiz Segmenti Eklemek İçin Enter'a Basın)`);
+                    }
+                    return;
+                } else if (e.key === 'Backspace' && typedDistanceBuffer.length > 0) {
+                    typedDistanceBuffer = typedDistanceBuffer.slice(0, -1);
+                    const lenEl = document.getElementById('build-path-hud-len');
+                    if (lenEl) lenEl.innerText = typedDistanceBuffer.length > 0 ? `⌨️ ${typedDistanceBuffer} m (Enter: Ekle)` : `🧱 Ölçü Temizlendi`;
+                    return;
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (typedDistanceBuffer.length > 0) {
+                        const dist = parseFloat(typedDistanceBuffer);
+                        if (!isNaN(dist) && dist > 0) {
+                            addWallSegmentByDistance(dist);
+                        }
+                        typedDistanceBuffer = '';
+                    } else {
+                        cancelDrawWallPathMode();
+                    }
+                    return;
+                }
+            }
 
             const keyLower = e.key.toLowerCase();
             if (e.key === 'Tab' || e.code === 'Space') {
@@ -4038,14 +4789,20 @@
                 setOrthoAxis('AUTO');
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                if (sketchNodes3D.length >= 2) {
+                if (isDrawWallPathActive) {
+                    cancelDrawWallPathMode();
+                } else if (sketchNodes3D.length >= 2) {
                     finishBuildPath();
                 } else {
                     cancelBuildPath();
                 }
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                finishBuildPath();
+                if (isDrawWallPathActive) {
+                    cancelDrawWallPathMode();
+                } else {
+                    finishBuildPath();
+                }
             }
         });
         window.addEventListener('keyup', (e) => {
@@ -6270,6 +7027,9 @@
                         } else if (kind === 'ceiling-support') {
                             groupName = '🏗️ Tavan Destek Sistemleri';
                             labelName = `Ceiling Support #${idx + 1} (${userData.parametric?.platformType || 'CS'})`;
+                        } else if (kind === 'building-level-floor' || userData.isBuildingLevelFloor) {
+                            groupName = '🏢 Fabrika Katları & Zeminler';
+                            labelName = item.label || userData.product?.name || 'Fabrika Kat Zemini';
                         } else if (kind === 'cable-tray' || userData.isCableTray) {
                             groupName = '⚡ Kablo Kanalları';
                             labelName = `Kablo Kanalı #${idx + 1} (${userData.parametric?.width || 200}mm)`;
@@ -9100,7 +9860,7 @@
 
 
         function switchTopRibbonTab(tabName) {
-            const tabs = ['file', 'home', 'conveyor', 'controls', 'library', 'view'];
+            const tabs = ['file', 'home', 'conveyor', 'controls', 'library', 'view', 'building'];
             tabs.forEach((t) => {
                 const btn = document.getElementById(`ribbon-tab-btn-${t}`);
                 const content = document.getElementById(`ribbon-tab-content-${t}`);
@@ -9999,6 +10759,121 @@
         window.encryptXmlAes256 = encryptXmlAes256;
         window.decryptXmlAes256 = decryptXmlAes256;
     </script>
+    <!-- Building Levels Manager Modal (Şeffaf Zemin & Kat Yöneticisi) -->
+    <div id="modal-building-levels"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div
+            class="bg-gray-900 border border-cyan-500/40 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] text-xs text-gray-200">
+            <div class="bg-gray-850 px-5 py-3.5 border-b border-gray-800 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">🏢</span>
+                    <div>
+                        <h2 class="text-sm font-bold text-cyan-300">Fabrika Kat Yöneticisi & Şeffaf Zeminler</h2>
+                        <p class="text-[10px] text-gray-400">Fabrikanızın farklı kot yüksekliklerindeki şeffaf cam zeminlerini tanımlayın ve yönetin.</p>
+                    </div>
+                </div>
+                <button onclick="closeBuildingLevelsModal()"
+                    class="text-gray-400 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-gray-800 transition">✕</button>
+            </div>
+
+            <div class="flex-1 p-5 overflow-y-auto space-y-4">
+                <!-- Current Levels Table -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-xs text-cyan-200">Tanımlı Fabrika Katları</span>
+                        <span class="text-[10px] text-gray-400">Aktif kat çizimlerin başlama yüksekliğini belirler.</span>
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-800 rounded-lg">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-800/80 text-cyan-300 text-[10px] uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-3 py-2">Kat Adı</th>
+                                    <th class="px-3 py-2">Kot (Z m)</th>
+                                    <th class="px-3 py-2">Boyutlar (W x D)</th>
+                                    <th class="px-3 py-2">Şeffaflık</th>
+                                    <th class="px-3 py-2">Durum</th>
+                                    <th class="px-3 py-2 text-right">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="building-levels-table-body" class="divide-y divide-gray-800 bg-gray-900/60">
+                                <!-- Dynamic rows rendered by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Add New Level Form -->
+                <div class="bg-gray-850 p-4 rounded-xl border border-gray-800 space-y-3">
+                    <span class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+                        <span>➕</span> Yeni Kat / Şeffaf Zemin Ekle
+                    </span>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Kat Adı</span>
+                            <input id="new-level-name" type="text" placeholder="Örn: 1. Kat" value="1. Kat"
+                                class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none" />
+                        </label>
+
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Yükseklik / Kot (m)</span>
+                            <input id="new-level-elevation" type="number" step="0.5" value="4.0"
+                                class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none font-mono" />
+                        </label>
+
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Genişlik (m)</span>
+                            <input id="new-level-width" type="number" step="5" value="60"
+                                class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none font-mono" />
+                        </label>
+
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Derinlik (m)</span>
+                            <input id="new-level-depth" type="number" step="5" value="40"
+                                class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none font-mono" />
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Saydamlık Oranı</span>
+                            <select id="new-level-opacity" class="w-full bg-gray-950 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none">
+                                <option value="0.15">Çok Şeffaf (%15)</option>
+                                <option value="0.25" selected>Standart Şeffaf (%25)</option>
+                                <option value="0.40">Yarı Mat (%40)</option>
+                                <option value="0.65">Yoğun Cam (%65)</option>
+                            </select>
+                        </label>
+
+                        <label class="block space-y-1">
+                            <span class="text-gray-400 text-[11px]">Zemin Rengi</span>
+                            <select id="new-level-color" class="w-full bg-gray-950 border border-gray-700 rounded px-2.5 py-1.5 text-gray-100 text-xs outline-none">
+                                <option value="#00f3ff" selected>Turkuaz Cam (Cyan)</option>
+                                <option value="#3b82f6">Mavi Cam (Blue)</option>
+                                <option value="#10b981">Yeşil Cam (Emerald)</option>
+                                <option value="#a855f7">Mor Cam (Purple)</option>
+                                <option value="#64748b">Füme Cam (Slate)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <button onclick="addNewBuildingLevel()" type="button"
+                        class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded text-xs transition flex items-center justify-center gap-1.5 shadow cursor-pointer">
+                        <span>✨ Katı Tanımla & 3D Sahneye Ekle</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-850 px-5 py-3 border-t border-gray-800 flex justify-end gap-2">
+                <button onclick="closeBuildingLevelsModal()" type="button"
+                    class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-1.5 rounded text-xs font-semibold transition cursor-pointer">
+                    Tamam
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-ceiling-support-designer"
         class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div
