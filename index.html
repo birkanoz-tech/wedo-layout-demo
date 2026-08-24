@@ -238,21 +238,27 @@
                 </div>
             </div>
 
-            <!-- TAB 5: <LIBRARY> (SABİT MODEL KÜTÜPHANESİ) -->
+            <!-- TAB 5: <LIBRARY> (MODEL KÜTÜPHANESİ & ÇİZİM ARAÇLARI) -->
             <div id="ribbon-tab-content-library" class="top-ribbon-content hidden flex items-center gap-3">
+                <!-- Parametrik Yapı Elemanları -->
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
                     <button onclick="addParametricWallFromLibrary()" type="button"
-                        class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 text-xs font-medium cursor-pointer transition flex items-center gap-1">
+                        class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm">
                         <span>🧱</span> Duvar Ekle
                     </button>
-                    <button onclick="openCeilingSupportDesignerModal()"
-                        class="bg-emerald-900/70 hover:bg-emerald-800 text-emerald-300 px-2.5 py-1.5 rounded text-xs transition border border-emerald-500/40 font-semibold cursor-pointer flex items-center gap-1">
-                        <span>🏗️</span> Ceiling Support Tasarla
+                    <button onclick="openCeilingSupportDesignerModal()" type="button"
+                        class="bg-emerald-900/70 hover:bg-emerald-800 text-emerald-300 px-2.5 py-1.5 rounded text-xs transition border border-emerald-500/40 font-semibold cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span>🏗️</span> Ceiling Support
+                    </button>
+                    <button onclick="addParametricPanelFromLibrary()" type="button"
+                        class="bg-sky-900/70 hover:bg-sky-800 text-sky-300 px-2.5 py-1.5 rounded text-xs transition border border-sky-500/40 font-semibold cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span>⚡</span> PLC Panosu
                     </button>
                 </div>
 
+                <!-- GLB 3D Modeller -->
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
-                    <span class="text-gray-400 text-[10px] font-semibold">GLB Modeli:</span>
+                    <span class="text-gray-400 text-[10px] font-semibold">GLB Model:</span>
                     <select id="glb-library-model-select"
                         class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 outline-none cursor-pointer">
                     </select>
@@ -267,8 +273,35 @@
                         <span>📍</span> Tıkla-Bırak
                     </button>
                     <span id="glb-model-count-badge"
-                        class="bg-cyan-950 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0
-                        Ekli</span>
+                        class="bg-cyan-950 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0 Ekli</span>
+                </div>
+
+                <!-- 3D Çizim & Path Araçları -->
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button id="btn-mode-build-path" onclick="activateBuildPathMode()" type="button"
+                        class="bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 text-white px-2.5 py-1.5 rounded text-xs font-bold transition flex items-center gap-1 shadow cursor-pointer border border-emerald-500/40">
+                        <span>🛤️</span> Build Path (Çiz)
+                    </button>
+                    <button onclick="addCableTrayModule('straight')" type="button"
+                        class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm border border-gray-700">
+                        <span>📏 Düz Kanal</span>
+                    </button>
+                    <button onclick="addCableTrayModule('bend-right')" type="button"
+                        class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-2 py-1.5 rounded text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm border border-gray-700">
+                        <span>↪️ 90° Dönüş</span>
+                    </button>
+                </div>
+
+                <!-- Kablo Metraj & Network Bağlantıları -->
+                <div class="flex items-center gap-1.5">
+                    <button onclick="openCableLinkCreationDialog()" type="button"
+                        class="bg-cyan-800/80 hover:bg-cyan-700 text-cyan-200 px-2.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition flex items-center gap-1 shadow-sm border border-cyan-600/40">
+                        <span>🔗 Kablo Linki Bağla</span>
+                    </button>
+                    <button onclick="openCableLinksModal()" type="button"
+                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1.5 rounded text-xs font-medium cursor-pointer transition flex items-center gap-1 shadow-sm border border-gray-700">
+                        <span>📊 Cabinet Network</span>
+                    </button>
                 </div>
             </div>
 
@@ -372,221 +405,11 @@
                 <g id="svg-vertex-dots"></g>
             </svg>
 
-            <div class="admin-only-ui absolute top-44 left-4 z-20 flex flex-col gap-2">
-                <div class="flex gap-1.5">
-                    <button id="library-panel-toggle" type="button"
-                        class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs px-2.5 py-1.5 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer">
-                        <span>📚 Kütüphane</span>
-                    </button>
-                    <button id="drawing-panel-toggle" onclick="toggleDrawingToolsPanel()" type="button"
-                        class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2.5 py-1.5 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer">
-                        <span>📐 Çizim Araçları</span>
-                    </button>
-                </div>
-                <div id="model-library-panel"
-                    class="w-60 bg-gray-900/95 backdrop-blur border border-cyan-700/40 rounded-lg p-3 shadow-2xl space-y-2.5">
-                    <div class="flex items-center justify-between border-b border-gray-800 pb-1.5">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-cyan-300 font-bold">Model Kütüphanesi</p>
-                        <span id="glb-model-count-badge"
-                            class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0
-                            Ekli</span>
-                    </div>
-
-                    <!-- Parametrik Modeller -->
-                    <div class="space-y-1.5">
-                        <p class="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">⚙️ Parametrik
-                            Modeller</p>
-                        <div class="space-y-1">
-                            <div class="library-item cursor-context-menu rounded border border-gray-700/80 bg-gray-850 px-2 py-1.5 hover:border-cyan-500 hover:bg-gray-800 transition"
-                                data-library-item="wall">
-                                <div class="flex justify-between items-center">
-                                    <p class="text-xs text-gray-100 font-medium">Wall</p>
-                                    <span class="text-[9px] text-cyan-400">Sağ tık > Ekle</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400">Parametric Duvar</p>
-                            </div>
-                            <div class="library-item cursor-context-menu rounded border border-gray-700/80 bg-gray-850 px-2 py-1.5 hover:border-cyan-500 hover:bg-gray-800 transition"
-                                data-library-item="ceiling-support">
-                                <div class="flex justify-between items-center">
-                                    <p class="text-xs text-gray-100 font-medium">Ceiling Support</p>
-                                    <span class="text-[9px] text-cyan-400">Sağ tık > Ekle</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400">Parametric Ceiling Support</p>
-                            </div>
-                            <div class="library-item cursor-context-menu rounded border border-gray-700/80 bg-gray-850 px-2 py-1.5 hover:border-cyan-500 hover:bg-gray-800 transition"
-                                data-library-item="panel">
-                                <div class="flex justify-between items-center">
-                                    <p class="text-xs text-gray-100 font-medium">PLC Kontrol Panosu</p>
-                                    <span class="text-[9px] text-cyan-400">Sağ tık > Ekle</span>
-                                </div>
-                                <p class="text-[10px] text-gray-400">Parametric Elektrik Panosu</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- GLB Modelleri (Dropbox Select) -->
-                    <div class="pt-2 border-t border-gray-700/80 space-y-1.5">
-                        <p class="text-[9px] uppercase tracking-wider text-gray-400 font-semibold">📦 GLB Modelleri (PC
-                            / Kütüphane)</p>
-                        <select id="glb-library-model-select"
-                            class="block w-full text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-gray-200 focus:outline-none focus:border-cyan-500 cursor-pointer">
-                        </select>
-                        <input type="file" id="custom-glb-file-input" accept=".glb,.gltf" class="hidden">
-
-                        <div class="flex gap-1 pt-0.5">
-                            <button id="add-glb-model-btn" onclick="addSelectedGLBModelFromLibrary()" type="button"
-                                class="flex-1 bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1.5 rounded text-xs transition flex items-center justify-center gap-1 font-medium shadow-sm">
-                                <span>➕ Sahneye Ekle</span>
-                            </button>
-                            <button id="place-glb-model-click-btn" onclick="activateMode('manual-library')"
-                                type="button"
-                                class="bg-gray-800 hover:bg-gray-700 text-cyan-300 border border-cyan-700/50 px-2 py-1.5 rounded text-xs transition flex items-center justify-center gap-1 font-medium shadow-sm"
-                                title="Sahnede tıklayarak konumlandır">
-                                <span>🎯 Tıkla-Bırak</span>
-                            </button>
-                        </div>
-                        <p id="glb-library-status" class="text-[10px] text-gray-400 italic leading-tight"></p>
-                    </div>
-                </div>
-
-                <!-- Çizim Araçları (Drawing Tools) Panel -->
-                <div id="drawing-tools-panel"
-                    class="hidden w-64 bg-gray-900/95 backdrop-blur border border-emerald-500/40 rounded-lg p-3 shadow-2xl space-y-2.5 text-xs text-gray-200">
-                    <div class="flex items-center justify-between border-b border-gray-800 pb-1.5">
-                        <p class="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-bold">📐 Çizim Araçları
-                        </p>
-                        <span id="build-path-status-badge"
-                            class="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded font-mono border border-emerald-800/40">Hazır</span>
-                    </div>
-
-                    <!-- Tool Items -->
-                    <div class="space-y-1.5">
-                        <button id="btn-mode-build-path" onclick="activateBuildPathMode()" type="button"
-                            class="w-full text-left bg-gradient-to-r from-emerald-800/80 to-teal-800/80 hover:from-emerald-700 hover:to-teal-700 text-white p-2 rounded border border-emerald-500/30 flex items-center justify-between transition group shadow cursor-pointer">
-                            <div class="flex items-center gap-2">
-                                <span class="text-base">🛤️</span>
-                                <div>
-                                    <p class="font-bold text-xs group-hover:text-emerald-200">Build Path (Path Çiz)</p>
-                                    <p class="text-[10px] text-gray-300">Snap Destekli Ortho Çizim</p>
-                                </div>
-                            </div>
-                            <span
-                                class="text-[9px] bg-emerald-950/80 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Çiz</span>
-                        </button>
-                    </div>
-
-                    <!-- Kablo Kanalı Modülleri (Modular Cable Tray System) -->
-                    <div class="space-y-1.5 pt-1 border-t border-gray-800">
-                        <p class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">⚡ Kablo Kanalı
-                            Sistemleri</p>
-
-                        <div class="grid grid-cols-2 gap-1.5">
-                            <button onclick="addCableTrayModule('straight')" type="button"
-                                class="bg-gray-800 hover:bg-gray-700 text-white p-1.5 rounded border border-cyan-500/30 text-[10px] font-semibold flex items-center justify-between transition shadow cursor-pointer">
-                                <span>📏 Düz Kanal</span>
-                                <span
-                                    class="text-[9px] bg-cyan-950 text-cyan-300 px-1 py-0.5 rounded font-mono">3m</span>
-                            </button>
-                            <button onclick="addCableTrayModule('bend-right')" type="button"
-                                class="bg-gray-800 hover:bg-gray-700 text-white p-1.5 rounded border border-cyan-500/30 text-[10px] font-semibold flex items-center justify-between transition shadow cursor-pointer">
-                                <span>↪️ 90° Sağ Bend</span>
-                                <span
-                                    class="text-[9px] bg-cyan-950 text-cyan-300 px-1 py-0.5 rounded font-mono">R500</span>
-                            </button>
-                            <button onclick="addCableTrayModule('bend-left')" type="button"
-                                class="bg-gray-800 hover:bg-gray-700 text-white p-1.5 rounded border border-cyan-500/30 text-[10px] font-semibold flex items-center justify-between transition shadow cursor-pointer">
-                                <span>↩️ 90° Sol Bend</span>
-                                <span
-                                    class="text-[9px] bg-cyan-950 text-cyan-300 px-1 py-0.5 rounded font-mono">R500</span>
-                            </button>
-                            <button onclick="addCableTrayModule('tee')" type="button"
-                                class="bg-gray-800 hover:bg-gray-700 text-white p-1.5 rounded border border-cyan-500/30 text-[10px] font-semibold flex items-center justify-between transition shadow cursor-pointer">
-                                <span>🔀 T-Modülü</span>
-                                <span
-                                    class="text-[9px] bg-cyan-950 text-cyan-300 px-1 py-0.5 rounded font-mono">Tee</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Kablo Metraj & Linkleme Bölümü -->
-                    <div class="space-y-2 pt-2 border-t border-gray-800">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">🔌 Kablo Metrajı &
-                                Linkler</p>
-                            <span id="cable-link-count-badge"
-                                class="text-[9px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0
-                                Link</span>
-                        </div>
-
-                        <div class="grid grid-cols-1 gap-1.5">
-                            <button onclick="openCableLinkCreationDialog()" type="button"
-                                class="w-full bg-gradient-to-r from-cyan-900/80 to-blue-900/80 hover:from-cyan-800 hover:to-blue-800 text-white p-2 rounded border border-cyan-500/40 font-semibold text-xs flex items-center justify-center gap-2 shadow cursor-pointer transition">
-                                <span>🔗 Enstrüman / Motora Kablo Linki Bağla</span>
-                            </button>
-
-                            <button onclick="openCableLinksModal()" type="button"
-                                class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 p-1.5 rounded border border-gray-700 font-semibold text-[11px] flex items-center justify-center gap-1 shadow cursor-pointer transition">
-                                <span>📊 Cabinet Network</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Active Build Path Control Card -->
-                    <div id="build-path-control-card"
-                        class="hidden p-2.5 rounded bg-gray-850 border border-emerald-600/50 space-y-2">
-                        <div
-                            class="flex justify-between items-center text-[11px] font-semibold border-b border-gray-700/80 pb-1">
-                            <span class="text-emerald-300">🛤️ Aktif Path Çizimi</span>
-                            <span id="build-path-node-count" class="text-gray-400 font-mono">0 Nokta</span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-                            <div class="bg-gray-900 p-1.5 rounded border border-gray-800">
-                                <span class="text-gray-400 text-[10px] block">Segment:</span>
-                                <span id="build-path-segment-len" class="font-mono font-bold text-cyan-400">0.00
-                                    m</span>
-                            </div>
-                            <div class="bg-gray-900 p-1.5 rounded border border-gray-800">
-                                <span class="text-gray-400 text-[10px] block">Toplam Mesafe:</span>
-                                <span id="build-path-total-len" class="font-mono font-bold text-emerald-400">0.00
-                                    m</span>
-                            </div>
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between bg-gray-900 px-2 py-1 rounded text-[10px] border border-gray-800">
-                            <span class="text-gray-400">Ortho Kilit:</span>
-                            <button onclick="cycleBuildPathAxis()" type="button" id="build-path-axis-indicator"
-                                class="font-mono font-bold text-yellow-400 hover:text-yellow-300 bg-yellow-950/60 px-1.5 py-0.5 rounded border border-yellow-700/40 cursor-pointer"
-                                title="Kilitli ekseni değiştirmek için tıklayın veya Tab tuşuna basın">
-                                OTOMATİK (Tab)
-                            </button>
-                        </div>
-
-                        <div class="text-[10px] text-gray-400 leading-tight space-y-0.5 pt-0.5">
-                            <p>🖱️ <b>Sol Tık:</b> Nokta ekle (Modellere snap olur)</p>
-                            <p>⌨️ <b>Tab / X-Y-Z:</b> Manevra eksenini değiştir</p>
-                            <p>⏎ <b>Enter / Sağ Tık:</b> Path'i tamamla</p>
-                            <p>⎋ <b>Esc:</b> İptal et</p>
-                        </div>
-
-                        <div class="flex gap-1 pt-1">
-                            <button onclick="finishBuildPath()" type="button"
-                                class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs font-semibold shadow transition cursor-pointer">
-                                ✅ Tamamla
-                            </button>
-                            <button onclick="cancelBuildPath()" type="button"
-                                class="bg-rose-800 hover:bg-rose-700 text-white py-1 px-2 rounded text-xs transition cursor-pointer">
-                                ❌ İptal
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div id="library-context-menu"
-                    class="hidden absolute min-w-[100px] bg-gray-900 border border-gray-700 rounded shadow-lg overflow-hidden">
-                    <button id="library-context-add" type="button"
-                        class="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-cyan-700">Ekle</button>
-                </div>
+            <div id="library-context-menu"
+                class="hidden absolute min-w-[100px] bg-gray-900 border border-gray-700 rounded shadow-lg overflow-hidden z-40">
+                <button id="library-context-add" type="button"
+                    class="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-cyan-700">Ekle</button>
+            </div>
 
                 <!-- 3D Sahne Model Sağ-Tık (Context) Menüsü -->
                 <div id="scene-context-menu"
