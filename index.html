@@ -57,198 +57,292 @@
     </style>
 </head>
 
-<body class="bg-gray-900 text-white font-sans overflow-hidden flex h-screen">
-
-    <!-- Sol Araç Çubuğu -->
-    <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col z-10 shadow-lg">
-        <div class="p-4 border-b border-gray-700 bg-gray-850">
-            <h1 class="text-lg font-bold text-blue-400 flex items-center justify-between gap-2">
-                <span class="flex items-center gap-2"><span>⚙️</span> WEDO App</span>
-                <span
-                    class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded border border-blue-700/50 font-mono">v1.0.1</span>
-            </h1>
-            <p class="text-xs text-gray-400 mt-1">Saha & Otomasyon Eksikleri Ekranı</p>
+<body class="bg-gray-900 text-white font-sans overflow-hidden flex flex-col h-screen">
+    <!-- 1. TOP APPLICATION HEADER & RIBBON TOOLBAR -->
+    <header
+        class="h-9 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center justify-between px-3 z-30 shrink-0 select-none">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
+                <span class="text-blue-400 text-sm">🔷</span> WEDO App <span
+                    class="text-[10px] text-gray-400 font-mono bg-[#2a2a2a] px-1.5 py-0.5 rounded border border-gray-700">v1.0.1</span>
+            </div>
+            <div class="h-4 w-px bg-gray-700"></div>
+            <div
+                class="flex items-center gap-2 bg-[#252526] border-t-2 border-blue-500 text-white text-xs px-3 py-1 rounded-t shadow-sm">
+                <span>📄</span>
+                <span id="fusion-doc-title" class="font-medium text-[11px]">OPP-0106989-1-R1.xml</span>
+            </div>
         </div>
 
-        <div class="p-4 space-y-6 flex-1 overflow-y-auto">
-            <!-- İstatistikler -->
-            <div class="bg-gray-750 p-3 rounded-lg border border-gray-700 space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-400">Toplam Hat Sayısı:</span><span
-                        class="font-semibold text-green-400">36 Hat</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Motor Ünitesi:</span><span
-                        class="font-semibold text-yellow-400">18 Adet</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Spiral Konveyör:</span><span
-                        class="font-semibold text-purple-400">10 Adet</span></div>
-            </div>
-
-
-            <!-- Müşteri Özel Proje Seçim Ekranı (Müşteri Girişinde Görünür) -->
-            <div id="customer-project-selector-panel" class="hidden space-y-3 border-t border-gray-700 pt-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 Yetkili Müşteri
-                        Projeleriniz</h3>
-                    <span
-                        class="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded font-mono border border-emerald-800/40">👁️
-                        İnceleme Modu</span>
-                </div>
-                <p class="text-[11px] text-gray-400">Yetkili olduğunuz 3D müşteri projelerinden birini seçip canlı
-                    inceleyebilirsiniz:</p>
-                <div id="customer-projects-list" class="space-y-2">
-                    <!-- JS ile dinamik doldurulur -->
-                </div>
-            </div>
-
-            <!-- XML İçe/Dışa Aktar (Yalnızca Yönetici Görür) -->
-            <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400">📁 XML Dosya Yönetimi</h3>
-
-                <button onclick="document.getElementById('xml-file-input').click()"
-                    class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer shadow border border-blue-400/40">
-                    <span>📥 XML Proje Dosyası Yükle (.xml)</span>
+        <div class="flex items-center gap-3">
+            <div id="user-profile-bar" class="flex items-center gap-2">
+                <button id="user-profile-btn" onclick="openUserProfileModal()"
+                    class="bg-[#2a2a2a] hover:bg-[#333333] text-white border border-gray-700 px-2.5 py-1 rounded-lg shadow-sm backdrop-blur text-xs font-semibold flex items-center gap-2 transition cursor-pointer">
+                    <span id="user-avatar-badge"
+                        class="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold">B</span>
+                    <span id="user-display-name">Birkan Özkan</span>
+                    <span id="user-role-badge"
+                        class="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50">Yönetici</span>
                 </button>
+            </div>
+        </div>
+    </header>
 
-                <input id="xml-file-input" type="file" accept=".xml,text/xml" class="hidden" />
+    <!-- 2. TOP RIBBON TABS (FILE, HOME, CONVEYOR, CONTROLS, LIBRARY) -->
+    <div class="bg-[#252526] border-b border-[#333333] flex flex-col z-20 shrink-0 select-none">
+        <!-- Ribbon Tab Buttons Row -->
+        <div class="flex items-center justify-between px-3 pt-1 border-b border-[#2d2d2d] bg-[#1e1e1e]">
+            <div class="flex items-center gap-1">
+                <div
+                    class="flex items-center gap-1 bg-[#2d2d2d] text-white text-xs px-2.5 py-1 rounded font-bold mr-2 border border-gray-700">
+                    <span class="text-blue-400">🛠️</span> DESIGN <span class="text-[9px] text-gray-400">▾</span>
+                </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <button onclick="switchTopRibbonTab('file')" id="ribbon-tab-btn-file"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-white border-b-2 border-blue-500 bg-[#252526] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;FILE&gt;
+                </button>
+                <button onclick="switchTopRibbonTab('home')" id="ribbon-tab-btn-home"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;HOME&gt;
+                </button>
+                <button onclick="switchTopRibbonTab('conveyor')" id="ribbon-tab-btn-conveyor"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;CONVEYOR&gt;
+                </button>
+                <button onclick="switchTopRibbonTab('controls')" id="ribbon-tab-btn-controls"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;CONTROLS&gt;
+                </button>
+                <button onclick="switchTopRibbonTab('library')" id="ribbon-tab-btn-library"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;LIBRARY&gt;
+                </button>
+                <button onclick="switchTopRibbonTab('view')" id="ribbon-tab-btn-view"
+                    class="top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5">
+                    &lt;VIEW&gt;
+                </button>
+            </div>
+
+            <p id="import-status" class="text-[11px] text-gray-400 font-mono truncate max-w-xs">📂 Boş 3D Sahne Hazır.
+            </p>
+        </div>
+
+        <!-- Ribbon Action Content Panels -->
+        <div class="px-3 py-1.5 min-h-[46px] flex items-center gap-3 overflow-x-auto text-xs">
+            <!-- TAB 1: <FILE> -->
+            <div id="ribbon-tab-content-file" class="top-ribbon-content flex items-center gap-3">
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <label
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm">
+                        <span>📥</span> XML Proje Yükle (.xml)
+                        <input type="file" id="xml-file-input" accept=".xml,text/xml" class="hidden"
+                            onchange="loadXmlProjectFromFile(this)">
+                    </label>
                     <button onclick="exportXmlProjectAsNewFile()"
-                        class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-2 py-2 rounded flex items-center justify-center gap-1 text-xs font-medium transition cursor-pointer shadow">
-                        <span>📄 XML Farklı Kaydet</span>
+                        class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-2.5 py-1.5 rounded text-xs transition cursor-pointer shadow font-medium">
+                        <span>📄</span> XML Farklı Kaydet
                     </button>
                     <button onclick="exportXmlWithEmbeddedAssets()"
-                        class="bg-emerald-700 hover:bg-emerald-600 text-white px-2 py-2 rounded flex items-center justify-center gap-1 text-xs font-semibold transition cursor-pointer shadow border border-emerald-500/30">
-                        <span>📦 Modelli XML İndir</span>
+                        class="bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer shadow border border-emerald-500/30 font-semibold">
+                        <span>📦</span> Modelli XML İndir
                     </button>
                 </div>
-
-                <button onclick="exportStandaloneInteractiveHtml()"
-                    class="w-full bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white px-2.5 py-2 rounded flex items-center justify-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow border border-purple-400/30">
-                    <span>🌐 Çift Tıklanabilir 3D HTML İndir (.html)</span>
-                </button>
-
-                <button onclick="exportSceneToGLB()"
-                    class="w-full bg-indigo-700 hover:bg-indigo-600 text-white px-2.5 py-2 rounded flex items-center justify-center gap-1.5 text-xs font-semibold transition cursor-pointer shadow border border-indigo-500/30">
-                    <span>📦 3D Sahneyi GLB İndir (.glb)</span>
-                </button>
-
-                <button onclick="openCeilingSupportDesignerModal()"
-                    class="w-full text-left bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white px-3 py-2.5 rounded flex items-center justify-between text-sm transition font-semibold shadow border border-emerald-400/30">
-                    <span>🏗️ Ceiling Support Tasarla</span>
-                    <span class="text-xs bg-emerald-800/80 px-2 py-0.5 rounded font-mono">Parametrik</span>
-                </button>
-                <button onclick="openAdminProjectManagerModal()" type="button"
-                    class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-2.5 rounded-lg flex items-center justify-between text-xs font-bold transition cursor-pointer shadow border border-amber-400/40">
-                    <span class="flex items-center gap-1.5"><span>📁</span> Tüm Projeler & Yetki Yönetimi</span>
-                    <span class="text-[9px] bg-amber-950 text-amber-200 px-1.5 py-0.5 rounded font-mono border border-amber-700/60">👑 Admin</span>
-                </button>
-
-                <p id="import-status" class="text-xs text-gray-400">Henüz bir XML yüklenmedi.</p>
-                <p id="autosave-status" class="text-[11px] text-emerald-400/90 hidden">💾 Değişiklikler otomatik kaydedildi.</p>
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button onclick="exportStandaloneInteractiveHtml()"
+                        class="bg-purple-700 hover:bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer shadow border border-purple-400/30 font-semibold">
+                        <span>🌐</span> 3D HTML İndir (.html)
+                    </button>
+                    <button onclick="exportSceneToGLB()"
+                        class="bg-indigo-700 hover:bg-indigo-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer shadow border border-indigo-500/30 font-semibold">
+                        <span>📦</span> GLB İndir (.glb)
+                    </button>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="openAdminProjectManagerModal()" type="button"
+                        class="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1.5 rounded text-xs font-bold transition cursor-pointer shadow border border-amber-400/40 flex items-center gap-1.5">
+                        <span>📁</span> Tüm Projeler & Yetki Yönetimi
+                    </button>
+                </div>
             </div>
 
-            <!-- Pano & Kablo Eşleştirme Yönetimi (Yalnızca Yönetici Görür) -->
-            <div class="admin-only-ui space-y-2.5 border-t border-gray-700 pt-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">⚡ Pano & Kablo Eşleştirme</h3>
-                    <span id="cable-link-count-badge"
-                        class="text-[9px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0
-                        Link</span>
+            <!-- TAB 2: <HOME> -->
+            <div id="ribbon-tab-content-home" class="top-ribbon-content hidden flex items-center gap-3">
+                <div
+                    class="flex items-center gap-2 bg-gray-800/80 px-2.5 py-1 rounded border border-gray-700 border-r border-[#3a3a3a] pr-3">
+                    <span class="text-gray-400 text-[10px]">İstatistikler:</span>
+                    <span class="text-green-400 font-semibold">36 Hat</span>
+                    <span class="text-gray-500">|</span>
+                    <span class="text-yellow-400 font-semibold">18 Motor</span>
+                    <span class="text-gray-500">|</span>
+                    <span class="text-purple-400 font-semibold">10 Spiral</span>
+                </div>
+                <div
+                    class="flex items-center gap-2 bg-gray-800/80 px-2.5 py-1 rounded border border-gray-700 border-r border-[#3a3a3a] pr-3">
+                    <span class="text-gray-400 text-[10px]">Canlı Metraj:</span>
+                    <span id="est-cable-m" class="text-green-400 font-bold">0 m</span>
+                    <span class="text-gray-500">|</span>
+                    <span class="text-yellow-400 font-semibold">~12 Adam/Gün</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="generateProposalSummary()"
+                        class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded text-xs transition shadow flex items-center gap-1.5 cursor-pointer">
+                        <span>📄</span> Teklif Özeti Oluştur
+                    </button>
                 </div>
 
-                <div class="grid grid-cols-1 gap-2">
-                    <button onclick="addParametricPanelFromLibrary()" type="button"
-                        class="w-full bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-cyan-300 p-2 rounded border border-cyan-500/40 font-semibold text-xs flex items-center justify-between shadow cursor-pointer transition">
-                        <span class="flex items-center gap-1.5"><span>⚡</span> Model Kütüphanesinden Pano Ekle</span>
-                        <span class="text-[9px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded font-mono">+ Ekle</span>
-                    </button>
+                <!-- Customer Project Selector Panel (Hidden by default, shown for customer profile) -->
+                <div id="customer-project-selector-panel"
+                    class="hidden flex items-center gap-2 bg-emerald-950/60 border border-emerald-700/50 px-2.5 py-1 rounded">
+                    <span class="text-[10px] text-emerald-300 font-bold">📁 Projeleriniz:</span>
+                    <div id="customer-projects-list" class="flex items-center gap-1"></div>
+                </div>
+            </div>
 
-                    <button onclick="openCableLinkCreationDialog()" type="button"
-                        class="w-full bg-gradient-to-r from-cyan-900 to-blue-900 hover:from-cyan-800 hover:to-blue-800 text-white p-2 rounded border border-cyan-500/50 font-semibold text-xs flex items-center justify-center gap-1.5 shadow cursor-pointer transition">
-                        <span>🔗 Pano ➔ Motor Kablo Bağlantısı Kur</span>
-                    </button>
-
-                    <button onclick="openCableLinksModal()" type="button"
-                        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 p-1.5 rounded border border-gray-700 font-semibold text-[11px] flex items-center justify-center gap-1 shadow cursor-pointer transition">
-                        <span>📊 Cabinet Network</span>
-                    </button>
-
+            <!-- TAB 3: <CONVEYOR> -->
+            <div id="ribbon-tab-content-conveyor" class="top-ribbon-content hidden flex items-center gap-3">
+                <div class="flex items-center gap-1.5">
                     <button onclick="toggleConveyorPathwayVisibility()" type="button"
-                        class="w-full bg-gradient-to-r from-emerald-950 to-teal-900 hover:from-emerald-900 hover:to-teal-800 text-emerald-300 p-1.5 rounded border border-emerald-500/40 font-semibold text-[11px] flex items-center justify-center gap-1.5 shadow cursor-pointer transition">
-                        <span>🛤️ 400mm Konveyör Kablo Yolu</span>
+                        class="bg-emerald-900/70 hover:bg-emerald-800 text-emerald-300 px-3 py-1.5 rounded border border-emerald-500/40 font-semibold text-xs flex items-center gap-1.5 shadow cursor-pointer transition">
+                        <span>🛣️</span> 400mm Konveyör Kablo Yolu Göster / Gizle
                     </button>
                 </div>
             </div>
-            <div id="mode-status"
-                class="admin-only-ui bg-gray-900 border border-blue-500/40 p-3 rounded-lg text-xs text-blue-300 hidden">
-                <p class="font-bold mb-1" id="mode-title">Mod: Pano Ekleme</p>
-                <p id="mode-desc">3D sahnede tıklandığı yere Elektrik Panosu eklenecek.</p>
-            </div>
 
-
-
-            <!-- Canlı Metraj & Tahmin -->
-            <div class="border-t border-gray-700 pt-4 space-y-2">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Canlı Metraj & Tahmin</h3>
-                <div class="bg-gray-900 p-3 rounded text-xs space-y-1">
-                    <div class="flex justify-between"><span class="text-gray-400">Tahmini Kablo Metrajı:</span><span
-                            id="est-cable-m" class="font-bold text-green-400">0 m</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">İşçilik & Montaj Süresi:</span><span
-                            class="font-bold text-yellow-400">~12 Adam/Gün</span></div>
+            <!-- TAB 4: <CONTROLS> -->
+            <div id="ribbon-tab-content-controls" class="top-ribbon-content hidden flex items-center gap-3">
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button onclick="addParametricPanelFromLibrary()" type="button"
+                        class="bg-slate-800 hover:bg-slate-700 text-cyan-300 px-2.5 py-1.5 rounded border border-cyan-500/40 font-semibold text-xs flex items-center gap-1.5 shadow cursor-pointer transition">
+                        <span>⚡</span> Pano Ekle
+                    </button>
+                    <button onclick="openCableLinkCreationDialog()" type="button"
+                        class="bg-cyan-900 hover:bg-cyan-800 text-white px-2.5 py-1.5 rounded border border-cyan-500/50 font-semibold text-xs flex items-center gap-1.5 shadow cursor-pointer transition">
+                        <span>🔗</span> Pano ➔ Motor Kablo Bağlantısı Kur
+                    </button>
+                    <button onclick="openCableLinksModal()" type="button"
+                        class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 font-semibold text-xs flex items-center gap-1.5 shadow cursor-pointer transition">
+                        <span>📊</span> Cabinet Network <span id="cable-link-count-badge"
+                            class="bg-cyan-950 text-cyan-300 px-1 rounded font-mono text-[9px]">0</span>
+                    </button>
+                </div>
+                <div id="mode-status"
+                    class="bg-gray-900 border border-blue-500/40 px-2.5 py-1 rounded text-[11px] text-blue-300 flex items-center gap-2">
+                    <p class="font-bold" id="mode-title">Mod: Normal</p>
+                    <p id="mode-desc" class="text-gray-400 text-[10px]">3D sahnede seçim yapabilirsiniz.</p>
                 </div>
             </div>
-        </div>
 
-        <div class="p-4 border-t border-gray-700 bg-gray-850">
-            <button onclick="generateProposalSummary()"
-                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-2.5 px-4 rounded shadow text-sm flex items-center justify-center gap-2">
-                <span>📄 Teklif Özeti Oluştur</span>
-            </button>
+            <!-- TAB 5: <LIBRARY> (SABİT MODEL KÜTÜPHANESİ) -->
+            <div id="ribbon-tab-content-library" class="top-ribbon-content hidden flex items-center gap-3">
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <button onclick="addParametricWallFromLibrary()" type="button"
+                        class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-2.5 py-1.5 rounded border border-gray-700 text-xs font-medium cursor-pointer transition flex items-center gap-1">
+                        <span>🧱</span> Duvar Ekle
+                    </button>
+                    <button onclick="openCeilingSupportDesignerModal()"
+                        class="bg-emerald-900/70 hover:bg-emerald-800 text-emerald-300 px-2.5 py-1.5 rounded text-xs transition border border-emerald-500/40 font-semibold cursor-pointer flex items-center gap-1">
+                        <span>🏗️</span> Ceiling Support Tasarla
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
+                    <span class="text-gray-400 text-[10px] font-semibold">GLB Modeli:</span>
+                    <select id="glb-library-model-select"
+                        class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 outline-none cursor-pointer">
+                    </select>
+                    <input type="file" id="custom-glb-file-input" accept=".glb,.gltf" class="hidden">
+
+                    <button id="add-glb-model-btn" onclick="addSelectedGLBModelFromLibrary()" type="button"
+                        class="bg-cyan-700 hover:bg-cyan-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition flex items-center gap-1 shadow">
+                        <span>➕</span> Sahneye Ekle
+                    </button>
+                    <button id="place-glb-model-click-btn" onclick="activateMode('manual-library')" type="button"
+                        class="bg-gray-800 hover:bg-gray-700 text-cyan-300 border border-cyan-700/50 px-2.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition flex items-center gap-1 shadow">
+                        <span>📍</span> Tıkla-Bırak
+                    </button>
+                    <span id="glb-model-count-badge"
+                        class="bg-cyan-950 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded font-mono border border-cyan-800/40">0
+                        Ekli</span>
+                </div>
+            </div>
+
+            <!-- TAB 6: <VIEW> (VIEWPORT BAKIŞ AÇILARI & KAMERA) -->
+            <div id="ribbon-tab-content-view" class="top-ribbon-content hidden flex items-center gap-3">
+                <div class="flex items-center gap-1 bg-gray-800/90 p-1 rounded-lg border border-gray-700">
+                    <span class="text-gray-400 text-[10px] font-bold uppercase tracking-wider px-2">Viewport:</span>
+                    <button onclick="setViewportView('top')"
+                        class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 border border-gray-600 text-[10px] font-semibold text-white transition cursor-pointer shadow-sm">Top</button>
+                    <button onclick="setViewportView('front')"
+                        class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 border border-gray-600 text-[10px] font-semibold text-white transition cursor-pointer shadow-sm">Front</button>
+                    <button onclick="setViewportView('right')"
+                        class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 border border-gray-600 text-[10px] font-semibold text-white transition cursor-pointer shadow-sm">Right</button>
+                    <button onclick="setViewportView('left')"
+                        class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 border border-gray-600 text-[10px] font-semibold text-white transition cursor-pointer shadow-sm">Left</button>
+                    <button onclick="setViewportView('back')"
+                        class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 border border-gray-600 text-[10px] font-semibold text-white transition cursor-pointer shadow-sm">Back</button>
+                    <button onclick="setViewportView('iso')"
+                        class="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 border border-blue-400 text-[10px] font-bold text-white transition cursor-pointer shadow-sm">ISO</button>
+                </div>
+
+                <div class="flex items-center gap-1.5 border-l border-[#3a3a3a] pl-3">
+                    <button id="toggle-camera-projection-btn" onclick="toggleCameraProjection()"
+                        class="bg-indigo-700 hover:bg-indigo-600 active:bg-indigo-800 text-white text-xs px-3 py-1.5 rounded shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span id="camera-projection-icon">📐</span>
+                        <span id="camera-projection-text">Kamera: Ortografik</span>
+                    </button>
+                    <button onclick="toggleRightPropertiesPanel()" type="button"
+                        class="bg-cyan-700 hover:bg-cyan-600 active:bg-cyan-800 text-white text-xs px-3 py-1.5 rounded shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>⚙️</span>
+                        <span>Sağ Panel (Özellikler & Konum) Göster/Gizle</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 3D Tuval Alanı -->
-    <div class="flex-1 flex">
+
+
+    <!-- 3D Tuval & Sağ Panel Flex Kapsayıcısı -->
+    <div class="flex-1 flex overflow-hidden relative">
         <div class="flex-1 relative">
             <div id="canvas-container" class="w-full h-full"></div>
+
+            <!-- Floating Transparent Product Tree (Fusion 360 Style Browser - Left Side) -->
+            <div id="fusion-left-browser"
+                class="absolute top-3 left-3 z-20 w-60 max-h-[calc(100vh-140px)] flex flex-col pointer-events-none select-none bg-transparent">
+                <div class="bg-transparent p-1 flex items-center justify-between pointer-events-auto">
+                    <span
+                        class="text-[11px] font-bold text-slate-900 [text-shadow:_0_0_4px_#ffffff,_0_0_4px_#ffffff] flex items-center gap-1.5">
+                        <span>🌲</span> Browser / Ürün Ağacı
+                    </span>
+                    <button type="button" onclick="collapseAllTreeAssemblies()"
+                        class="text-[9px] bg-white/80 hover:bg-white text-slate-900 px-1.5 py-0.5 rounded border border-slate-300 transition cursor-pointer font-semibold shadow-sm">
+                        📁 Collapse All
+                    </button>
+                </div>
+                <div class="bg-transparent p-1 pointer-events-auto">
+                    <input id="tree-search-input" type="text" placeholder="🔍 Konveyör / parça ara..."
+                        oninput="filterModelTree(this.value)"
+                        class="w-full text-[8px] bg-white/90 border border-slate-300 rounded px-2 py-1 text-slate-900 font-medium placeholder-slate-500 focus:outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+                <div id="model-tree"
+                    class="bg-transparent flex-1 overflow-y-auto p-0.5 text-[8px] space-y-0 pointer-events-auto max-h-[calc(100vh-220px)]">
+                </div>
+            </div>
 
             <div id="hover-assembly-label"
                 class="absolute hidden pointer-events-none z-20 bg-blue-600/90 border border-blue-400/70 text-white text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
             </div>
 
-            <div id="model-measurement"
-                class="absolute top-4 left-4 hidden bg-gray-800/80 backdrop-blur border border-gray-700 px-3 py-2 rounded text-xs text-gray-300 shadow">
-                <p class="font-semibold text-blue-300">Model ölçüsü</p>
-                <p id="model-size-text" class="mt-1">Bekleniyor...</p>
-            </div>
 
-            <div class="absolute bottom-4 right-4 z-20 pointer-events-auto">
+
+            <div id="axis-gizmo-wrapper" class="absolute bottom-4 right-[275px] z-30 pointer-events-auto transition-all duration-300">
                 <div id="axis-gizmo-container" class="w-[110px] h-[110px] overflow-visible"></div>
             </div>
 
-            <!-- User Profile & Authentication Widget -->
-            <div id="user-profile-bar" class="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
-                <button id="user-profile-btn" onclick="openUserProfileModal()"
-                    class="bg-gray-800/90 hover:bg-gray-700/90 text-white border border-blue-500/40 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur text-xs font-semibold flex items-center gap-2 transition cursor-pointer">
-                    <span id="user-avatar-badge"
-                        class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs text-white">👤</span>
-                    <span id="user-display-name">Giriş Yap / Profil Oluştur</span>
-                    <span id="user-role-badge"
-                        class="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-800/50 hidden">Yönetici</span>
-                </button>
-            </div>
 
-            <div
-                class="absolute top-4 right-4 bg-gray-800/80 backdrop-blur border border-gray-700 px-3 py-2 rounded text-xs text-gray-300 space-y-1 shadow z-20">
-                <p>🖱️ <b>Sol Tık + Sürükle:</b> Döndür</p>
-                <p>🖱️ <b>Sağ Tık + Sürükle:</b> Kaydır</p>
-                <p>🔍 <b>Tekerlek:</b> Yakınlaştır</p>
-                <div class="pt-1.5 border-t border-gray-700/60 mt-1">
-                    <button id="toggle-camera-projection-btn" onclick="toggleCameraProjection()"
-                        class="w-full bg-indigo-700 hover:bg-indigo-600 active:bg-indigo-800 text-white text-[11px] px-2 py-1 rounded shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
-                        <span id="camera-projection-icon">📐</span>
-                        <span id="camera-projection-text">Kamera: Ortografik</span>
-                    </button>
-                </div>
-            </div>
+
 
             <!-- Fusion 360 / Inventor Style Non-Intrusive Floating CAD Badge -->
             <div id="build-path-hud"
@@ -826,98 +920,94 @@
                 </div>
             </div>
 
-            <div
-                class="absolute top-20 left-4 bg-gray-900/90 backdrop-blur border border-gray-700/80 p-2 rounded-lg shadow-2xl text-[11px] text-gray-300">
-                <div class="mb-2 text-[10px] uppercase tracking-[0.3em] text-gray-500">Viewport</div>
-                <div class="grid grid-cols-3 gap-1">
-                    <button onclick="setViewportView('top')"
-                        class="w-10 h-8 rounded bg-gray-800/90 hover:bg-gray-700 border border-gray-700 text-[10px] shadow-sm">Top</button>
-                    <button onclick="setViewportView('front')"
-                        class="w-10 h-8 rounded bg-gray-800/90 hover:bg-gray-700 border border-gray-700 text-[10px] shadow-sm">Front</button>
-                    <button onclick="setViewportView('right')"
-                        class="w-10 h-8 rounded bg-gray-800/90 hover:bg-gray-700 border border-gray-700 text-[10px] shadow-sm">Right</button>
-                    <button onclick="setViewportView('left')"
-                        class="w-10 h-8 rounded bg-gray-800/90 hover:bg-gray-700 border border-gray-700 text-[10px] shadow-sm">Left</button>
-                    <button onclick="setViewportView('back')"
-                        class="w-10 h-8 rounded bg-gray-800/90 hover:bg-gray-700 border border-gray-700 text-[10px] shadow-sm">Back</button>
-                    <button onclick="setViewportView('iso')"
-                        class="w-10 h-8 rounded bg-blue-600 hover:bg-blue-500 border border-blue-500 text-[10px] font-semibold shadow-sm">ISO</button>
+
+
+        <!-- Docked Right Side Properties Sidebar (Fusion 360 Collapsible Inspector Drawer - Pinned Right Overlay) -->
+        <div id="fixed-right-properties-panel"
+            class="absolute top-0 right-0 h-full w-64 bg-[#1e1e1e]/95 backdrop-blur border-l border-[#2d2d2d] flex flex-col z-20 pointer-events-auto select-none shadow-2xl transition-all duration-300">
+            
+            <!-- EXPANDED SIDEBAR VIEW -->
+            <div id="right-panel-expanded-view" class="flex flex-col h-full w-full overflow-hidden">
+                <!-- Sidebar Header with Hide Button -->
+                <div class="h-9 bg-[#252526]/90 border-b border-[#2d2d2d] px-3 flex items-center justify-between shrink-0">
+                    <span class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                        <span>⚙️</span> Konum & Özellikler
+                    </span>
+                    <button type="button" onclick="toggleRightPropertiesPanel()" title="Paneli Daralt"
+                        class="text-[10px] text-gray-300 hover:text-white px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 transition cursor-pointer border border-gray-700 flex items-center gap-1 shadow-sm">
+                        <span>⏩ Daralt</span>
+                    </button>
+                </div>
+
+                <!-- Scrollable Sidebar Content Body -->
+                <div id="right-properties-content-body" class="p-3 overflow-y-auto flex-1 space-y-3 text-xs text-gray-300">
+                    <!-- Position & Rotation Editor -->
+                    <div id="world-position-editor" class="space-y-3 bg-[#252526]/90 p-3 rounded-lg border border-[#333333] shadow-md">
+                        <div>
+                            <div class="mb-1.5 flex items-center justify-between gap-3">
+                                <div class="text-[10px] uppercase tracking-[0.2em] text-blue-400 font-bold">World Position (m)</div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>X (m)</span>
+                                    <input id="world-pos-x" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                        onchange="applySelectedWorldPosition()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
+                                </label>
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>Y (m)</span>
+                                    <input id="world-pos-y" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                        onchange="applySelectedWorldPosition()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
+                                </label>
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>Z (m)</span>
+                                    <input id="world-pos-z" type="number" step="0.1" oninput="applySelectedWorldPosition()"
+                                        onchange="applySelectedWorldPosition()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-gray-700/80">
+                            <div class="mb-1.5 flex items-center justify-between gap-3">
+                                <div class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-bold">World Rotation (°)</div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>Açı X (°)</span>
+                                    <input id="world-rot-x" type="number" step="5" oninput="applySelectedWorldRotation()"
+                                        onchange="applySelectedWorldRotation()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-cyan-500 font-mono text-[11px]" />
+                                </label>
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>Açı Y (°)</span>
+                                    <input id="world-rot-y" type="number" step="5" oninput="applySelectedWorldRotation()"
+                                        onchange="applySelectedWorldRotation()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-cyan-500 font-mono text-[11px]" />
+                                </label>
+                                <label class="space-y-1 text-[10px] text-gray-400">
+                                    <span>Açı Z (°)</span>
+                                    <input id="world-rot-z" type="number" step="5" oninput="applySelectedWorldRotation()"
+                                        onchange="applySelectedWorldRotation()"
+                                        class="w-full bg-[#181818] border border-gray-700 rounded px-1.5 py-1 text-gray-200 focus:outline-none focus:border-cyan-500 font-mono text-[11px]" />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div id="world-position-editor"
-                class="admin-only-ui absolute top-4 right-4 bg-gray-900/95 backdrop-blur border border-gray-700/80 p-3 rounded-lg shadow-2xl text-[11px] text-gray-300 z-20 w-56 space-y-3">
-                <div>
-                    <div class="mb-1.5 flex items-center justify-between gap-3">
-                        <div class="text-[10px] uppercase tracking-[0.3em] text-blue-400 font-semibold">World Position
-                            (m)</div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>X (m)</span>
-                            <input id="world-pos-x" type="number" step="0.1" oninput="applySelectedWorldPosition()"
-                                onchange="applySelectedWorldPosition()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-blue-500" />
-                        </label>
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>Y (m)</span>
-                            <input id="world-pos-y" type="number" step="0.1" oninput="applySelectedWorldPosition()"
-                                onchange="applySelectedWorldPosition()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-blue-500" />
-                        </label>
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>Z (m)</span>
-                            <input id="world-pos-z" type="number" step="0.1" oninput="applySelectedWorldPosition()"
-                                onchange="applySelectedWorldPosition()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-blue-500" />
-                        </label>
-                    </div>
-                </div>
+            <!-- COLLAPSED VERTICAL TAB STRIP (Shown when panel is collapsed) -->
+            <div id="right-panel-collapsed-view" onclick="toggleRightPropertiesPanel()" title="Özellikler Paneli Genişlet (Tıkla)"
+                class="hidden flex-col items-center py-4 px-1 space-y-4 cursor-pointer hover:bg-[#252526] transition-colors h-full w-full select-none">
+                <span class="text-sm">⚙️</span>
+                <span class="text-[10px] font-extrabold tracking-[0.25em] text-cyan-300 uppercase [writing-mode:vertical-rl] rotate-180 whitespace-nowrap">
+                    KONUM & ÖZELLİKLER
+                </span>
+                <span class="text-[9px] text-gray-400">◀</span>
+            </div>
 
-                <div class="pt-2 border-t border-gray-700/80">
-                    <div class="mb-1.5 flex items-center justify-between gap-3">
-                        <div class="text-[10px] uppercase tracking-[0.3em] text-cyan-400 font-semibold">World Rotation
-                            (°)</div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>Açı X (°)</span>
-                            <input id="world-rot-x" type="number" step="5" oninput="applySelectedWorldRotation()"
-                                onchange="applySelectedWorldRotation()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-cyan-500" />
-                        </label>
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>Açı Y (°)</span>
-                            <input id="world-rot-y" type="number" step="5" oninput="applySelectedWorldRotation()"
-                                onchange="applySelectedWorldRotation()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-cyan-500" />
-                        </label>
-                        <label class="space-y-1 text-[10px] text-gray-400">
-                            <span>Açı Z (°)</span>
-                            <input id="world-rot-z" type="number" step="5" oninput="applySelectedWorldRotation()"
-                                onchange="applySelectedWorldRotation()"
-                                class="w-full bg-gray-800 border border-gray-700 rounded px-1 py-1 text-gray-200 focus:outline-none focus:border-cyan-500" />
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="w-72 bg-gray-800 border-l border-gray-700 flex flex-col">
-            <div class="p-4 border-b border-gray-700 bg-gray-850">
-                <h2 class="text-sm font-bold text-blue-300">Ürün Ağacı</h2>
-                <p class="text-xs text-gray-400 mt-1">Bir ürünü seçip sahnede odaklayabilirsiniz.</p>
-            </div>
-            <div class="p-3 border-b border-gray-700">
-                <input id="tree-search-input" type="text" placeholder="Konveyör no ile ara (örn: Conveyor_5)"
-                    oninput="filterModelTree(this.value)"
-                    class="w-full text-xs bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500" />
-                <button type="button" onclick="collapseAllTreeAssemblies()"
-                    class="mt-2 w-full text-xs bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-gray-300 hover:bg-gray-700/70">
-                    Collapse All
-                </button>
-            </div>
-            <div id="model-tree" class="flex-1 overflow-y-auto p-3 text-sm"></div>
         </div>
     </div>
 
@@ -6135,33 +6225,33 @@
             }
 
             tree.innerHTML = `
-                <div class="space-y-2">
+                <div class="space-y-0 bg-transparent">
                     ${filteredAssemblies.map((assembly) => {
                 const assemblyHighlighted = Boolean(term) && assembly.name.toLowerCase().includes(term);
                 const isCollapsed = !term && collapsedAssemblies.has(assembly.name);
                 const isAssemblySelected = assembly.name === selectedAssemblyName;
                 const safeToggleName = assembly.name.replace(/"/g, '&quot;');
                 return `
-                        <div class="rounded-lg border ${assemblyHighlighted ? 'border-yellow-500/60' : isAssemblySelected ? 'border-[#00674F]/85' : 'border-gray-700'} ${isAssemblySelected ? 'bg-[#00674F]/20' : 'bg-gray-850/70'}">
-                            <div class="flex items-center gap-1 px-1">
-                                <button
-                                    type="button"
-                                    data-assembly-select="${safeToggleName}"
-                                    class="flex-1 text-left px-1 py-2 text-[11px] uppercase tracking-wider truncate ${isAssemblySelected ? 'text-[#9FE2D0]' : 'text-gray-400 hover:text-gray-200'}"
-                                >
-                                    ${highlight(assembly.name)} <span class="text-[10px] text-gray-500 font-normal">(${assembly.items.length})</span>
-                                </button>
+                        <div class="bg-transparent">
+                            <div class="flex items-center gap-0.5 py-0 px-0.5 rounded transition-colors ${isAssemblySelected ? 'bg-blue-600/30 text-blue-900 font-extrabold' : 'hover:bg-slate-200/50'}">
                                 <button
                                     type="button"
                                     data-assembly-toggle="${safeToggleName}"
-                                    class="shrink-0 px-1.5 py-1 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-700/70"
+                                    class="shrink-0 px-0.5 py-0 text-slate-900 font-bold text-[9px] cursor-pointer"
                                     aria-label="Genişlet/Daralt"
                                 >
-                                    ${isCollapsed ? '▸' : '▾'}
+                                    ${isCollapsed ? '▶' : '▼'}
+                                </button>
+                                <button
+                                    type="button"
+                                    data-assembly-select="${safeToggleName}"
+                                    class="flex-1 text-left py-0 text-[9px] font-extrabold uppercase tracking-wider truncate cursor-pointer ${isAssemblySelected ? 'text-blue-700' : 'text-slate-900 hover:text-blue-600'}"
+                                >
+                                    ${highlight(assembly.name)} <span class="text-[8px] text-slate-600 font-normal">(${assembly.items.length})</span>
                                 </button>
                             </div>
                             ${isCollapsed ? '' : `
-                            <div class="space-y-1 pb-2 px-1">
+                            <div class="border-l border-slate-400/50 pl-1.5 ml-1 space-y-0 py-0">
                                 ${assembly.items.map((entry) => {
                     const key = getTreeKeyForProduct(entry.assemblyName, entry.product);
                     const isSelected = key === selectedTreeKey;
@@ -6172,13 +6262,12 @@
                                         <button
                                             type="button"
                                             data-key="${safeKey}"
-                                            class="w-full text-left rounded px-2 py-1.5 text-xs transition-colors ${isSelected ? 'bg-[#00674F]/35 text-[#D7FFF3] border border-[#00674F]/88' : hasMesh ? 'text-gray-200 hover:bg-gray-700/70' : 'text-gray-400 hover:bg-gray-800/80 hover:text-gray-300'}"
+                                            class="w-full text-left rounded px-1 py-0 text-[9px] transition-colors cursor-pointer ${isSelected ? 'bg-blue-500/40 text-blue-900 font-bold border border-blue-400/70' : hasMesh ? 'text-slate-900 font-semibold hover:bg-slate-200/50' : 'text-slate-700 hover:bg-slate-200/40'}"
                                         >
-                                            <div class="flex items-center justify-between gap-2">
+                                            <div class="flex items-center justify-between gap-1">
                                                 <span class="truncate flex-1 font-mono ${hasMesh ? 'font-medium' : 'italic'}">${highlight(label)}</span>
                                                 <div class="flex items-center gap-1 shrink-0">
-                                                    ${hasMesh ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/70">3D</span>' : '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-300/90 border border-amber-800/70">Model Yok</span>'}
-                                                    <span class="text-[10px] text-gray-500">${entry.product.type || ''}</span>
+                                                    ${hasMesh ? '<span class="text-[7px] px-1 py-0 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">3D</span>' : '<span class="text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-800 border border-amber-300">Model Yok</span>'}
                                                 </div>
                                             </div>
                                         </button>
@@ -9128,10 +9217,64 @@
             }
         }
 
+        function toggleRightPropertiesPanel() {
+            const panel = document.getElementById('fixed-right-properties-panel');
+            const expandedView = document.getElementById('right-panel-expanded-view');
+            const collapsedView = document.getElementById('right-panel-collapsed-view');
+            const axisGizmoWrapper = document.getElementById('axis-gizmo-wrapper');
+            if (!panel || !expandedView || !collapsedView) return;
+
+            const isCollapsed = expandedView.classList.contains('hidden');
+            if (isCollapsed) {
+                // Expand panel overlay
+                expandedView.classList.remove('hidden');
+                collapsedView.classList.add('hidden');
+                collapsedView.style.display = 'none';
+                panel.className = 'absolute top-0 right-0 h-full w-64 bg-[#1e1e1e]/95 backdrop-blur border-l border-[#2d2d2d] flex flex-col z-20 pointer-events-auto select-none shadow-2xl transition-all duration-300';
+                if (axisGizmoWrapper) {
+                    axisGizmoWrapper.className = 'absolute bottom-4 right-[275px] z-30 pointer-events-auto transition-all duration-300';
+                }
+            } else {
+                // Collapse panel overlay to vertical tab strip
+                expandedView.classList.add('hidden');
+                collapsedView.classList.remove('hidden');
+                collapsedView.style.display = 'flex';
+                panel.className = 'absolute top-0 right-0 h-full w-9 bg-[#1e1e1e]/90 backdrop-blur border-l border-[#2d2d2d] flex flex-col z-20 pointer-events-auto select-none shadow-2xl transition-all duration-300 cursor-pointer hover:bg-[#252526]';
+                if (axisGizmoWrapper) {
+                    axisGizmoWrapper.className = 'absolute bottom-4 right-[48px] z-30 pointer-events-auto transition-all duration-300';
+                }
+            }
+            if (typeof onWindowResize === 'function') {
+                onWindowResize();
+                setTimeout(onWindowResize, 100);
+            }
+        }
+        window.toggleRightPropertiesPanel = toggleRightPropertiesPanel;
+
         window.openPanelDesignerModal = openPanelDesignerModal;
         window.closePanelDesignerModal = closePanelDesignerModal;
         window.updatePanelPreview = updatePanelPreview;
         window.applyParametricPanelToScene = applyParametricPanelToScene;
+
+
+        function switchTopRibbonTab(tabName) {
+            const tabs = ['file', 'home', 'conveyor', 'controls', 'library', 'view'];
+            tabs.forEach((t) => {
+                const btn = document.getElementById(`ribbon-tab-btn-${t}`);
+                const content = document.getElementById(`ribbon-tab-content-${t}`);
+                if (t === tabName) {
+                    if (btn) btn.className = 'top-ribbon-tab px-3.5 py-1 text-xs font-bold text-white border-b-2 border-blue-500 bg-[#252526] rounded-t transition cursor-pointer flex items-center gap-1.5';
+                    if (content) content.classList.remove('hidden');
+                } else {
+                    if (btn) btn.className = 'top-ribbon-tab px-3.5 py-1 text-xs font-bold text-gray-400 hover:text-gray-200 border-b-2 border-transparent hover:bg-[#2a2a2a] rounded-t transition cursor-pointer flex items-center gap-1.5';
+                    if (content) content.classList.add('hidden');
+                }
+            });
+            if (typeof onWindowResize === 'function') {
+                onWindowResize();
+            }
+        }
+        window.switchTopRibbonTab = switchTopRibbonTab;
 
         window.onload = async function () {
             init3D();
@@ -9360,15 +9503,18 @@
     <!-- Admin Proje & Yetki Yönetimi Modalı -->
     <div id="admin-project-manager-modal"
         class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-900 border border-amber-500/40 rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <div
+            class="bg-gray-900 border border-amber-500/40 rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
             <div class="flex items-center justify-between border-b border-gray-800 pb-3">
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
                     <span>📁</span> Müşteri Projeleri & Yetki Yönetimi
                 </h3>
-                <button onclick="closeAdminProjectManagerModal()" class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
+                <button onclick="closeAdminProjectManagerModal()"
+                    class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
             </div>
 
-            <p class="text-xs text-gray-300">Sistemdeki tüm 3D projeleri yönetebilir, projelere mail adresi veya şirket domain'i ekleyerek yetkilendirebilirsiniz:</p>
+            <p class="text-xs text-gray-300">Sistemdeki tüm 3D projeleri yönetebilir, projelere mail adresi veya şirket
+                domain'i ekleyerek yetkilendirebilirsiniz:</p>
 
             <div id="admin-project-list-container" class="space-y-3 overflow-y-auto flex-1 pr-1">
                 <!-- JS ile dinamik doldurulur -->
@@ -9378,11 +9524,15 @@
             <div class="border-t border-gray-800 pt-3 space-y-2">
                 <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">➕ Yeni Müşteri Projesi Kaydet</h4>
                 <div class="grid grid-cols-3 gap-2">
-                    <input id="new-proj-id" type="text" placeholder="Proje ID (Örn: ford-otosan)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
-                    <input id="new-proj-name" type="text" placeholder="Proje Başlığı (Örn: Ford Otosan)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
-                    <input id="new-proj-email" type="text" placeholder="Yetkili Mail/Domain (Örn: ford.com)" class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <input id="new-proj-id" type="text" placeholder="Proje ID (Örn: ford-otosan)"
+                        class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <input id="new-proj-name" type="text" placeholder="Proje Başlığı (Örn: Ford Otosan)"
+                        class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <input id="new-proj-email" type="text" placeholder="Yetkili Mail/Domain (Örn: ford.com)"
+                        class="bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500" />
                 </div>
-                <button onclick="addNewProjectToRegistry()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-white font-bold text-xs py-2 rounded-lg shadow cursor-pointer transition">
+                <button onclick="addNewProjectToRegistry()"
+                    class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-white font-bold text-xs py-2 rounded-lg shadow cursor-pointer transition">
                     ➕ Projeyi Yetkilerle Kaydet
                 </button>
             </div>
