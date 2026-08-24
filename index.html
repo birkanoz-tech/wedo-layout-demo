@@ -9272,68 +9272,76 @@
                     class="text-gray-400 hover:text-white text-lg font-bold cursor-pointer">&times;</button>
             </div>
 
-            <div id="profile-active-view" class="space-y-3">
+            <div id="profile-active-view" class="space-y-4">
                 <div class="bg-gray-800/80 p-4 rounded-xl border border-gray-700/80 flex items-center gap-3">
                     <div id="modal-avatar"
-                        class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xl text-white font-bold shadow">
+                        class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xl text-white font-bold shadow shrink-0">
                         👤
                     </div>
-                    <div>
-                        <h4 id="modal-user-name" class="font-bold text-white text-sm">Giriş Yapılmadı</h4>
-                        <p id="modal-user-email" class="text-xs text-gray-400">Henüz profil oluşturulmadı</p>
+                    <div class="overflow-hidden">
+                        <h4 id="modal-user-name" class="font-bold text-white text-sm truncate">Giriş Yapılmadı</h4>
+                        <p id="modal-user-email" class="text-xs text-gray-400 truncate">Henüz profil oluşturulmadı</p>
                         <span id="modal-user-role-tag"
                             class="inline-block mt-1 text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800/60 font-mono">Ziyaretçi</span>
                     </div>
                 </div>
 
-                <form id="profile-form" onsubmit="saveUserProfile(event)" class="space-y-3 pt-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">Ad Soyad / Firma Adı:</label>
-                        <input id="profile-input-name" type="text" required
-                            placeholder="Örn: Ahmet Yılmaz (Ford Otosan)"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                <!-- 1. OTURUM AÇIK KULLANICI GÖRÜNÜMÜ (Form elemanları tamamen gizli) -->
+                <div id="profile-logged-in-container" class="hidden space-y-3 pt-1">
+                    <div class="bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/60 text-xs text-emerald-300 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 font-semibold text-emerald-400">
+                            <span>✅</span> Oturum Aktif
+                        </span>
+                        <span class="text-[10px] bg-emerald-900/80 px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-200 font-mono">🔐 OTP Doğrulanmış</span>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1">E-posta Adresi:</label>
-                        <div class="flex gap-2">
-                            <input id="profile-input-email" type="email" required placeholder="Örn: ahmet@ford.com"
-                                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
-                            <button type="button" onclick="sendOtpVerificationCode()"
-                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] px-3 py-2 rounded-lg shadow transition cursor-pointer whitespace-nowrap">
-                                📩 Kod Gönder
-                            </button>
+                    <button type="button" onclick="logoutUserProfile()"
+                        class="w-full bg-rose-950/90 hover:bg-rose-800 text-rose-200 border border-rose-700/80 font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer flex items-center justify-center gap-2">
+                        <span>🚪 Oturumu Kapat (Çıkış Yap)</span>
+                    </button>
+                </div>
+
+                <!-- 2. GİRİŞ YAPILMAMIŞ ZİYARETÇİ GÖRÜNÜMÜ (Kod Alma ve Doğrulama Formu) -->
+                <div id="profile-logged-out-container" class="space-y-3">
+                    <form id="profile-form" onsubmit="saveUserProfile(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Ad Soyad / Firma Adı:</label>
+                            <input id="profile-input-name" type="text" required
+                                placeholder="Örn: Ahmet Yılmaz (Ford Otosan)"
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
                         </div>
-                    </div>
 
-                    <div id="otp-input-container"
-                        class="hidden space-y-1.5 bg-gray-850 p-3 rounded-xl border border-indigo-500/40">
-                        <label class="block text-xs font-semibold text-indigo-300">📩 E-postanıza Gönderilen 6 Haneli
-                            OTP Kod:</label>
-                        <input id="profile-input-otp" type="text" maxlength="6" placeholder="Örn: 842915"
-                            class="w-full bg-gray-900 border border-indigo-500/60 rounded-lg px-3 py-2 text-sm font-mono tracking-widest text-cyan-300 focus:border-cyan-400 outline-none text-center" />
-                        <div id="otp-status-msg" class="text-[11px] text-gray-400"></div>
-                    </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">E-posta Adresi:</label>
+                            <div class="flex gap-2">
+                                <input id="profile-input-email" type="email" required placeholder="Örn: ahmet@ford.com"
+                                    class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none" />
+                                <button type="button" onclick="sendOtpVerificationCode()"
+                                    class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] px-3 py-2 rounded-lg shadow transition cursor-pointer whitespace-nowrap">
+                                    📩 Kod Gönder
+                                </button>
+                            </div>
+                        </div>
 
-                    <div
-                        class="bg-gray-800/60 p-2.5 rounded-lg border border-gray-700/60 flex items-center justify-between text-xs text-gray-300">
-                        <span class="text-gray-400">Erişim Güvenliği:</span>
-                        <span
-                            class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-emerald-800/60">🔐
-                            OTP & AES-256 Korumalı</span>
-                    </div>
+                        <div id="otp-input-container"
+                            class="hidden space-y-1.5 bg-gray-850 p-3 rounded-xl border border-indigo-500/40">
+                            <label class="block text-xs font-semibold text-indigo-300">📩 E-postanıza Gönderilen 6 Haneli OTP Kod:</label>
+                            <input id="profile-input-otp" type="text" maxlength="6" placeholder="Örn: 842915"
+                                class="w-full bg-gray-900 border border-indigo-500/60 rounded-lg px-3 py-2 text-sm font-mono tracking-widest text-cyan-300 focus:border-cyan-400 outline-none text-center" />
+                            <div id="otp-status-msg" class="text-[11px] text-gray-400"></div>
+                        </div>
 
-                    <div class="flex gap-2 pt-2">
+                        <div class="bg-gray-800/60 p-2.5 rounded-lg border border-gray-700/60 flex items-center justify-between text-xs text-gray-300">
+                            <span class="text-gray-400">Erişim Güvenliği:</span>
+                            <span class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-semibold text-[11px] border border-emerald-800/60">🔐 OTP & AES-256 Korumalı</span>
+                        </div>
+
                         <button type="submit"
-                            class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
+                            class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 rounded-lg shadow transition cursor-pointer">
                             ✅ Kodu Doğrula & Giriş Yap
                         </button>
-                        <button type="button" onclick="logoutUserProfile()"
-                            class="bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-xs px-3 py-2.5 rounded-lg shadow transition cursor-pointer">
-                            Çıkış Yap
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -9826,6 +9834,9 @@
 
             renderCustomerProjectDashboard(profile);
 
+            const loggedInContainer = document.getElementById('profile-logged-in-container');
+            const loggedOutContainer = document.getElementById('profile-logged-out-container');
+
             if (profile) {
                 if (nameEl) nameEl.innerText = profile.name;
                 if (avatarEl) avatarEl.innerText = profile.name.charAt(0).toUpperCase();
@@ -9844,10 +9855,9 @@
                 if (modalEmail) modalEmail.innerText = profile.email;
                 if (modalRole) modalRole.innerText = profile.role === 'admin' ? '👑 Proje Sorumlusu (Yönetici)' : '👁️ Müşteri / Temsilci';
 
-                const inputName = document.getElementById('profile-input-name');
-                const inputEmail = document.getElementById('profile-input-email');
-                if (inputName) inputName.value = profile.name;
-                if (inputEmail) inputEmail.value = profile.email;
+                // Oturum açıkken form elemanlarını ve Kod Gönder butonunu tamamen gizle
+                if (loggedInContainer) loggedInContainer.classList.remove('hidden');
+                if (loggedOutContainer) loggedOutContainer.classList.add('hidden');
             } else {
                 if (nameEl) nameEl.innerText = 'Giriş Yap / Profil Oluştur';
                 if (avatarEl) avatarEl.innerText = '👤';
@@ -9859,6 +9869,20 @@
                 if (modalName) modalName.innerText = 'Giriş Yapılmadı';
                 if (modalEmail) modalEmail.innerText = 'Henüz profil oluşturulmadı';
                 if (modalRole) modalRole.innerText = 'Ziyaretçi';
+
+                // Çıkış yapıldığında tüm form girdilerini tamamen sıfırla ve Kod Gönder formunu aç
+                const inputName = document.getElementById('profile-input-name');
+                const inputEmail = document.getElementById('profile-input-email');
+                const inputOtp = document.getElementById('profile-input-otp');
+                const otpContainer = document.getElementById('otp-input-container');
+
+                if (inputName) inputName.value = '';
+                if (inputEmail) inputEmail.value = '';
+                if (inputOtp) inputOtp.value = '';
+                if (otpContainer) otpContainer.classList.add('hidden');
+
+                if (loggedInContainer) loggedInContainer.classList.add('hidden');
+                if (loggedOutContainer) loggedOutContainer.classList.remove('hidden');
             }
         }
 
