@@ -374,6 +374,8 @@
                     </button>
                 </div>
 
+
+
                 <!-- Kat Yönetim & Yapı Elemanları -->
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
                     <button onclick="triggerDXFFileImport()" type="button" title="AutoCAD DXF Dosyası İçe Aktar (Referans Modeli)"
@@ -1778,7 +1780,7 @@
             const aspect = container.clientWidth / container.clientHeight;
             const orthoFrustumSize = 120;
 
-            perspectiveCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 2000);
+            perspectiveCamera = new THREE.PerspectiveCamera(39.6, aspect, 0.05, 3000); // 50mm DSLR Prime Lens (Varsayılan 39.6° İnsan Gözü Odağı)
             perspectiveCamera.up.set(0, 0, 1);
             perspectiveCamera.position.set(70, 100, 60);
 
@@ -1890,6 +1892,8 @@
                     setTransformMode('translate');
                 } else if (event.key === 'e' || event.key === 'E' || event.key === 'r' || event.key === 'R') {
                     setTransformMode('rotate');
+                } else if (event.key === 'f' || event.key === 'F') {
+                    focusSelectedModelCamera();
                 }
             });
 
@@ -3787,6 +3791,203 @@
         window.closeBuildingLevelsModal = closeBuildingLevelsModal;
         window.addNewBuildingLevel = addNewBuildingLevel;
         window.deleteBuildingLevel = deleteBuildingLevel;
+
+        // ==========================================
+        // 🎯 KORUYUCU KONVEYÖR KAMERA WAYPOINT, 50mm DSLR LENS & MONTAJ ODAKLANMA MOTORU
+        // ==========================================
+        let focusAnimationId = null;
+        let is50mmLensActive = true; // Sahne Varsayılan Olarak Sürekli 50mm DSLR Lenste Çalışır!
+
+        function toggle50mmLensMode(forceState = null) {
+            is50mmLensActive = forceState !== null ? forceState : !is50mmLensActive;
+
+            const btnRibbon = document.getElementById('btn-toggle-50mm-lens');
+            const btnSide = document.getElementById('btn-toggle-50mm-lens-side');
+
+            if (camera) {
+                const targetFov = is50mmLensActive ? 39.6 : 50.0;
+                const startFov = camera.fov;
+                const duration = 600;
+                const startTime = performance.now();
+
+                function animateFov(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(1.0, elapsed / duration);
+                    const ease = 1 - Math.pow(1 - progress, 3);
+
+                    camera.fov = startFov + (targetFov - startFov) * ease;
+                    camera.updateProjectionMatrix();
+
+                    if (progress < 1.0) {
+                        requestAnimationFrame(animateFov);
+                    }
+                }
+                requestAnimationFrame(animateFov);
+            }
+
+            const btnText = is50mmLensActive ? '📸 50mm Lens (Aktif: 39.6°)' : '📷 50mm DSLR Lens';
+            const btnClassActive = 'bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-xs font-bold border border-amber-400/50 shadow transition cursor-pointer flex items-center gap-1.5 animate-pulse';
+            const btnClassNormal = 'bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-1.5 rounded text-xs font-medium border border-gray-700 shadow-sm transition cursor-pointer flex items-center gap-1.5';
+
+            if (btnRibbon) {
+                btnRibbon.innerHTML = `<span>📸</span> ${btnText}`;
+                btnRibbon.className = is50mmLensActive ? btnClassActive : btnClassNormal;
+            }
+            if (btnSide) {
+                btnSide.innerHTML = `<span>📸</span> ${btnText}`;
+                btnSide.className = is50mmLensActive ? btnClassActive : btnClassNormal;
+            }
+
+            // Refocus if a model is active
+            focusSelectedModelCamera();
+
+            if (typeof showNotice === 'function') {
+                showNotice(is50mmLensActive
+                    ? '📸 50mm Gerçekçi DSLR Lens Aktif! (39.6° Doğal Görüş Açısı - İnsan Gözü Perspektifi)'
+                    : '📷 Standart Kamera Lensine Dönüldü (50°)');
+            }
+        }
+
+        function focusCameraOnMesh(targetMeshOrGroup) {
+            if (!targetMeshOrGroup || !camera || !controls) return;
+
+            const box = new THREE.Box3();
+            box.setFromObject(targetMeshOrGroup);
+            if (box.isEmpty()) return;
+
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z, 1.2);
+
+            // 50mm DSLR Lens aktif ise doğal insan gözü kadraj mesafesi (1.8x)
+            const distMultiplier = is50mmLensActive ? 1.8 : 1.35;
+
+            const targetCamPos = new THREE.Vector3(
+                center.x + maxDim * distMultiplier,
+                center.y + maxDim * distMultiplier,
+                center.z + Math.max(1.0, maxDim * (is50mmLensActive ? 1.2 : 0.85))
+            );
+
+            const startCamPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+
+            const duration = 750; // ms
+            const startTime = performance.now();
+
+            if (focusAnimationId) cancelAnimationFrame(focusAnimationId);
+
+            function animateFocusStep(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(1.0, elapsed / duration);
+                const ease = 1 - Math.pow(1 - progress, 3);
+
+                camera.position.lerpVectors(startCamPos, targetCamPos, ease);
+                controls.target.lerpVectors(startTarget, center, ease);
+                controls.update();
+
+                if (progress < 1.0) {
+                    focusAnimationId = requestAnimationFrame(animateFocusStep);
+                } else {
+                    focusAnimationId = null;
+                }
+            }
+
+            focusAnimationId = requestAnimationFrame(animateFocusStep);
+
+            if (typeof showNotice === 'function') {
+                const objName = targetMeshOrGroup.userData?.product?.name || targetMeshOrGroup.name || 'Konveyör';
+                showNotice(`🎯 Kameranız ${objName} Montajına ${is50mmLensActive ? '50mm DSLR Lens İle' : ''} Odaklandı!`);
+            }
+        }
+
+        function focusCameraOnMeshGroup(meshArray) {
+            if (!Array.isArray(meshArray) || meshArray.length === 0 || !camera || !controls) return;
+
+            const box = new THREE.Box3();
+            meshArray.forEach((m) => {
+                if (m) box.expandByObject(m);
+            });
+            if (box.isEmpty()) return;
+
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z, 1.5);
+            const distMultiplier = is50mmLensActive ? 1.85 : 1.4;
+
+            const targetCamPos = new THREE.Vector3(
+                center.x + maxDim * distMultiplier,
+                center.y + maxDim * distMultiplier,
+                center.z + Math.max(1.2, maxDim * (is50mmLensActive ? 1.25 : 0.9))
+            );
+
+            const startCamPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+
+            const duration = 750;
+            const startTime = performance.now();
+
+            if (focusAnimationId) cancelAnimationFrame(focusAnimationId);
+
+            function animateFocusGroupStep(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(1.0, elapsed / duration);
+                const ease = 1 - Math.pow(1 - progress, 3);
+
+                camera.position.lerpVectors(startCamPos, targetCamPos, ease);
+                controls.target.lerpVectors(startTarget, center, ease);
+                controls.update();
+
+                if (progress < 1.0) {
+                    focusAnimationId = requestAnimationFrame(animateFocusGroupStep);
+                } else {
+                    focusAnimationId = null;
+                }
+            }
+
+            focusAnimationId = requestAnimationFrame(animateFocusGroupStep);
+        }
+
+        function focusSelectedModelCamera() {
+            let targetMesh = null;
+
+            if (selectedMesh) {
+                targetMesh = (typeof findRootMesh === 'function' ? findRootMesh(selectedMesh) : null) || selectedMesh;
+            } else if (selectedAssemblyMeshes.length > 0) {
+                focusCameraOnMeshGroup(selectedAssemblyMeshes);
+                return;
+            } else {
+                // Fallback: Sahnede bulunan ilk 3D modeli/konveyörü bul
+                scene.traverse((child) => {
+                    if (!targetMesh && child.isMesh && child.userData?.product && child.visible) {
+                        targetMesh = (typeof findRootMesh === 'function' ? findRootMesh(child) : null) || child;
+                    }
+                });
+            }
+
+            if (targetMesh) {
+                focusCameraOnMesh(targetMesh);
+            } else {
+                if (typeof showNotice === 'function') {
+                    showNotice('⚠️ Sahnede odaklanılacak model bulunamadı.');
+                }
+            }
+        }
+
+        window.focusCameraOnMesh = focusCameraOnMesh;
+        window.focusCameraOnMeshGroup = focusCameraOnMeshGroup;
+        window.focusSelectedModelCamera = focusSelectedModelCamera;
+        window.toggle50mmLensMode = toggle50mmLensMode;
+        window.toggle500mmLensMode = toggle50mmLensMode;
+
+
         // ==========================================
         // 📐 UNIVERSAL ASCII DXF PARSER & 3D VECTOR RENDERER ENGINE
         // ==========================================
@@ -7160,6 +7361,7 @@
                         }
                     });
                 });
+                focusCameraOnMeshGroup(meshes);
             }
 
             renderModelTree();
@@ -7197,6 +7399,7 @@
             if (entry.mesh) {
                 const targetMesh = findRootMesh(entry.mesh) || entry.mesh;
                 selectMesh(targetMesh);
+                focusCameraOnMesh(targetMesh);
             } else {
                 clearSelection();
                 const product = entry.product;
@@ -7398,6 +7601,9 @@
                         } else if (kind === 'ceiling-support') {
                             groupName = '🏗️ Tavan Destek Sistemleri';
                             labelName = `Ceiling Support #${idx + 1} (${userData.parametric?.platformType || 'CS'})`;
+                        } else if (kind === 'blender-camera' || userData.isBlenderCamera) {
+                            groupName = '📷 Fabrika Kameraları & Bakış Açıları';
+                            labelName = item.label || userData.product?.name || 'Fabrika Kamerası';
                         } else if (kind === 'dxf-drawing' || userData.isDXFModel) {
                             groupName = '📐 DXF Referans Çizimleri';
                             labelName = item.label || userData.product?.name || 'DXF Referans Çizimi';
@@ -7825,6 +8031,10 @@
             syncSelectedProductDataFromMesh();
             updateParametricEditorForSelection();
             updateWorldPositionEditorForSelection();
+
+            if (mesh.userData?.isBlenderCamera && mesh.userData?.cameraId) {
+                switchToCameraView(mesh.userData.cameraId);
+            }
         }
 
         function updateXmlDocPositionsFrom3DScene(xmlDoc) {
@@ -11239,14 +11449,107 @@
                 </div>
             </div>
 
-            <div class="bg-gray-850 px-5 py-3 border-t border-gray-800 flex justify-end gap-2">
-                <button onclick="closeBuildingLevelsModal()" type="button"
-                    class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-1.5 rounded text-xs font-semibold transition cursor-pointer">
-                    Tamam
+    </div>
+
+    <!-- Camera & Design Notes Manager Modal -->
+    <div id="modal-camera-manager"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div
+            class="bg-gray-900 border border-amber-500/40 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] text-xs text-gray-200">
+            <div class="bg-gray-850 px-5 py-3.5 border-b border-gray-800 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">📹</span>
+                    <div>
+                        <h2 class="text-sm font-bold text-amber-300">Blender Kameraları & Bakış Açısı Notları</h2>
+                        <p class="text-[10px] text-gray-400">Fabrikanızın kayıtlı 3D kameralarını, tasarım detay notlarını yönetin ve anında o açıya geçin.</p>
+                    </div>
+                </div>
+                <button onclick="closeCameraManagerModal()"
+                    class="text-gray-400 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-gray-800 transition">✕</button>
+            </div>
+
+            <div class="flex-1 p-5 overflow-y-auto space-y-4">
+                <div class="overflow-x-auto border border-gray-800 rounded-lg">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-gray-800/80 text-amber-300 text-[10px] uppercase tracking-wider">
+                            <tr>
+                                <th class="px-3 py-2">Kamera Adı</th>
+                                <th class="px-3 py-2">Kot (Elevation)</th>
+                                <th class="px-3 py-2">Tasarım / Detay Notu</th>
+                                <th class="px-3 py-2 text-right">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="camera-manager-table-body" class="divide-y divide-gray-800 bg-gray-900/60">
+                            <!-- Dynamic rows rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-gray-850 px-5 py-3 border-t border-gray-800 flex justify-between items-center">
+                <button onclick="addCameraToScene()" type="button"
+                    class="bg-amber-800 hover:bg-amber-700 text-white px-3 py-1.5 rounded font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer">
+                    <span>📷</span> Sahneye Kamera Ekle
+                </button>
+                <button onclick="closeCameraManagerModal()" type="button"
+                    class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded font-semibold transition cursor-pointer">
+                    Kapat
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- Active Camera Viewport HUD Banner -->
+    <div id="viewport-camera-hud-banner"
+        class="fixed top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/90 text-cyan-200 px-4 py-2 rounded-xl border border-cyan-500/50 shadow-2xl backdrop-blur hidden flex items-center gap-3 animate-fade-in pointer-events-auto">
+        <span class="text-xl">📹</span>
+        <div>
+            <div class="font-bold text-xs text-white flex items-center gap-2">
+                <span id="camera-hud-title" class="text-cyan-300">Kamera 1</span>
+                <span id="camera-hud-kot" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-800/60">Kot: +0.0m</span>
+            </div>
+            <div id="camera-hud-notes" class="text-[11px] text-gray-300 italic max-w-md truncate">Tasarım Notu...</div>
+        </div>
+        <button onclick="exitCameraViewHUD()" type="button" title="Kamera Bakışından Çık"
+            class="ml-3 bg-slate-800 hover:bg-rose-900 text-gray-300 hover:text-white px-2.5 py-1 rounded text-[10px] font-bold border border-gray-700 transition shadow cursor-pointer">
+            ❌ Çıkış
+        </button>
+    </div>
+
+    <!-- Roblox / Unity Studio Navigation Engine HUD Overlay -->
+    <div id="unity-nav-hud-panel"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 text-purple-300 px-5 py-3 rounded-2xl border border-purple-500/60 shadow-2xl backdrop-blur hidden flex flex-col items-center gap-2 animate-fade-in pointer-events-auto">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 text-xs font-bold text-purple-200">
+                <span class="text-lg animate-bounce">🎮</span>
+                <span>Roblox / Unity Özgür Kamera Motoru (Atmosferik Görüş Sisi Aktif)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="teleportCameraToFactoryCenter()" type="button" title="Kamerayı Fabrikadaki Modellerin ve Duvarların Yanına Odakla"
+                    class="bg-amber-700 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg border border-amber-400/50 shadow cursor-pointer flex items-center gap-1.5 transition">
+                    <span>🎯</span> Modellere & Duvarlara Git
+                </button>
+                <button onclick="addCameraToScene()" type="button" title="Bulunduğun Bu Kamera Açısına Sahneye Fiziki Kamera Koy"
+                    class="bg-cyan-700 hover:bg-cyan-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg border border-cyan-400/50 shadow cursor-pointer flex items-center gap-1.5 transition">
+                    <span>📷</span> Kamera Koy
+                </button>
+                <button onclick="toggleUnityFlyMode()" type="button" title="Unity / Roblox Modundan Çık"
+                    class="bg-rose-950 hover:bg-rose-900 text-rose-200 text-[11px] font-bold px-3 py-1 rounded-lg border border-rose-700/60 shadow cursor-pointer flex items-center gap-1 transition">
+                    <span>❌</span> Çıkış
+                </button>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 text-[11px] text-gray-300 bg-slate-900/80 px-3 py-1 rounded-lg border border-slate-800">
+            <span><strong class="text-purple-400">Sağ Tık Sürükle + W, A, S, D</strong> : Serbest Yönlendir & İlerle</span>
+            <span class="text-gray-600">|</span>
+            <span><strong class="text-purple-400">Q / E (veya Space)</strong> : Yüksel / Alçal (Kat Değiştir)</span>
+            <span class="text-gray-600">|</span>
+            <span><strong class="text-purple-400">Shift</strong> : Turbo Hızlı (15m/s)</span>
+            <span class="text-gray-600">|</span>
+            <span><strong class="text-purple-400">C</strong> : Kamera Koy</span>
+        </div>
+    </div>
+
 
     <div id="modal-ceiling-support-designer"
         class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
