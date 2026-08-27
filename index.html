@@ -10716,6 +10716,26 @@
                         projectQuery += '.xml';
                     }
 
+                    // ÖNCELİK 1: LocalStorage'da bu proje için kaydedilmiş güncel durum var mı kontrol et
+                    const savedLocalState = localStorage.getItem(`PROPOSAL_APP_PROJECT_${projectQuery}`) ||
+                                             localStorage.getItem(`PROPOSAL_APP_PROJECT_${projectQuery.replace('.xml','')}`);
+                    if (savedLocalState) {
+                        try {
+                            const parsedState = JSON.parse(savedLocalState);
+                            restored = await restoreStateData(parsedState);
+                            if (restored) {
+                                console.log(`✅ "${projectQuery}" projesi kaydedilmiş yerel depolamadan (LocalStorage) yüklendi.`);
+                                const statusEl = document.getElementById('import-status');
+                                if (statusEl) {
+                                    statusEl.innerText = `✅ "${projectQuery}" son kaydedilen durumdan yüklendi.`;
+                                }
+                                return;
+                            }
+                        } catch (e) {
+                            console.warn("Yerel kaydedilmiş proje okuma hatası, dosyadan çekiliyor...", e);
+                        }
+                    }
+
                     const searchPaths = [];
                     if (projectQuery.startsWith('projects/')) {
                         searchPaths.push(projectQuery);

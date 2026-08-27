@@ -8,15 +8,33 @@ import { showNotice } from '../utils/notice_system.js';
 export function saveActiveProjectToCloud() {
     console.log("💾 Projeyi Kaydet & Senkronize Et tetiklendi...");
     
-    // Proje kaydetme fonksiyonunu çağır (exportXmlProjectAsNewFile veya localStorage senkronizasyonu)
+    // 1. Proje durumunu derle
+    let stateData = null;
+    if (typeof window.getExportableStateData === 'function') {
+        stateData = window.getExportableStateData();
+    }
+    
+    // 2. Mevcut Proje ID'sini bul
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeProject = urlParams.get('project') || urlParams.get('xml') || 'OPP-0106989-1-R1.xml';
+    
+    if (stateData) {
+        const jsonStr = JSON.stringify(stateData);
+        // LocalStorage'a kaydet (Hem Genel hem Projeye Özel)
+        localStorage.setItem('PROPOSAL_APP_SCENE_STATE', jsonStr);
+        localStorage.setItem('PROPOSAL_APP_AUTOSAVE', jsonStr);
+        localStorage.setItem(`PROPOSAL_APP_PROJECT_${activeProject}`, jsonStr);
+        localStorage.setItem(`PROPOSAL_APP_PROJECT_${activeProject.replace('.xml','')}`, jsonStr);
+        console.log(`✅ "${activeProject}" yerel depolamaya (LocalStorage) kaydedildi.`);
+    }
+    
+    // 3. XML Dosyasını İndir
     if (typeof window.exportXmlProjectAsNewFile === 'function') {
         window.exportXmlProjectAsNewFile();
-    } else if (typeof window.scheduleAutoSave === 'function') {
-        window.scheduleAutoSave();
     }
 
     if (typeof showNotice === 'function') {
-        showNotice('💾 Projeniz Başarıyla Kaydedildi! Müşterileriniz anında görebilir.');
+        showNotice(`💾 "${activeProject}" Projesi Başarıyla Kaydedildi! (Sayfa yenilense de korunacak)`);
     }
 }
 
@@ -30,9 +48,13 @@ export function syncCustomerProjectsList() {
         { id: 'Fabrika_v2.xml', name: '🏭 Fabrika v2 - Otomasyon & Pano Yerleşimi' }
     ];
 
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const activeProj = currentUrlParams.get('project') || 'OPP-0106989-1-R1.xml';
+
     let html = '';
     availableProjects.forEach(proj => {
-        html += `<option value="${proj.id}">${proj.name}</option>`;
+        const isSelected = (proj.id === activeProj || proj.id.replace('.xml','') === activeProj.replace('.xml','')) ? 'selected' : '';
+        html += `<option value="${proj.id}" ${isSelected}>${proj.name}</option>`;
     });
 
     dropdown.innerHTML = html;
