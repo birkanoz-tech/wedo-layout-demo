@@ -11635,6 +11635,6 @@
         </miscproducts>
       </assembly>
       <assembly name="Others" guid="4856525a-d781-4b6a-a3d0-ce919300c09b"/>
-    <assembly name="PANO-01"><product name="PANO-01" path="parametric:panel"><position px="68000.0000" py="-5000.0000" pz="17000.0000"/><rotation qx="0.000000" qy="0.000000" qz="0.000000" qw="1.000000"/><parametricparams>{"width":800,"height":1800,"depth":400,"baseHeight":100,"doorType":"single","panelColor":"ral7035","roofType":"flat","hasHMI":true,"hasBeacon":true,"hasEmergencyStop":true}</parametricparams></product></assembly><assembly name="PLC Kontrol Panosu"><product name="PLC Kontrol Panosu" path="parametric:panel"><position px="68000.0000" py="-5000.0000" pz="17000.0000"/><rotation qx="0.000000" qy="0.000000" qz="0.000000" qw="1.000000"/></product></assembly></assemblies>
+    <assembly name="PANO-01"><product name="PANO-01" path="parametric:panel"><position px="68000.0000" py="-5000.0000" pz="17000.0000"/><rotation qx="0.000000" qy="0.000000" qz="0.000000" qw="1.000000"/><parametricparams>{"width":800,"height":1800,"depth":400,"baseHeight":100,"doorType":"single","roofType":"flat","panelColor":"ral7035","hasHMI":true,"hasBeacon":true,"hasEmergencyStop":true}</parametricparams></product></assembly><assembly name="PLC Kontrol Panosu"><product name="PLC Kontrol Panosu" path="parametric:panel"><position px="68000.0000" py="-5000.0000" pz="17000.0000"/><rotation qx="0.000000" qy="0.000000" qz="0.000000" qw="1.000000"/></product></assembly></assemblies>
   </model>
 </flexport>
