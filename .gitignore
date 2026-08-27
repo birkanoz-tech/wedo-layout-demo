@@ -7,6 +7,7 @@ __pycache__/
 # Backup HTML versions
 index_*.html
 !index_modular.html
+!index_legacy.html
 
 # Downloads & Scratch
 Downloads/
