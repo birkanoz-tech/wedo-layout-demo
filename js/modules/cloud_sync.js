@@ -66,25 +66,33 @@ export function executeSaveAsNewProject() {
         newName += '.xml';
     }
 
-    // 1. Proje durumunu derle
+    // 1. Proje durumunu derle (Hafifletilmiş olarak)
     let stateData = null;
     if (typeof window.getExportableStateData === 'function') {
         stateData = window.getExportableStateData();
     }
     
     if (stateData) {
-        const jsonStr = JSON.stringify(stateData);
-        // Hem yeni ada hem genel hafızaya kaydet
-        localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName}`, jsonStr);
-        localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName.replace('.xml','')}`, jsonStr);
-        localStorage.setItem('PROPOSAL_APP_SCENE_STATE', jsonStr);
-        localStorage.setItem('PROPOSAL_APP_AUTOSAVE', jsonStr);
+        try {
+            const lightState = JSON.parse(JSON.stringify(stateData));
+            if (lightState.embeddedGlbAssets) {
+                delete lightState.embeddedGlbAssets;
+            }
+            const jsonStr = JSON.stringify(lightState);
+            try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName}`, jsonStr); } catch (e) {}
+            try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName.replace('.xml','')}`, jsonStr); } catch (e) {}
+            try { localStorage.setItem('PROPOSAL_APP_SCENE_STATE', jsonStr); } catch (e) {}
+            try { localStorage.setItem('PROPOSAL_APP_AUTOSAVE', jsonStr); } catch (e) {}
 
-        // Dinamik Projelerim listesine ekle
-        let userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
-        if (!userCustomProjects.includes(newName)) {
-            userCustomProjects.push(newName);
-            localStorage.setItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS', JSON.stringify(userCustomProjects));
+            try {
+                let userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
+                if (!userCustomProjects.includes(newName)) {
+                    userCustomProjects.push(newName);
+                    localStorage.setItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS', JSON.stringify(userCustomProjects));
+                }
+            } catch (e) {}
+        } catch (err) {
+            console.warn("LocalStorage yerel kota sınırı ulaşıldı, XML dosyası doğrudan indiriliyor:", err);
         }
     }
 
@@ -117,13 +125,14 @@ export function syncCustomerProjectsList() {
         { id: 'Fabrika_v2.xml', name: '🏭 Fabrika v2 - Otomasyon & Pano Yerleşimi' }
     ];
 
-    // Kullanıcının yeni kaydettiği özel dosyaları ekle
-    const userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
-    userCustomProjects.forEach(customId => {
-        if (!availableProjects.some(p => p.id === customId)) {
-            availableProjects.push({ id: customId, name: `✨ ${customId} (Yeni Kayıtlı Projeniz)` });
-        }
-    });
+    try {
+        const userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
+        userCustomProjects.forEach(customId => {
+            if (!availableProjects.some(p => p.id === customId)) {
+                availableProjects.push({ id: customId, name: `✨ ${customId} (Yeni Kayıtlı Projeniz)` });
+            }
+        });
+    } catch(e) {}
 
     const currentUrlParams = new URLSearchParams(window.location.search);
     const activeProj = currentUrlParams.get('project') || 'OPP-0106989-1-R1.xml';
