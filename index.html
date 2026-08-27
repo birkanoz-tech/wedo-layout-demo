@@ -8838,7 +8838,89 @@
         }
         window.closeSaveAsNewProjectModal = closeSaveAsNewProjectModal;
 
-        function executeSaveAsNewProject() {
+        async function saveProjectDirectlyToGitHubRepo(filename, xmlContent) {
+            let token = localStorage.getItem('GITHUB_ACCESS_TOKEN');
+            if (!token) {
+                token = prompt('GitHub Proje Klasörüne (projects/) doğrudan kaydetmek için GitHub Access Token (PAT) girin:');
+                if (token && token.trim()) {
+                    token = token.trim();
+                    localStorage.setItem('GITHUB_ACCESS_TOKEN', token);
+                } else {
+                    alert('GitHub Token girilmediği için doğrudan GitHub reponuza yazma yapılamadı.');
+                    return false;
+                }
+            }
+
+            const owner = 'birkanoz-tech';
+            const repo = 'wedo-layout-demo';
+            const cleanFilename = filename.startsWith('projects/') ? filename.replace('projects/', '') : filename;
+            const path = `projects/${cleanFilename}`;
+            const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+            if (typeof showNotice === 'function') {
+                showNotice(`⏳ "${cleanFilename}" GitHub reponuza kaydediliyor...`);
+            }
+
+            // 1. Existing SHA Check
+            let sha = null;
+            try {
+                const getRes = await fetch(url, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (getRes.ok) {
+                    const getData = await getRes.json();
+                    sha = getData.sha;
+                }
+            } catch (e) {}
+
+            // 2. Base64 Encode UTF-8 XML String
+            const base64Content = btoa(unescape(encodeURIComponent(xmlContent)));
+
+            // 3. PUT request to GitHub API
+            const bodyData = {
+                message: `Update ${path} via ProposalApp Web UI`,
+                content: base64Content,
+                branch: 'main'
+            };
+            if (sha) bodyData.sha = sha;
+
+            try {
+                const putRes = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (putRes.ok) {
+                    if (typeof showNotice === 'function') {
+                        showNotice(`☁️ "${cleanFilename}" Başarıyla GitHub Proje Klasörüne Kaydedildi!`);
+                    }
+                    return true;
+                } else {
+                    const errData = await putRes.json();
+                    if (putRes.status === 401) {
+                        localStorage.removeItem('GITHUB_ACCESS_TOKEN');
+                        alert('GitHub Token geçersiz veya yetkisiz. Lütfen doğru token ile tekrar deneyin.');
+                    } else {
+                        alert(`GitHub Kayıt Hatası: ${errData.message || putRes.statusText}`);
+                    }
+                    return false;
+                }
+            } catch (err) {
+                alert(`GitHub Bağlantı Hatası: ${err.message}`);
+                return false;
+            }
+        }
+        window.saveProjectDirectlyToGitHubRepo = saveProjectDirectlyToGitHubRepo;
+
+        async function executeSaveAsNewProject() {
             const inputEl = document.getElementById('save-as-project-name-input');
             let newName = inputEl ? inputEl.value.trim() : '';
             if (!newName) {
@@ -8848,50 +8930,41 @@
                 newName += '.xml';
             }
 
-            let stateData = null;
-            if (typeof getSerializableState === 'function') {
-                stateData = getSerializableState();
+            let xmlContent = '';
+            if (typeof generateXmlProjectContent === 'function') {
+                xmlContent = generateXmlProjectContent();
+            } else {
+                const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
+                xmlContent = `<?xml version="1.0" encoding="utf-8"?>\n<flexport version="3.6">\n<state>${JSON.stringify(stateData)}</state>\n</flexport>`;
             }
-            
-            if (stateData) {
+
+            // BILGISAYARA İNDİRME YAPMADAN DOĞRUDAN GİTHUB REPO'SUNDAKİ projects/ KLASÖRÜNE YAZ
+            const success = await saveProjectDirectlyToGitHubRepo(newName, xmlContent);
+
+            if (success) {
                 try {
+                    const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
                     const lightState = JSON.parse(JSON.stringify(stateData));
-                    if (lightState.embeddedGlbAssets) {
-                        delete lightState.embeddedGlbAssets;
-                    }
+                    if (lightState.embeddedGlbAssets) delete lightState.embeddedGlbAssets;
                     const jsonStr = JSON.stringify(lightState);
                     try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName}`, jsonStr); } catch (e) {}
                     try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName.replace('.xml','')}`, jsonStr); } catch (e) {}
-                    try { localStorage.setItem('PROPOSAL_APP_SCENE_STATE', jsonStr); } catch (e) {}
-                    try { localStorage.setItem('PROPOSAL_APP_AUTOSAVE', jsonStr); } catch (e) {}
 
-                    try {
-                        let userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
-                        if (!userCustomProjects.includes(newName)) {
-                            userCustomProjects.push(newName);
-                            localStorage.setItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS', JSON.stringify(userCustomProjects));
-                        }
-                    } catch (e) {}
-                } catch (err) {
-                    console.warn("LocalStorage yerel kota sınırı ulaşıldı, XML dosyası doğrudan indiriliyor:", err);
-                }
+                    let userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
+                    if (!userCustomProjects.includes(newName)) {
+                        userCustomProjects.push(newName);
+                        localStorage.setItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS', JSON.stringify(userCustomProjects));
+                    }
+                } catch (e) {}
+
+                closeSaveAsNewProjectModal();
+
+                setTimeout(() => {
+                    const currentUrlParams = new URLSearchParams(window.location.search);
+                    currentUrlParams.set('project', newName);
+                    window.location.search = currentUrlParams.toString();
+                }, 800);
             }
-
-            if (typeof exportXmlProjectAsNewFile === 'function') {
-                exportXmlProjectAsNewFile(newName);
-            }
-
-            closeSaveAsNewProjectModal();
-
-            if (typeof showNotice === 'function') {
-                showNotice(`✨ Sahne "${newName}" Adıyla Yepyeni Dosya Olarak Kaydedildi!`);
-            }
-
-            setTimeout(() => {
-                const currentUrlParams = new URLSearchParams(window.location.search);
-                currentUrlParams.set('project', newName);
-                window.location.search = currentUrlParams.toString();
-            }, 800);
         }
         window.executeSaveAsNewProject = executeSaveAsNewProject;
 
