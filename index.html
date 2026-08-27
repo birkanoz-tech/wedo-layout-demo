@@ -11410,7 +11410,7 @@
             });
         }
 
-        function renderCustomerProjectDashboard(profile) {
+        async function renderCustomerProjectDashboard(profile) {
             const panel = document.getElementById('customer-project-selector-panel');
             const selectEl = document.getElementById('customer-projects-dropdown');
 
@@ -11419,20 +11419,50 @@
             panel.classList.remove('hidden');
 
             const registry = getProjectRegistry();
-            let userProjects = [];
+            let userProjects = [...registry];
 
-            if (profile && profile.role === 'admin') {
-                selectEl.innerHTML = '<option value="">-- Tüm Sistem Projeleri --</option>';
-                userProjects = registry;
-            } else if (profile) {
-                selectEl.innerHTML = '<option value="">-- Yetkili Projeleriniz --</option>';
-                userProjects = registry.filter(p => isUserAuthorizedForProject(profile, p.id));
-            } else {
-                selectEl.innerHTML = '<option value="">-- Demolar & Projeler --</option>';
-                userProjects = registry;
+            // 1. GitHub REST API üzerinden "projects/" klasöründeki TÜM canlı dosyaları çek
+            try {
+                const ghRes = await fetch('https://api.github.com/repos/birkanoz-tech/wedo-layout-demo/contents/projects');
+                if (ghRes.ok) {
+                    const files = await ghRes.json();
+                    if (Array.isArray(files)) {
+                        files.forEach(f => {
+                            if (f.name && f.name.toLowerCase().endsWith('.xml')) {
+                                if (!userProjects.some(p => p.id === f.name)) {
+                                    userProjects.push({ id: f.name, name: `☁️ ${f.name}`, allowedEmails: ['*'] });
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn('GitHub proje listesi çekilirken ağ uyarısı:', err);
             }
 
-            if (userProjects.length === 0) {
+            // 2. LocalStorage kaydedilmiş özel projeler
+            try {
+                const userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
+                userCustomProjects.forEach(customId => {
+                    if (!userProjects.some(p => p.id === customId)) {
+                        userProjects.push({ id: customId, name: `✨ ${customId}`, allowedEmails: ['*'] });
+                    }
+                });
+            } catch (e) {}
+
+            let filteredProjects = [];
+            if (profile && profile.role === 'admin') {
+                selectEl.innerHTML = '<option value="">-- Tüm Sistem & GitHub Projeleri --</option>';
+                filteredProjects = userProjects;
+            } else if (profile) {
+                selectEl.innerHTML = '<option value="">-- Yetkili Projeleriniz --</option>';
+                filteredProjects = userProjects.filter(p => isUserAuthorizedForProject(profile, p.id));
+            } else {
+                selectEl.innerHTML = '<option value="">-- Demolar & GitHub Projeleri --</option>';
+                filteredProjects = userProjects;
+            }
+
+            if (filteredProjects.length === 0) {
                 const opt = document.createElement('option');
                 opt.value = '';
                 opt.textContent = 'Yetkili proje bulunamadı';
@@ -11442,12 +11472,13 @@
 
             const currentUrlParams = new URLSearchParams(window.location.search);
             const activeProjId = currentUrlParams.get('project');
+            const activeProjClean = activeProjId ? activeProjId.replace('.xml','') : '';
 
-            userProjects.forEach(p => {
+            filteredProjects.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
-                opt.textContent = `${p.name} (${p.id})`;
-                if (p.id === activeProjId) {
+                opt.textContent = p.name.includes('(') ? p.name : `${p.name} (${p.id})`;
+                if (p.id === activeProjId || p.id.replace('.xml','') === activeProjClean) {
                     opt.selected = true;
                 }
                 selectEl.appendChild(opt);

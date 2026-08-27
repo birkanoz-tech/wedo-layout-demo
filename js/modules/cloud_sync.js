@@ -1,6 +1,6 @@
 /**
  * ProposalApp - Cloud Sync & Direct GitHub Repository Save Module
- * Manages saving current 3D scene directly to GitHub Repository (projects/ folder) via REST API.
+ * Manages saving current 3D scene directly to GitHub Repository (projects/ folder) via REST API and syncs live project dropdown picker.
  */
 
 import { showNotice } from '../utils/notice_system.js';
@@ -59,7 +59,7 @@ export function closeSaveAsNewProjectModal() {
 export async function saveProjectDirectlyToGitHubRepo(filename, xmlContent) {
     let token = localStorage.getItem('GITHUB_ACCESS_TOKEN');
     if (!token) {
-        token = prompt('GitHub Proje Klasörüne doğrudan kaydetmek için GitHub Access Token (PAT) girin:');
+        token = prompt('GitHub Proje Klasörüne (projects/) doğrudan kaydetmek için GitHub Access Token (PAT) girin:');
         if (token && token.trim()) {
             token = token.trim();
             localStorage.setItem('GITHUB_ACCESS_TOKEN', token);
@@ -163,7 +163,9 @@ export async function executeSaveAsNewProject() {
         // LocalStorage'a da yedekle
         try {
             const stateData = typeof window.getSerializableState === 'function' ? window.getSerializableState() : {};
-            const jsonStr = JSON.stringify(stateData);
+            const lightState = JSON.parse(JSON.stringify(stateData));
+            if (lightState.embeddedGlbAssets) delete lightState.embeddedGlbAssets;
+            const jsonStr = JSON.stringify(lightState);
             localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName}`, jsonStr);
             localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName.replace('.xml','')}`, jsonStr);
 
@@ -176,6 +178,9 @@ export async function executeSaveAsNewProject() {
 
         closeSaveAsNewProjectModal();
 
+        // Projelerim listesini canlı GitHub verisiyle yenile
+        await syncCustomerProjectsList();
+
         setTimeout(() => {
             const currentUrlParams = new URLSearchParams(window.location.search);
             currentUrlParams.set('project', newName);
@@ -184,24 +189,42 @@ export async function executeSaveAsNewProject() {
     }
 }
 
-export function syncCustomerProjectsList() {
+export async function syncCustomerProjectsList() {
     const dropdown = document.getElementById('customer-projects-dropdown');
     if (!dropdown) return;
 
     let availableProjects = [
-        { id: 'OPP-0106989-1-R1.xml', name: '📄 OPP-0106989-1-R1 (PLC & Konveyör Hattı)' },
-        { id: 'FirmaA_Projesi.xml', name: '🏢 Firma A - Ana Depo Konveyör Tesisatı' },
-        { id: 'Fabrika_v2.xml', name: '🏭 Fabrika v2 - Otomasyon & Pano Yerleşimi' }
+        { id: 'OPP-0106989-1-R1.xml', name: '📄 OPP-0106989-1-R1 (PLC & Konveyör Hattı)' }
     ];
 
+    // 1. LocalStorage kaydedilmiş özel projeler
     try {
         const userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
         userCustomProjects.forEach(customId => {
             if (!availableProjects.some(p => p.id === customId)) {
-                availableProjects.push({ id: customId, name: `✨ ${customId} (GitHub Kayıtlı Projeniz)` });
+                availableProjects.push({ id: customId, name: `✨ ${customId} (Kayıtlı Projeniz)` });
             }
         });
     } catch(e) {}
+
+    // 2. GitHub REST API üzerinden "projects/" klasöründeki TÜM canlı dosyaları çek
+    try {
+        const ghRes = await fetch('https://api.github.com/repos/birkanoz-tech/wedo-layout-demo/contents/projects');
+        if (ghRes.ok) {
+            const files = await ghRes.json();
+            if (Array.isArray(files)) {
+                files.forEach(f => {
+                    if (f.name && f.name.toLowerCase().endsWith('.xml')) {
+                        if (!availableProjects.some(p => p.id === f.name)) {
+                            availableProjects.push({ id: f.name, name: `☁️ ${f.name} (GitHub Projesi)` });
+                        }
+                    }
+                });
+            }
+        }
+    } catch(err) {
+        console.warn("GitHub proje listesi çekilirken ağ hatası:", err);
+    }
 
     const currentUrlParams = new URLSearchParams(window.location.search);
     const activeProj = currentUrlParams.get('project') || 'OPP-0106989-1-R1.xml';
