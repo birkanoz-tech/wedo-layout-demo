@@ -8796,35 +8796,58 @@
 
         function openSaveAsNewProjectModal() {
             let modal = document.getElementById('modal-save-as-project');
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeProj = urlParams.get('project') || urlParams.get('xml') || 'OPP-0106989-1-R1.xml';
+            
+            let suggestedName = activeProj.trim();
+            if (!suggestedName.toLowerCase().endsWith('.xml')) {
+                suggestedName += '.xml';
+            }
+            const baseName = suggestedName.replace(/\.xml$/i, '');
+            
+            if (baseName.includes('-R')) {
+                const parts = baseName.split('-R');
+                const revNum = parseInt(parts[1], 10) || 1;
+                suggestedName = `${parts[0]}-R${revNum + 1}.xml`;
+            } else if (/_v\d+$/i.test(baseName)) {
+                suggestedName = baseName.replace(/_v(\d+)$/i, (m, p1) => `_v${parseInt(p1, 10) + 1}`) + '.xml';
+            } else {
+                suggestedName = `${baseName}_v2.xml`;
+            }
+
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modal-save-as-project';
                 modal.className = 'fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
                 modal.innerHTML = `
-                    <div style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 20px; width: 90%; max-width: 440px; margin: auto;" class="space-y-4 text-xs">
+                    <div style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 20px; width: 90%; max-width: 450px; margin: auto;" class="space-y-4 text-xs">
                         <div class="flex items-center justify-between border-b border-gray-800 pb-2">
                             <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
-                                <span>💾</span> Sahneyi Bambaşka Bir Dosya Olarak Kaydet
+                                <span>☁️</span> Projeyi GitHub Bulutuna Kaydet (Yeni Versiyon)
                             </h3>
                             <button onclick="closeSaveAsNewProjectModal()" class="text-gray-400 hover:text-white text-base font-bold">✕</button>
                         </div>
                         <div class="space-y-2">
                             <label class="block text-gray-300 text-[11px] font-semibold">
-                                Yeni Proje Dosya Adı (.xml):
+                                GitHub Bulut Dosya / Versiyon Adı (.xml):
                             </label>
-                            <input id="save-as-project-name-input" type="text" value="Proje_${new Date().toISOString().slice(0,10)}.xml" class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-3 py-2 text-gray-100 text-xs outline-none font-mono" />
-                            <p class="text-[10px] text-gray-400">Bu sahne tüm 3D yerleşimi, panoları ve kablo metrajlarıyla birlikte yepyeni bağımsız bir dosya olarak kaydedilecek.</p>
+                            <input id="save-as-project-name-input" type="text" value="${suggestedName}" class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-3 py-2 text-gray-100 text-xs outline-none font-mono" />
+                            <p class="text-[10px] text-gray-400">Tüm 3D yerleşimi ve panolar doğrudan GitHub "projects/" klasörüne yeni revizyon olarak kaydedilir. Eski versiyonlar korunur.</p>
                         </div>
                         <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
                             <button onclick="closeSaveAsNewProjectModal()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition">İptal</button>
-                            <button onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-1">
-                                <span>✨</span> Yeni Dosya Olarak Kaydet
+                            <button onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-1 shadow">
+                                <span>☁️</span> GitHub Bulutuna Kaydet
                             </button>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(modal);
+            } else {
+                const inputEl = document.getElementById('save-as-project-name-input');
+                if (inputEl) inputEl.value = suggestedName;
             }
+            
             document.body.appendChild(modal);
             modal.classList.remove('hidden');
             modal.style.display = 'none';
@@ -8946,21 +8969,6 @@
             const success = await saveProjectDirectlyToGitHubRepo(newName, xmlContent);
 
             if (success) {
-                try {
-                    const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
-                    const lightState = JSON.parse(JSON.stringify(stateData));
-                    if (lightState.embeddedGlbAssets) delete lightState.embeddedGlbAssets;
-                    const jsonStr = JSON.stringify(lightState);
-                    try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName}`, jsonStr); } catch (e) {}
-                    try { localStorage.setItem(`PROPOSAL_APP_PROJECT_${newName.replace('.xml','')}`, jsonStr); } catch (e) {}
-
-                    let userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
-                    if (!userCustomProjects.includes(newName)) {
-                        userCustomProjects.push(newName);
-                        localStorage.setItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS', JSON.stringify(userCustomProjects));
-                    }
-                } catch (e) {}
-
                 closeSaveAsNewProjectModal();
 
                 setTimeout(() => {
@@ -10912,26 +10920,6 @@
                         projectQuery += '.xml';
                     }
 
-                    // ÖNCELİK 1: LocalStorage'da bu proje için kaydedilmiş güncel durum var mı kontrol et
-                    const savedLocalState = localStorage.getItem(`PROPOSAL_APP_PROJECT_${projectQuery}`) ||
-                                             localStorage.getItem(`PROPOSAL_APP_PROJECT_${projectQuery.replace('.xml','')}`);
-                    if (savedLocalState) {
-                        try {
-                            const parsedState = JSON.parse(savedLocalState);
-                            restored = await restoreStateData(parsedState);
-                            if (restored) {
-                                console.log(`✅ "${projectQuery}" projesi kaydedilmiş yerel depolamadan (LocalStorage) yüklendi.`);
-                                const statusEl = document.getElementById('import-status');
-                                if (statusEl) {
-                                    statusEl.innerText = `✅ "${projectQuery}" son kaydedilen durumdan yüklendi.`;
-                                }
-                                return;
-                            }
-                        } catch (e) {
-                            console.warn("Yerel kaydedilmiş proje okuma hatası, dosyadan çekiliyor...", e);
-                        }
-                    }
-
                     const searchPaths = [];
                     if (projectQuery.startsWith('projects/')) {
                         searchPaths.push(projectQuery);
@@ -11439,16 +11427,6 @@
             } catch (err) {
                 console.warn('GitHub proje listesi çekilirken ağ uyarısı:', err);
             }
-
-            // 2. LocalStorage kaydedilmiş özel projeler
-            try {
-                const userCustomProjects = JSON.parse(localStorage.getItem('PROPOSAL_APP_USER_CUSTOM_PROJECTS') || '[]');
-                userCustomProjects.forEach(customId => {
-                    if (!userProjects.some(p => p.id === customId)) {
-                        userProjects.push({ id: customId, name: `✨ ${customId}`, allowedEmails: ['*'] });
-                    }
-                });
-            } catch (e) {}
 
             let filteredProjects = [];
             if (profile && profile.role === 'admin') {
