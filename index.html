@@ -4465,7 +4465,10 @@
                 try {
                     const dxfText = evt.target.result;
                     const parsedData = parseASCII_DXF(dxfText);
-                    renderDXFToThreeGroup(parsedData, file.name);
+                    const dxfGroup = renderDXFToThreeGroup(parsedData, file.name);
+                    if (dxfGroup) {
+                        dxfGroup.userData.rawDxfText = dxfText;
+                    }
                 } catch (err) {
                     console.error('DXF parse error:', err);
                     if (typeof showNotice === 'function') {
@@ -8467,6 +8470,23 @@
                 targetPos: l.targetMesh?.position ? { x: l.targetMesh.position.x, y: l.targetMesh.position.y, z: l.targetMesh.position.z } : null
             }));
 
+            const serializableDxfDrawings = [];
+            (addedManualModels || []).forEach((m) => {
+                if (m.path === 'parametric:dxf-drawing' || m.ref?.userData?.isDXFModel) {
+                    const ref = m.ref;
+                    if (ref) {
+                        serializableDxfDrawings.push({
+                            filename: ref.userData?.filename || m.label || 'DXF_Model.dxf',
+                            dxfText: ref.userData?.rawDxfText || null,
+                            position: { x: ref.position.x, y: ref.position.y, z: ref.position.z },
+                            rotation: { x: ref.rotation.x, y: ref.rotation.y, z: ref.rotation.z },
+                            quaternion: ref.quaternion ? { x: ref.quaternion.x, y: ref.quaternion.y, z: ref.quaternion.z, w: ref.quaternion.w } : null,
+                            scale: { x: ref.scale.x, y: ref.scale.y, z: ref.scale.z }
+                        });
+                    }
+                }
+            });
+
             return {
                 filename: currentXmlFilename || 'OPP-0106989-1-R1.xml',
                 rawXmlText,
@@ -8476,6 +8496,7 @@
                 addedSensors: addedSensors || [],
                 addedMachines: addedMachines || [],
                 addedManualModels: manualModelsData,
+                addedDxfDrawings: serializableDxfDrawings,
                 timestamp: Date.now()
             };
         }
@@ -8636,11 +8657,28 @@
                 }
             }
 
-            // 4. Kablo Hatlarını (3D tüp çizimleri ve Pano Network bilgilerini) Geri Yükle
-            if (Array.isArray(data.savedCableLinks) && data.savedCableLinks.length > 0) {
-                setTimeout(() => {
-                    restoreAllCableLinks(data.savedCableLinks);
-                }, 200);
+            // 5. Eklenen DXF Çizim Modellerini Geri Yükle
+            if (Array.isArray(data.addedDxfDrawings) && data.addedDxfDrawings.length > 0) {
+                for (const dxf of data.addedDxfDrawings) {
+                    try {
+                        if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
+                            const parsed = parseASCII_DXF(dxf.dxfText);
+                            const dxfGroup = renderDXFToThreeGroup(parsed, dxf.filename || 'DXF Model');
+                            if (dxfGroup) {
+                                if (dxf.position) dxfGroup.position.set(dxf.position.x, dxf.position.y, dxf.position.z);
+                                if (dxf.quaternion && typeof dxf.quaternion.w === 'number') {
+                                    dxfGroup.quaternion.set(dxf.quaternion.x, dxf.quaternion.y, dxf.quaternion.z, dxf.quaternion.w).normalize();
+                                } else if (dxf.rotation) {
+                                    dxfGroup.rotation.set(dxf.rotation.x || 0, dxf.rotation.y || 0, dxf.rotation.z || 0);
+                                }
+                                if (dxf.scale) dxfGroup.scale.set(dxf.scale.x || 1, dxf.scale.y || 1, dxf.scale.z || 1);
+                                dxfGroup.userData.rawDxfText = dxf.dxfText;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('DXF çizim modeli geri yükleme hatası:', dxf, err);
+                    }
+                }
             }
 
             const cntPanelEl = document.getElementById('cnt-panel');
