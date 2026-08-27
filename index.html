@@ -8777,6 +8777,12 @@
 
 
 
+        function generateXmlProjectContent() {
+            ensureBaseXmlExists();
+            return getUpdatedXmlString();
+        }
+        window.generateXmlProjectContent = generateXmlProjectContent;
+
         window.exportXmlProjectAsNewFile = exportXmlProjectAsNewFile;
 
         function saveActiveProjectToCloud() {
