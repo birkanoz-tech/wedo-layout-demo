@@ -403,9 +403,9 @@
 
 
     <!-- 3D Tuval & Sağ Panel Flex Kapsayıcısı -->
-    <div class="flex-1 flex overflow-hidden relative">
-        <div class="flex-1 relative">
-            <div id="canvas-container" class="w-full h-full"></div>
+    <div class="flex-1 flex overflow-hidden relative" style="flex: 1 1 auto; min-height: 400px; position: relative;">
+        <div class="flex-1 relative" style="flex: 1 1 auto; width: 100%; height: 100%; min-height: 400px; position: relative;">
+            <div id="canvas-container" class="w-full h-full" style="width: 100%; height: 100%; position: absolute; top:0; left:0; right:0; bottom:0;"></div>
 
             <!-- Floating Transparent Product Tree (Fusion 360 Style Browser - Left Side) -->
             <div id="fusion-left-browser"
@@ -848,6 +848,10 @@
                 showNotice(`⚡ ${panelId} sahnede oluşturuldu ve kodlandı.`);
             }
 
+            if (typeof rebuildModelTreeFromScene === 'function') {
+                rebuildModelTreeFromScene();
+            }
+
             if (typeof saveLayoutToLocalStorage === 'function') {
                 saveLayoutToLocalStorage();
             }
@@ -856,163 +860,194 @@
         }
 
         function openCableLinkCreationDialog(preSelectPanelId = null) {
+            console.log("🚀 [Tetiklendi] openCableLinkCreationDialog() çalıştı. PanelID:", preSelectPanelId);
             const selectSource = document.getElementById('select-cable-source-panel');
             const selectTarget = document.getElementById('select-cable-target-motor');
             const modal = document.getElementById('create-cable-link-modal');
 
             if (!modal) {
                 console.error("create-cable-link-modal bulunamadı!");
-                return;
+                return null;
             }
 
-            if (selectSource && selectTarget) {
-                selectSource.innerHTML = '<option value="">PLC Panosu Seçin...</option>';
-                selectTarget.innerHTML = '<option value="">Hedef Motor/Cihaz Seçin...</option>';
+            // MODALI ANINDA EKRANDA GÖSTER (BODY EN SONUNA TAŞI VE REFLOW ZORLA)
+            document.body.appendChild(modal);
+            modal.classList.remove('hidden');
+            modal.style.display = 'none';
+            void modal.offsetWidth; // Force Reflow / Repaint
+            modal.setAttribute('style', 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 999999 !important; background-color: rgba(0, 0, 0, 0.85) !important; align-items: center !important; justify-content: center !important;');
+            const dialogBox = modal.querySelector('div');
+            if (dialogBox) {
+                dialogBox.setAttribute('style', 'background-color: #0f172a !important; color: #f8fafc !important; border: 2px solid #06b6d4 !important; border-radius: 12px !important; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95) !important; position: relative !important; z-index: 1000000 !important; width: 90% !important; max-width: 480px !important; margin: auto !important; padding: 20px !important;');
+            }
 
-                const panels = [];
-                const targets = [];
+            if (typeof showNotice === 'function') {
+                showNotice('🔌 Kablo Linki Oluşturma Penceresi Açıldı');
+            }
 
-                // Sahnede gerçekten var olan panoları ekle
-                const activePanelsMap = new Map();
-                if (Array.isArray(addedPanels)) {
-                    addedPanels.forEach(p => {
-                        if (p.mesh && p.mesh.parent) {
-                            activePanelsMap.set(p.id, { obj: p.mesh, name: `⚡ ${p.id} (PLC Panosu)` });
-                        }
-                    });
-                }
+            try {
+                if (selectSource && selectTarget) {
+                    selectSource.innerHTML = '<option value="">PLC Panosu Seçin...</option>';
+                    selectTarget.innerHTML = '<option value="">Hedef Motor/Cihaz Seçin...</option>';
 
-                scene.traverse((obj) => {
-                    if (obj.userData && (obj.userData.isPanel || obj.userData.parametricKind === 'panel') && obj.userData.panelId) {
-                        const pid = obj.userData.panelId;
-                        if (!activePanelsMap.has(pid)) {
-                            activePanelsMap.set(pid, { obj: obj, name: `⚡ ${pid} (PLC Panosu)` });
-                        }
+                    const panels = [];
+                    const targets = [];
+
+                    // Sahnede gerçekten var olan panoları ekle
+                    const activePanelsMap = new Map();
+                    if (Array.isArray(addedPanels)) {
+                        addedPanels.forEach(p => {
+                            if (p.mesh) {
+                                activePanelsMap.set(p.id, { obj: p.mesh, name: `⚡ ${p.id} (PLC Panosu)` });
+                            }
+                        });
                     }
-                });
 
-                activePanelsMap.forEach(val => panels.push(val));
+                    if (typeof scene !== 'undefined' && scene) {
+                        scene.traverse((obj) => {
+                            const isP = obj.userData?.isPanel || obj.userData?.parametricKind === 'panel' || obj.userData?.panelId;
+                            if (isP) {
+                                const root = (typeof getPanelRootFromObject === 'function') ? getPanelRootFromObject(obj) : obj;
+                                const pid = (typeof getPanelIdFromObject === 'function') ? getPanelIdFromObject(root) : (root.userData?.panelId || root.name || 'Pano');
+                                if (pid && !activePanelsMap.has(pid)) {
+                                    activePanelsMap.set(pid, { obj: root, name: `⚡ ${pid} (PLC Panosu)` });
+                                }
+                            }
+                        });
+                    }
 
-                if (panels.length === 0) {
-                    selectSource.innerHTML = '<option value="">Sahnede Pano Bulunamadı (Önce Pano Ekleyin)</option>';
-                    selectSource.disabled = true;
-                } else {
+                    activePanelsMap.forEach(val => panels.push(val));
+
+                    if (panels.length === 0) {
+                        const fallbackMesh = (typeof getActivePanelMeshForModal === 'function') ? getActivePanelMeshForModal() : null;
+                        panels.push({ obj: fallbackMesh, name: '⚡ Pano_01 (PLC Panosu)' });
+                    }
                     selectSource.disabled = false;
-                }
 
-                // Sahnede ve XML'deki XHEB / XBEB End Drive Unit (Tahrik Ünitesi) Modellerini Topla
-                const targetMap = new Map();
+                    // Sahnede ve XML'deki XHEB / XBEB End Drive Unit (Tahrik Ünitesi) Modellerini Topla
+                    const targetMap = new Map();
 
-                // 1. Scene içindeki 3D modelleri tara (XHEB / XBEB / End Drive Unit)
-                scene.traverse((obj) => {
-                    if (obj.userData && obj.userData.type === 'xml-product') {
-                        const prodName = String(obj.userData.product?.name || obj.name || '');
-                        const prodNo = String(obj.userData.product?.productNo || obj.userData.productNo || '');
-                        const zeroPkg = String(obj.userData.product?.zeroPackage || '');
-                        const assyName = getAssemblyNameFromObject(obj) || obj.userData.assemblyName || obj.userData.product?.assemblyName || '';
+                    // 1. Scene içindeki 3D modelleri tara (XHEB / XBEB / End Drive Unit)
+                    if (typeof scene !== 'undefined' && scene) {
+                        scene.traverse((obj) => {
+                            if (obj.userData && obj.userData.type === 'xml-product') {
+                                const prodName = String(obj.userData.product?.name || obj.name || '');
+                                const prodNo = String(obj.userData.product?.productNo || obj.userData.productNo || '');
+                                const zeroPkg = String(obj.userData.product?.zeroPackage || '');
+                                const assyName = (typeof getAssemblyNameFromObject === 'function') ? getAssemblyNameFromObject(obj) : (obj.userData?.assemblyName || '');
 
-                        // XHEB, XBEB, HNRP, HNLP, End Drive Unit, Tahrik Ünitesi araması
-                        const isEndDriveUnit = /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodName) ||
-                            /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodNo) ||
-                            /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(zeroPkg) ||
-                            /motor|tahrik|drive|engine/i.test(prodName);
+                                // XHEB, XBEB, HNRP, HNLP, End Drive Unit, Tahrik Ünitesi araması
+                                const isEndDriveUnit = /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodName) ||
+                                    /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodNo) ||
+                                    /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(zeroPkg) ||
+                                    /motor|tahrik|drive|engine/i.test(prodName);
 
-                        if (isEndDriveUnit) {
-                            const worldPos = new THREE.Vector3();
-                            obj.getWorldPosition(worldPos);
-                            const key = `${assyName}_${worldPos.x.toFixed(1)}_${worldPos.y.toFixed(1)}`;
+                                if (isEndDriveUnit) {
+                                    const worldPos = new THREE.Vector3();
+                                    obj.getWorldPosition(worldPos);
+                                    const key = `${assyName}_${worldPos.x.toFixed(1)}_${worldPos.y.toFixed(1)}`;
+                                    if (!targetMap.has(key)) {
+                                        const unitCode = prodNo || prodName || 'End Drive Unit';
+                                        const displayName = `🎯 [${assyName || 'Konveyör'}] ${unitCode} (Tahrik Ünitesi Motoru) - X:${worldPos.x.toFixed(1)}m, Y:${worldPos.y.toFixed(1)}m, Z:${worldPos.z.toFixed(1)}m`;
+                                        targetMap.set(key, {
+                                            obj: obj,
+                                            name: displayName,
+                                            assemblyName: assyName,
+                                            unitCode: unitCode,
+                                            position: worldPos
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    // 2. XML'den çıkarılan motor listesinden ekle (XHEB / XBEB karşılıkları)
+                    if (window.motorPositions && Array.isArray(window.motorPositions)) {
+                        window.motorPositions.forEach((m, idx) => {
+                            const assyName = m.assemblyName || m.conveyorName || (m.name ? m.name.split(' ')[0] : `Conveyor_${idx + 1}`);
+                            const key = `${assyName}_${m.x.toFixed(1)}_${m.y.toFixed(1)}`;
                             if (!targetMap.has(key)) {
-                                const unitCode = prodNo || prodName || 'End Drive Unit';
-                                const displayName = `🎯 [${assyName || 'Konveyör'}] ${unitCode} (Tahrik Ünitesi Motoru) - X:${worldPos.x.toFixed(1)}m, Y:${worldPos.y.toFixed(1)}m, Z:${worldPos.z.toFixed(1)}m`;
+                                const motorTitle = m.name || `${assyName} End Drive Unit (XHEB/XBEB)`;
+                                const displayName = `🎯 [${assyName}] ${motorTitle} (Tahrik Ünitesi Motoru) - X:${m.x.toFixed(1)}m, Y:${m.y.toFixed(1)}m, Z:${m.z.toFixed(1)}m`;
                                 targetMap.set(key, {
-                                    obj: obj,
+                                    obj: { position: new THREE.Vector3(m.x, m.y, m.z), userData: { product: { name: motorTitle } } },
                                     name: displayName,
                                     assemblyName: assyName,
-                                    unitCode: unitCode,
-                                    position: worldPos
+                                    unitCode: motorTitle,
+                                    position: new THREE.Vector3(m.x, m.y, m.z)
                                 });
                             }
-                        }
+                        });
                     }
-                });
 
-                // 2. XML'den çıkarılan motor listesinden ekle (XHEB / XBEB karşılıkları)
-                if (window.motorPositions && Array.isArray(window.motorPositions)) {
-                    window.motorPositions.forEach((m, idx) => {
-                        const assyName = m.assemblyName || m.conveyorName || (m.name ? m.name.split(' ')[0] : `Conveyor_${idx + 1}`);
-                        const key = `${assyName}_${m.x.toFixed(1)}_${m.y.toFixed(1)}`;
-                        if (!targetMap.has(key)) {
-                            const motorTitle = m.name || `${assyName} End Drive Unit (XHEB/XBEB)`;
-                            const displayName = `🎯 [${assyName}] ${motorTitle} (Tahrik Ünitesi Motoru) - X:${m.x.toFixed(1)}m, Y:${m.y.toFixed(1)}m, Z:${m.z.toFixed(1)}m`;
-                            targetMap.set(key, {
-                                obj: { position: new THREE.Vector3(m.x, m.y, m.z), userData: { product: { name: motorTitle } } },
-                                name: displayName,
-                                assemblyName: assyName,
-                                unitCode: motorTitle,
-                                position: new THREE.Vector3(m.x, m.y, m.z)
-                            });
-                        }
-                    });
-                }
+                    targetMap.forEach(val => targets.push(val));
 
-                targetMap.forEach(val => targets.push(val));
-
-                if (targets.length === 0) {
-                    targets.push({
-                        obj: { position: new THREE.Vector3(10, 5, 1.5), userData: { product: { name: 'Conveyor_01 Tahrik Motoru' } } },
-                        name: '🎯 [Conveyor_01] Tahrik Motoru (Konum: X:10.0m, Y:5.0m, Z:1.5m)',
-                        assemblyName: 'Conveyor_01',
-                        position: new THREE.Vector3(10, 5, 1.5)
-                    });
-                }
-
-                let matchSourceIdx = -1;
-                panels.forEach((p, idx) => {
-                    const opt = document.createElement('option');
-                    opt.value = idx;
-                    opt.textContent = p.name;
-                    selectSource.appendChild(opt);
-                    if (preSelectPanelId && p.name.includes(preSelectPanelId)) {
-                        matchSourceIdx = idx;
+                    if (targets.length === 0) {
+                        targets.push({
+                            obj: { position: new THREE.Vector3(10, 5, 1.5), userData: { product: { name: 'Conveyor_01 Tahrik Motoru' } } },
+                            name: '🎯 [Conveyor_01] Tahrik Motoru (Konum: X:10.0m, Y:5.0m, Z:1.5m)',
+                            assemblyName: 'Conveyor_01',
+                            position: new THREE.Vector3(10, 5, 1.5)
+                        });
                     }
-                });
-                if (matchSourceIdx !== -1) {
-                    selectSource.value = matchSourceIdx;
-                }
-                window._tempCablePanels = panels;
 
-                const unconnectedTargets = (typeof getUnconnectedElectricalTargets === 'function') ? getUnconnectedElectricalTargets() : targets;
-                if (unconnectedTargets.length === 0) {
-                    selectTarget.innerHTML = '<option value="">Tüm Ekipmanlar Panolara Bağlı (Bağlantısız Ekipman Yok)</option>';
-                    selectTarget.disabled = true;
-                } else {
-                    selectTarget.disabled = false;
-                    selectTarget.innerHTML = '<option value="">Hedef Motor/Cihaz Seçin (Not Connected)...</option>';
-                    unconnectedTargets.forEach((t, idx) => {
+                    let matchSourceIdx = 0;
+                    const activePid = preSelectPanelId || (typeof getActivePanelIdForModal === 'function' ? getActivePanelIdForModal() : null);
+                    panels.forEach((p, idx) => {
                         const opt = document.createElement('option');
                         opt.value = idx;
-                        opt.textContent = getCleanShortEquipmentName(t.displayName || t.name);
-                        opt.title = t.displayName || t.name;
-                        selectTarget.appendChild(opt);
+                        opt.textContent = p.name;
+                        selectSource.appendChild(opt);
+                        if (activePid && (p.name.includes(activePid) || (p.obj && p.obj.name && p.obj.name.includes(activePid)))) {
+                            matchSourceIdx = idx;
+                        }
                     });
-                }
-                window._tempCableTargets = unconnectedTargets;
+                    selectSource.value = matchSourceIdx;
+                    window._tempCablePanels = panels;
 
-                selectTarget.onchange = () => {
-                    const tgtIdx = selectTarget.value;
-                    if (tgtIdx !== "" && window._tempCableTargets[tgtIdx]) {
-                        const selTarget = window._tempCableTargets[tgtIdx];
-                        showNotice(`🎯 Seçilen Hedef Motor: ${selTarget.name}`);
+                    let availableTargets = (typeof getUnconnectedElectricalTargets === 'function') ? getUnconnectedElectricalTargets() : targets;
+                    if (!availableTargets || availableTargets.length === 0) {
+                        availableTargets = targets;
                     }
-                };
+                    if (!availableTargets || availableTargets.length === 0) {
+                        selectTarget.innerHTML = '<option value="">Sahnede Ekipman/Motor Bulunamadı</option>';
+                        selectTarget.disabled = true;
+                    } else {
+                        selectTarget.disabled = false;
+                        selectTarget.innerHTML = '<option value="">Hedef Motor/Cihaz Seçin...</option>';
+                        availableTargets.forEach((t, idx) => {
+                            const opt = document.createElement('option');
+                            opt.value = idx;
+                            const rawName = t.displayName || t.name || 'Hedef Ekipman';
+                            opt.textContent = (typeof getCleanShortEquipmentName === 'function') ? getCleanShortEquipmentName(rawName) : rawName;
+                            opt.title = rawName;
+                            selectTarget.appendChild(opt);
+                        });
+                    }
+                    window._tempCableTargets = availableTargets;
+
+                    selectTarget.onchange = () => {
+                        const tgtIdx = selectTarget.value;
+                        if (tgtIdx !== "" && window._tempCableTargets[tgtIdx]) {
+                            const selTarget = window._tempCableTargets[tgtIdx];
+                            if (typeof showNotice === 'function') showNotice(`🎯 Seçilen Hedef Motor: ${selTarget.name}`);
+                        }
+                    };
+                }
+            } catch (err) {
+                console.error("openCableLinkCreationDialog doldurma hatası:", err);
             }
 
-            modal.classList.remove('hidden');
+            return modal;
         }
 
         function closeCableLinkCreationDialog() {
             const modal = document.getElementById('create-cable-link-modal');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.setAttribute('style', 'display: none !important;');
+            }
         }
 
         function confirmCreateCableLink() {
@@ -1044,29 +1079,31 @@
         function getUnconnectedElectricalTargets() {
             const targetMap = new Map();
 
-            scene.traverse((obj) => {
-                if (obj.userData && obj.userData.type === 'xml-product') {
-                    const prodName = String(obj.userData.product?.name || obj.name || '');
-                    const prodNo = String(obj.userData.product?.productNo || obj.userData.productNo || '');
-                    const zeroPkg = String(obj.userData.product?.zeroPackage || '');
-                    const assyName = getAssemblyNameFromObject(obj) || obj.userData.assemblyName || obj.userData.product?.assemblyName || 'Conveyor_1';
+            if (typeof scene !== 'undefined' && scene) {
+                scene.traverse((obj) => {
+                    if (obj.userData && obj.userData.type === 'xml-product') {
+                        const prodName = String(obj.userData.product?.name || obj.name || '');
+                        const prodNo = String(obj.userData.product?.productNo || obj.userData.productNo || '');
+                        const zeroPkg = String(obj.userData.product?.zeroPackage || '');
+                        const assyName = getAssemblyNameFromObject(obj) || obj.userData.assemblyName || obj.userData.product?.assemblyName || 'Conveyor_1';
 
-                    const isElectrical = /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit|motor|tahrik|drive|engine|sensor|sensör|inverter/i.test(prodName) ||
-                        /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodNo) ||
-                        /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(zeroPkg);
+                        const isElectrical = /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit|motor|tahrik|drive|engine|sensor|sensör|inverter/i.test(prodName) ||
+                            /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(prodNo) ||
+                            /XHEB|XBEB|HNRP|HNLP|EndDrive|DriveUnit/i.test(zeroPkg);
 
-                    if (isElectrical) {
-                        const worldPos = new THREE.Vector3();
-                        obj.getWorldPosition(worldPos);
-                        const key = `${assyName}_${worldPos.x.toFixed(1)}_${worldPos.y.toFixed(1)}`;
-                        if (!targetMap.has(key)) {
-                            const unitCode = prodNo || prodName || 'Tahrik Ünitesi Motoru';
-                            const displayName = `🎯 [${assyName}] ${unitCode} (Motor/Ekipman) (X:${worldPos.x.toFixed(1)}, Y:${worldPos.y.toFixed(1)})`;
-                            targetMap.set(key, { key, obj, name: displayName, displayName, assemblyName: assyName, unitCode, pos: worldPos });
+                        if (isElectrical) {
+                            const worldPos = new THREE.Vector3();
+                            obj.getWorldPosition(worldPos);
+                            const key = `${assyName}_${worldPos.x.toFixed(1)}_${worldPos.y.toFixed(1)}`;
+                            if (!targetMap.has(key)) {
+                                const unitCode = prodNo || prodName || 'Tahrik Ünitesi Motoru';
+                                const displayName = `🎯 [${assyName}] ${unitCode} (Motor/Ekipman) (X:${worldPos.x.toFixed(1)}, Y:${worldPos.y.toFixed(1)})`;
+                                targetMap.set(key, { key, obj, name: displayName, displayName, assemblyName: assyName, unitCode, pos: worldPos });
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
 
             if (window.motorPositions && Array.isArray(window.motorPositions)) {
                 window.motorPositions.forEach((m, idx) => {
@@ -1286,8 +1323,19 @@
             const sourcePanelMesh = (typeof getPanelRootFromObject === 'function') ? getPanelRootFromObject(sourceMesh) : sourceMesh;
             const panelIdFinal = sourcePanelId || (typeof getPanelIdFromObject === 'function' ? getPanelIdFromObject(sourcePanelMesh) : null) || sourcePanelMesh.userData?.panelId || sourcePanelMesh.name || 'PLC-01';
 
-            const srcPos = sourcePanelMesh.position ? sourcePanelMesh.position.clone() : new THREE.Vector3(0, 0, 0);
-            const tgtPos = targetMesh.position ? targetMesh.position.clone() : new THREE.Vector3(0, 0, 0);
+            const srcPos = new THREE.Vector3();
+            if (sourcePanelMesh && sourcePanelMesh.getWorldPosition) {
+                sourcePanelMesh.getWorldPosition(srcPos);
+            } else if (sourcePanelMesh && sourcePanelMesh.position) {
+                srcPos.copy(sourcePanelMesh.position);
+            }
+
+            const tgtPos = new THREE.Vector3();
+            if (targetMesh && targetMesh.getWorldPosition) {
+                targetMesh.getWorldPosition(tgtPos);
+            } else if (targetMesh && targetMesh.position) {
+                tgtPos.copy(targetMesh.position);
+            }
 
             const sourceName = panelIdFinal;
             let targetName = targetMesh.userData?.displayName || targetMesh.displayName;
@@ -1351,14 +1399,31 @@
         let activeCabinetNetworkTab = null;
 
         function openCableLinksModal() {
-            updateCabinetNetworkModalUI(activeCabinetNetworkTab);
             const modal = document.getElementById('cable-links-modal');
-            if (modal) modal.classList.remove('hidden');
+            if (modal) {
+                document.body.appendChild(modal);
+                modal.classList.remove('hidden');
+                modal.style.display = 'none';
+                void modal.offsetWidth; // Force Reflow / Repaint
+                modal.setAttribute('style', 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 999999 !important; background-color: rgba(0, 0, 0, 0.85) !important; align-items: center !important; justify-content: center !important;');
+                const dialogBox = modal.querySelector('div');
+                if (dialogBox) {
+                    dialogBox.setAttribute('style', 'background-color: #0f172a !important; color: #f8fafc !important; border: 2px solid #06b6d4 !important; border-radius: 12px !important; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95) !important; position: relative !important; z-index: 1000000 !important; width: 95% !important; max-width: 900px !important; margin: auto !important; padding: 16px !important;');
+                }
+            }
+            try {
+                updateCabinetNetworkModalUI(activeCabinetNetworkTab);
+            } catch (err) {
+                console.error("updateCabinetNetworkModalUI hatası:", err);
+            }
         }
 
         function closeCableLinksModal() {
             const modal = document.getElementById('cable-links-modal');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.setAttribute('style', 'display: none !important;');
+            }
         }
 
         function updateCableLinksTableUI() {
@@ -1382,14 +1447,16 @@
                     cabinetsMap.set(p.id, { id: p.id, name: p.name || p.id });
                 });
             }
-            scene.traverse((obj) => {
-                if (obj.userData && (obj.userData.isPanel || obj.userData.parametricKind === 'panel') && obj.userData.panelId) {
-                    const pid = obj.userData.panelId;
-                    if (!cabinetsMap.has(pid)) {
-                        cabinetsMap.set(pid, { id: pid, name: pid });
+            if (typeof scene !== 'undefined' && scene) {
+                scene.traverse((obj) => {
+                    if (obj.userData && (obj.userData.isPanel || obj.userData.parametricKind === 'panel') && obj.userData.panelId) {
+                        const pid = obj.userData.panelId;
+                        if (!cabinetsMap.has(pid)) {
+                            cabinetsMap.set(pid, { id: pid, name: pid });
+                        }
                     }
-                }
-            });
+                });
+            }
 
             if (cabinetsMap.size === 0) {
                 cabinetsMap.set('PLC-01', { id: 'PLC-01', name: 'PLC-01' });
@@ -1401,7 +1468,8 @@
             const electricalEquipments = [];
             const equipMap = new Map();
 
-            scene.traverse((obj) => {
+            if (typeof scene !== 'undefined' && scene) {
+                scene.traverse((obj) => {
                 if (obj.userData && obj.userData.type === 'xml-product') {
                     const prodName = String(obj.userData.product?.name || obj.name || '');
                     const prodNo = String(obj.userData.product?.productNo || obj.userData.productNo || '');
@@ -1426,6 +1494,7 @@
                     }
                 }
             });
+        }
 
             if (window.motorPositions && Array.isArray(window.motorPositions)) {
                 window.motorPositions.forEach((m, idx) => {
@@ -1714,6 +1783,43 @@
         window.closeCableLinksModal = closeCableLinksModal;
         window.deleteCableLink = deleteCableLink;
 
+        window.checkModalDOMStatus = function(modalId = 'create-cable-link-modal') {
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                console.error(`❌ [DOM CHECK] #${modalId} DOM'da YOK!`);
+                return { existsInDOM: false };
+            }
+            const computed = window.getComputedStyle(modal);
+            const rect = modal.getBoundingClientRect();
+            const info = {
+                existsInDOM: true,
+                id: modalId,
+                classList: Array.from(modal.classList),
+                inlineStyle: modal.getAttribute('style'),
+                computedDisplay: computed.display,
+                computedVisibility: computed.visibility,
+                computedOpacity: computed.opacity,
+                computedZIndex: computed.zIndex,
+                computedPosition: computed.position,
+                boundingRect: { width: rect.width, height: rect.height, top: rect.top, left: rect.left },
+                parentTagName: modal.parentNode ? modal.parentNode.tagName : 'No Parent'
+            };
+            console.log(`📊 [DOM CHECK DIAGNOSTIC - #${modalId}]:`, info);
+            return info;
+        };
+
+        window.testOpenModal = function(modalId = 'create-cable-link-modal') {
+            console.log(`🛠️ [TEST] #${modalId} açma fonksiyonu çalıştırılıyor...`);
+            if (modalId === 'create-cable-link-modal') {
+                openCableLinkCreationDialog();
+            } else if (modalId === 'cable-links-modal') {
+                openCableLinksModal();
+            } else if (modalId === 'modal-panel-designer') {
+                openPanelDesignerModal();
+            }
+            return checkModalDOMStatus(modalId);
+        };
+
         let selectedMesh = null;
         let selectedAssemblyName = null;
         let selectedAssemblyMeshes = [];
@@ -1777,7 +1883,9 @@
             scene.background = new THREE.Color(0xf4f4f4);
             scene.fog = new THREE.FogExp2(0xf4f4f4, 0.0028);
 
-            const aspect = container.clientWidth / container.clientHeight;
+            const w = container ? (container.clientWidth || container.parentElement?.clientWidth || window.innerWidth || 1200) : 1200;
+            const h = container ? (container.clientHeight || container.parentElement?.clientHeight || (window.innerHeight - 120) || 800) : 800;
+            const aspect = (w > 0 && h > 0) ? (w / h) : (16 / 9);
             const orthoFrustumSize = 120;
 
             perspectiveCamera = new THREE.PerspectiveCamera(39.6, aspect, 0.05, 3000); // 50mm DSLR Prime Lens (Varsayılan 39.6° İnsan Gözü Odağı)
@@ -1798,8 +1906,8 @@
             camera = isOrthographic ? orthographicCamera : perspectiveCamera;
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio || 1);
             renderer.setClearColor(0xf4f4f4, 1);
             renderer.physicallyCorrectLights = true;
             renderer.outputEncoding = THREE.sRGBEncoding;
@@ -2194,21 +2302,18 @@
             renderer.domElement.addEventListener('contextmenu', (event) => {
                 const pickedMesh = pickProductAtCursor(event.clientX, event.clientY);
                 if (pickedMesh) {
-                    const rootObj = (typeof getCableTrayAssemblyRoot === 'function' ? getCableTrayAssemblyRoot(pickedMesh) : null) || pickedMesh;
-                    const isPanelObj = (
-                        rootObj.userData?.isPanel ||
-                        rootObj.userData?.parametricKind === 'panel' ||
-                        rootObj.userData?.panelId ||
-                        pickedMesh.userData?.isPanel ||
-                        pickedMesh.userData?.parametricKind === 'panel' ||
-                        pickedMesh.userData?.panelId
-                    );
-                    if (isPanelObj) {
+                    const panelRoot = (typeof getPanelRootFromObject === 'function' ? getPanelRootFromObject(pickedMesh) : null) ||
+                        (pickedMesh.userData?.isPanel || pickedMesh.userData?.parametricKind === 'panel' || pickedMesh.userData?.panelId ? pickedMesh : null);
+
+                    if (panelRoot) {
                         event.preventDefault();
-                        selectMesh(rootObj);
+                        selectMesh(panelRoot);
+                        window._lastRightClickedPanelMesh = panelRoot;
+                        activePanelModalTab = 'connected';
                         openPanelDesignerModal();
                         if (typeof showNotice === 'function') {
-                            showNotice('⚡ Pano Properties (Özellikler) Ekranı Açıldı');
+                            const pid = (typeof getPanelIdFromObject === 'function' ? getPanelIdFromObject(panelRoot) : 'PLC-Pano');
+                            showNotice(`⚡ ${pid} Sağ Tıklandı ➔ Pano-Motor Bağlantı Ekranı Açıldı`);
                         }
                     }
                 }
@@ -2290,6 +2395,14 @@
                         }
                     }
                     return;
+                }
+
+                if (event.key === 'c' || event.key === 'C') {
+                    if (!event.ctrlKey && !event.altKey) {
+                        event.preventDefault();
+                        openCableLinkCreationDialog();
+                        return;
+                    }
                 }
 
                 if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -7219,6 +7332,40 @@
                     if (!button) return;
                     focusProductEntry(button.dataset.key);
                 });
+
+                tree.addEventListener('contextmenu', (event) => {
+                    const button = event.target.closest('button[data-key]');
+                    if (!button) return;
+                    event.preventDefault();
+
+                    const key = button.dataset.key;
+                    const entry = modelTreeEntries.find((item) => getTreeKeyForProduct(item.assemblyName, item.product) === key);
+                    if (!entry || !entry.mesh) return;
+
+                    const targetMesh = (typeof getPanelRootFromObject === 'function' ? getPanelRootFromObject(entry.mesh) : null) ||
+                        (typeof findRootMesh === 'function' ? findRootMesh(entry.mesh) : entry.mesh) || entry.mesh;
+
+                    selectMesh(targetMesh);
+                    focusCameraOnMesh(targetMesh);
+
+                    const isP = (typeof getPanelRootFromObject === 'function' && getPanelRootFromObject(targetMesh)) ||
+                        targetMesh.userData?.isPanel || targetMesh.userData?.parametricKind === 'panel' || targetMesh.userData?.panelId;
+
+                    if (isP) {
+                        window._lastRightClickedPanelMesh = targetMesh;
+                        activePanelModalTab = 'connected';
+                        openPanelDesignerModal();
+                        if (typeof showNotice === 'function') {
+                            const pid = (typeof getPanelIdFromObject === 'function' ? getPanelIdFromObject(targetMesh) : 'PLC-Pano');
+                            showNotice(`⚡ Ürün Ağacından ${pid} Sağ Tıklandı ➔ Pano-Motor Bağlantı Ekranı Açıldı`);
+                        }
+                    } else {
+                        if (typeof updateParametricEditorForSelection === 'function') {
+                            updateParametricEditorForSelection();
+                        }
+                    }
+                });
+
                 tree.dataset.bound = 'true';
             }
 
@@ -7584,12 +7731,15 @@
             modelTreeEntries = xmlEntries;
 
             // 2. Sahnede ekli manuel & parametrik tüm modelleri (Duvar, Tavan Destek vb.) ekle
+            // 2. Sahnede ekli manuel & parametrik tüm modelleri (Duvar, Tavan Destek vb.) ekle
             if (Array.isArray(addedManualModels)) {
                 addedManualModels.forEach((item, idx) => {
                     const groupObj = item.ref;
                     if (groupObj && groupObj.parent) {
                         const userData = groupObj.userData || {};
                         const kind = userData.parametricKind || 'model';
+                        if (kind === 'panel' || userData.isPanel || item.path === 'parametric:panel') return;
+
                         let groupName = 'Duvarlar & Tesis Modelleri';
                         let labelName = item.label || 'Wall';
 
@@ -7646,41 +7796,60 @@
                 });
             }
 
-            // 3. Sahnede ekli PLC Panolarını ekle
+            // 3. Sahnede ekli tüm PLC Panolarını "🔌 Otomasyon Pano Sistemleri" altına ekle
+            const allPanelsMap = new Map();
             if (Array.isArray(addedPanels)) {
-                addedPanels.forEach((p, idx) => {
-                    const groupObj = p.mesh;
-                    if (groupObj && groupObj.parent) {
-                        const groupName = '🔌 Otomasyon Pano Sistemleri';
-                        const labelName = `Pano: ${p.name || p.id || 'PLC-Pano'}`;
-
-                        const productData = groupObj.userData?.product || {
-                            name: labelName,
-                            type: 'panel',
-                            group: groupName,
-                            assemblyName: groupName,
-                            position: {
-                                x: groupObj.position.x,
-                                y: groupObj.position.y,
-                                z: groupObj.position.z,
-                                quaternion: groupObj.quaternion.clone()
+                addedPanels.forEach(p => {
+                    if (p.mesh && p.mesh.parent) {
+                        const pid = p.id || p.name || 'PLC-Pano';
+                        allPanelsMap.set(pid, p.mesh);
+                    }
+                });
+            }
+            if (scene) {
+                scene.traverse((obj) => {
+                    const isP = obj.userData?.isPanel || obj.userData?.parametricKind === 'panel' || obj.userData?.panelId;
+                    if (isP) {
+                        const root = (typeof getPanelRootFromObject === 'function') ? getPanelRootFromObject(obj) : obj;
+                        if (root && root.parent) {
+                            const pid = (typeof getPanelIdFromObject === 'function') ? getPanelIdFromObject(root) : (root.userData?.panelId || root.name || 'Pano');
+                            if (pid && !allPanelsMap.has(pid)) {
+                                allPanelsMap.set(pid, root);
                             }
-                        };
-
-                        productData.name = labelName;
-                        productData.assemblyName = groupName;
-                        groupObj.userData.assemblyName = groupName;
-                        if (!groupObj.userData.product) groupObj.userData.product = productData;
-
-                        const existingIdx = modelTreeEntries.findIndex(e => e.mesh === groupObj);
-                        if (existingIdx !== -1) {
-                            modelTreeEntries[existingIdx] = { assemblyName: groupName, product: productData, mesh: groupObj };
-                        } else {
-                            modelTreeEntries.push({ assemblyName: groupName, product: productData, mesh: groupObj });
                         }
                     }
                 });
             }
+
+            allPanelsMap.forEach((groupObj, pid) => {
+                const groupName = '🔌 Otomasyon Pano Sistemleri';
+                const labelName = `⚡ ${pid} (PLC Panosu)`;
+
+                const productData = groupObj.userData?.product || {
+                    name: labelName,
+                    type: 'panel',
+                    group: groupName,
+                    assemblyName: groupName,
+                    position: {
+                        x: groupObj.position.x,
+                        y: groupObj.position.y,
+                        z: groupObj.position.z,
+                        quaternion: groupObj.quaternion.clone()
+                    }
+                };
+
+                productData.name = labelName;
+                productData.assemblyName = groupName;
+                groupObj.userData.assemblyName = groupName;
+                if (!groupObj.userData.product) groupObj.userData.product = productData;
+
+                const existingIdx = modelTreeEntries.findIndex(e => e.mesh === groupObj);
+                if (existingIdx !== -1) {
+                    modelTreeEntries[existingIdx] = { assemblyName: groupName, product: productData, mesh: groupObj };
+                } else {
+                    modelTreeEntries.push({ assemblyName: groupName, product: productData, mesh: groupObj });
+                }
+            });
 
             renderModelTree();
             updateGLBModelCountBadge();
@@ -7688,11 +7857,25 @@
         window.rebuildModelTreeFromScene = rebuildModelTreeFromScene;
 
         function findRootMesh(object) {
+            if (!object) return null;
             let current = object;
-            while (current && !current.userData?.type) {
+            while (current) {
+                if (current.userData) {
+                    if (current.userData.type === 'xml-product' ||
+                        current.userData.isPanel ||
+                        current.userData.parametricKind === 'panel' ||
+                        current.userData.isParametric ||
+                        current.userData.panelId ||
+                        current.userData.isAssembly) {
+                        return current;
+                    }
+                }
+                if (current.parent && current.parent.type === 'Scene') {
+                    return current;
+                }
                 current = current.parent;
             }
-            return current?.userData?.type === 'xml-product' ? current : null;
+            return object;
         }
 
         function getAssemblyNameFromObject(object) {
@@ -9688,7 +9871,9 @@
         function onWindowResize() {
             const container = document.getElementById('canvas-container');
             if (!container) return;
-            const aspect = container.clientWidth / container.clientHeight;
+            const w = container.clientWidth || container.parentElement?.clientWidth || window.innerWidth || 1200;
+            const h = container.clientHeight || container.parentElement?.clientHeight || (window.innerHeight - 120) || 800;
+            const aspect = (w > 0 && h > 0) ? (w / h) : (16 / 9);
 
             if (camera && camera.isOrthographicCamera) {
                 const frustumHeight = (camera.top - camera.bottom);
@@ -9702,7 +9887,7 @@
                 camera.updateProjectionMatrix();
             }
             if (renderer) {
-                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setSize(w, h);
             }
 
             const gizmoContainer = document.getElementById('axis-gizmo-container');
@@ -9920,7 +10105,8 @@
                 updateModelMeasurementOverlay();
             } else {
                 let count = 0;
-                scene.traverse((obj) => {
+                if (typeof scene !== 'undefined' && scene) {
+                    scene.traverse((obj) => {
                     if (obj.userData?.isParametric && obj.userData?.parametricKind === 'ceiling-support') {
                         const oldRoot = obj.userData.modelRoot;
                         if (oldRoot) {
@@ -9930,9 +10116,9 @@
                         obj.add(newMesh);
                         obj.userData.modelRoot = newMesh;
                         obj.userData.parametric = { ...newParams };
-                        count++;
-                    }
-                });
+                        }
+                    });
+                }
             }
         }
 
@@ -9996,6 +10182,9 @@
                 if (curr.userData && (curr.userData.isPanel || curr.userData.parametricKind === 'panel' || curr.userData.panelId)) {
                     return curr;
                 }
+                if (curr.name && (curr.name.startsWith('Pano') || curr.name.startsWith('PLC') || curr.name.includes('(PLC Panosu)'))) {
+                    return curr;
+                }
                 if (curr.parent && curr.parent.type !== 'Scene') {
                     curr = curr.parent;
                 } else {
@@ -10003,10 +10192,10 @@
                 }
             }
             if (Array.isArray(addedPanels)) {
-                const found = addedPanels.find(p => p.mesh === obj || (p.mesh && p.mesh.children && p.mesh.children.includes(obj)));
+                const found = addedPanels.find(p => p.mesh === obj || (p.mesh && p.mesh.parent && p.mesh.parent === obj));
                 if (found && found.mesh) return found.mesh;
             }
-            return obj;
+            return null;
         }
 
         function getPanelIdFromObject(obj) {
@@ -10025,15 +10214,34 @@
         }
 
         function getActivePanelMeshForModal() {
-            const root = getPanelRootFromObject(selectedMesh);
+            let root = getPanelRootFromObject(selectedMesh);
             if (root) return root;
-            return null;
+
+            if (window._lastRightClickedPanelMesh && window._lastRightClickedPanelMesh.parent) {
+                return window._lastRightClickedPanelMesh;
+            }
+
+            if (Array.isArray(addedPanels) && addedPanels.length > 0) {
+                for (let p of addedPanels) {
+                    if (p.mesh && p.mesh.parent) return p.mesh;
+                }
+            }
+
+            let scenePanel = null;
+            if (scene) {
+                scene.traverse((obj) => {
+                    if (!scenePanel && (obj.userData?.isPanel || obj.userData?.parametricKind === 'panel' || obj.userData?.panelId)) {
+                        scenePanel = getPanelRootFromObject(obj) || obj;
+                    }
+                });
+            }
+            return scenePanel;
         }
 
         function getActivePanelIdForModal() {
             const mesh = getActivePanelMeshForModal();
-            if (!mesh) return null;
-            return getPanelIdFromObject(mesh);
+            if (!mesh) return 'PLC-01';
+            return getPanelIdFromObject(mesh) || mesh.userData?.panelId || mesh.name || 'PLC-01';
         }
 
         window.getPanelRootFromObject = getPanelRootFromObject;
@@ -10069,8 +10277,9 @@
                     unconnectedTargets.forEach((t, idx) => {
                         const opt = document.createElement('option');
                         opt.value = idx;
-                        opt.textContent = getCleanShortEquipmentName(t.displayName || t.name);
-                        opt.title = t.displayName || t.name;
+                        const rawName = t.displayName || t.name || 'Saha Ekipmanı';
+                        opt.textContent = (typeof getCleanShortEquipmentName === 'function') ? getCleanShortEquipmentName(rawName) : rawName;
+                        opt.title = rawName;
                         targetSelect.appendChild(opt);
                     });
                 }
@@ -10255,7 +10464,15 @@
             if (document.getElementById('panel-param-beacon')) document.getElementById('panel-param-beacon').value = params.hasBeacon !== false ? 'true' : 'false';
             if (document.getElementById('panel-param-estop')) document.getElementById('panel-param-estop').value = params.hasEmergencyStop !== false ? 'true' : 'false';
 
+            document.body.appendChild(modal);
             modal.classList.remove('hidden');
+            modal.style.display = 'none';
+            void modal.offsetWidth; // Force Reflow / Repaint
+            modal.setAttribute('style', 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 999999 !important; background-color: rgba(0, 0, 0, 0.85) !important; align-items: center !important; justify-content: center !important;');
+            const dialogBox = modal.querySelector('div');
+            if (dialogBox) {
+                dialogBox.setAttribute('style', 'background-color: #0f172a !important; color: #f8fafc !important; border: 2px solid #06b6d4 !important; border-radius: 12px !important; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95) !important; position: relative !important; z-index: 1000000 !important; width: 95% !important; max-width: 900px !important; margin: auto !important;');
+            }
 
             const titleEl = document.getElementById('panel-designer-modal-title');
             if (titleEl) {
@@ -10264,11 +10481,15 @@
             }
 
             switchPanelModalTab(activePanelModalTab || 'params');
+            return modal;
         }
 
         function closePanelDesignerModal() {
             const modal = document.getElementById('modal-panel-designer');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.setAttribute('style', 'display: none !important;');
+            }
         }
 
         function initPanelPreviewThree() {
@@ -11969,8 +12190,10 @@
 
     <!-- Kablo Link Oluşturma Diyaloğu Modalı -->
     <div id="create-cable-link-modal"
+        style="top:0; left:0; width:100vw; height:100vh;"
         class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div
+            style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 20px; width: 90%; max-width: 480px; margin: auto;"
             class="bg-gray-900 border border-cyan-500/40 rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4 text-xs text-gray-200">
             <div class="flex items-center justify-between border-b border-gray-800 pb-2">
                 <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
@@ -12020,8 +12243,10 @@
 
     <!-- Cabinet Network & Metraj Tablosu Modalı (Compact High-Density) -->
     <div id="cable-links-modal"
+        style="top:0; left:0; width:100vw; height:100vh;"
         class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3">
         <div
+            style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 16px; width: 95%; max-width: 900px; margin: auto;"
             class="bg-gray-900 border border-cyan-500/40 rounded-xl max-w-4xl w-full p-3.5 shadow-2xl space-y-2.5 text-[11px] text-gray-200 flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between border-b border-gray-800 pb-2">
                 <div class="flex items-center gap-2.5">
