@@ -8725,7 +8725,7 @@
             }
         }
 
-        function exportXmlProjectAsNewFile() {
+        function exportXmlProjectAsNewFile(overrideFilename = null) {
             ensureBaseXmlExists();
 
             const stateData = getSerializableState();
@@ -8739,9 +8739,12 @@
                 return;
             }
 
-            const baseName = (currentXmlFilename || 'Yeni_Proje').replace(/\.[^/.]+$/, '');
-            const defaultName = `${baseName}_MODIFIED.xml`;
-            const userFilename = prompt('Farklı kaydetmek istediğiniz yeni dosya adını yazın:', defaultName);
+            let userFilename = overrideFilename;
+            if (!userFilename) {
+                const baseName = (currentXmlFilename || 'Yeni_Proje').replace(/\.[^/.]+$/, '');
+                const defaultName = `${baseName}_MODIFIED.xml`;
+                userFilename = prompt('Farklı kaydetmek istediğiniz yeni dosya adını yazın:', defaultName);
+            }
 
             if (!userFilename) {
                 return;
