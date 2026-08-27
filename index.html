@@ -8414,6 +8414,20 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(currentRawXmlText, 'application/xml');
                 updateXmlDocPositionsFrom3DScene(xmlDoc);
+
+                // Embed 3D scene state (Panels, Cables, DXF Drawings, Manual Models) inside <scenestate> XML tag
+                if (typeof getSerializableStateWithoutXmlText === 'function') {
+                    const stateData = getSerializableStateWithoutXmlText();
+                    let sceneStateNode = xmlDoc.getElementsByTagName('scenestate')[0];
+                    if (!sceneStateNode) {
+                        sceneStateNode = xmlDoc.createElement('scenestate');
+                        xmlDoc.documentElement.appendChild(sceneStateNode);
+                    }
+                    sceneStateNode.textContent = '';
+                    const cdata = xmlDoc.createCDATASection(JSON.stringify(stateData));
+                    sceneStateNode.appendChild(cdata);
+                }
+
                 const serializer = new XMLSerializer();
                 let xmlStr = serializer.serializeToString(xmlDoc);
                 if (!xmlStr.startsWith('<?xml')) {
@@ -8434,9 +8448,7 @@
             }, 350);
         }
 
-        function getSerializableState() {
-            const rawXmlText = getUpdatedXmlString();
-
+        function getSerializableStateWithoutXmlText() {
             const serializablePanels = (addedPanels || []).map((p) => {
                 const mesh = p.mesh;
                 return {
@@ -8489,7 +8501,6 @@
 
             return {
                 filename: currentXmlFilename || 'OPP-0106989-1-R1.xml',
-                rawXmlText,
                 addedPanels: serializablePanels,
                 savedCableLinks: serializableCableLinks,
                 addedCables: addedCables || [],
@@ -8499,6 +8510,12 @@
                 addedDxfDrawings: serializableDxfDrawings,
                 timestamp: Date.now()
             };
+        }
+
+        function getSerializableState() {
+            const state = getSerializableStateWithoutXmlText();
+            state.rawXmlText = getUpdatedXmlString();
+            return state;
         }
 
         function restoreAllCableLinks(savedCableLinks) {
@@ -8740,11 +8757,26 @@
 
             await renderImportedProject(parsedProject);
 
+            // Restore embedded <scenestate> XML tag containing Panels, Cables, DXF Drawings, and Manual Models
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+                const sceneStateNode = xmlDoc.getElementsByTagName('scenestate')[0];
+                if (sceneStateNode && sceneStateNode.textContent) {
+                    const parsedState = JSON.parse(sceneStateNode.textContent.trim());
+                    if (parsedState && typeof restoreStateData === 'function') {
+                        await restoreStateData(parsedState);
+                    }
+                }
+            } catch (err) {
+                console.warn('Gömülü <scenestate> okuma uyarısı:', err);
+            }
+
             if (statusEl) {
                 const totalProducts = parsedProject.reduce((sum, a) => sum + (a.products?.length || 0), 0);
                 const isFileProtocol = window.location.protocol === 'file:';
                 const note = isFileProtocol ? ' (file:// modunda 3D)' : '';
-                statusEl.innerText = `${sourceLabel} yüklendi • ${parsedProject.length} montaj / ${totalProducts} ürün bulundu${note}`;
+                statusEl.innerText = `${sourceLabel} yüklendi • ${parsedProject.length} montaj / ${totalProducts} ürün / Panolar, Kablolar & DXF restore edildi${note}`;
             }
 
             if (!skipAutoSave) {
