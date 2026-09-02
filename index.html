@@ -834,14 +834,22 @@
             }
 
             // Panonun üzerine 3D uzayda süzülen etiket ekle
-            const oldSprite = panelMesh.children?.find(c => c.isSprite);
-            if (oldSprite) panelMesh.remove(oldSprite);
+            try {
+                const oldSprite = panelMesh.children?.find(c => c.isSprite);
+                if (oldSprite) panelMesh.remove(oldSprite);
 
-            const sprite = create3DPanoLabelSprite(panelId);
-            const bbox = new THREE.Box3().setFromObject(panelMesh);
-            const height = (bbox.max.z - bbox.min.z) || 1.8;
-            sprite.position.set(0, 0, height + 0.3);
-            panelMesh.add(sprite);
+                if (typeof create3DPanoLabelSprite === 'function') {
+                    const sprite = create3DPanoLabelSprite(panelId);
+                    if (sprite) {
+                        const bbox = new THREE.Box3().setFromObject(panelMesh);
+                        const height = (bbox.max.z - bbox.min.z) || 1.8;
+                        sprite.position.set(0, 0, height + 0.3);
+                        panelMesh.add(sprite);
+                    }
+                }
+            } catch(spriteErr) {
+                console.warn("Pano sprite etiket uyarısı:", spriteErr);
+            }
 
             // Listeye ekle
             const existingIdx = addedPanels.findIndex(p => p.mesh === panelMesh || p.id === panelId);
@@ -849,6 +857,14 @@
                 addedPanels.push({ id: panelId, name: panelId, mesh: panelMesh, position: panelMesh.position.clone() });
             } else {
                 addedPanels[existingIdx] = { id: panelId, name: panelId, mesh: panelMesh, position: panelMesh.position.clone() };
+            }
+
+            // Ayrıca manuel model listesine de ekle
+            if (Array.isArray(addedManualModels)) {
+                const mIdx = addedManualModels.findIndex(m => m.ref === panelMesh || m.label === panelId);
+                if (mIdx === -1) {
+                    addedManualModels.push({ path: 'parametric:panel', label: `${panelId} (PLC Panosu)`, point: panelMesh.position.clone(), ref: panelMesh });
+                }
             }
             setSafeInnerText('cnt-panel', `${addedPanels.length} Adet`);
 
@@ -8730,6 +8746,23 @@
                             return name === linkData.targetName || (name && name.includes(linkData.targetName));
                         });
                     }
+                    if (!targetMesh && linkData.targetPos) {
+                        // Sahnede targetPos koordinatına en yakın ekipman mesh'ini ara
+                        const tVec = new THREE.Vector3(linkData.targetPos.x, linkData.targetPos.y, linkData.targetPos.z);
+                        let closestObj = null;
+                        let minDist = 1.0; // 1 metre tolerans
+                        allSceneObjects.forEach(obj => {
+                            const oPos = new THREE.Vector3();
+                            if (obj.getWorldPosition) obj.getWorldPosition(oPos);
+                            else oPos.copy(obj.position);
+                            const d = oPos.distanceTo(tVec);
+                            if (d < minDist) {
+                                minDist = d;
+                                closestObj = obj;
+                            }
+                        });
+                        if (closestObj) targetMesh = closestObj;
+                    }
 
                     if (sourceMesh && targetMesh) {
                         createCablePathLink(sourceMesh, targetMesh, linkData.cableType || 'power', linkData.sourcePanelId || linkData.sourceName);
@@ -8822,7 +8855,7 @@
 
             // 2. Eklenen Panoları (addedPanels / panels) Sahnede Doğru Konum ve Dönü İle Oluştur
             addedPanels = [];
-            const panelList = sceneData.addedPanels || sceneData.panels || [];
+            const panelList = data.panels || sceneData.addedPanels || sceneData.panels || data.addedPanels || [];
             if (Array.isArray(panelList)) {
                 for (const p of panelList) {
                     try {
@@ -8924,7 +8957,7 @@
             }
 
             // 5. Kablo Hatlarını ve Ağlarını Geri Yükle
-            const cableLinkList = sceneData.savedCableLinks || sceneData.cableLinks || [];
+            const cableLinkList = data.cableLinks || sceneData.savedCableLinks || sceneData.cableLinks || data.savedCableLinks || [];
             if (Array.isArray(cableLinkList) && cableLinkList.length > 0) {
                 setTimeout(() => {
                     restoreAllCableLinks(cableLinkList);
@@ -11345,7 +11378,7 @@
                                 const trimmed = textContent.trim();
                                 if (trimmed.charAt(0) === '{') {
                                     const jsonData = JSON.parse(trimmed);
-                                    if (jsonData.rawXmlText) {
+                                    if (!jsonData.assemblies && !jsonData.models && jsonData.rawXmlText) {
                                         try {
                                             await loadXmlProjectFromText(jsonData.rawXmlText, projectQuery, true);
                                         } catch(e) {}
