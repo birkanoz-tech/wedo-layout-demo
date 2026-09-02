@@ -9084,6 +9084,91 @@
         }
         window.executeSaveAsNewProject = executeSaveAsNewProject;
 
+        
+        // --- CLOUD SYNC & HELPER FUNCTIONS ---
+        async function syncCustomerProjectsList() {
+            const dropdown = document.getElementById('customer-projects-dropdown');
+            if (!dropdown) return;
+
+            let availableProjects = [];
+            try {
+                const ghRes = await fetch('https://api.github.com/repos/birkanoz-tech/wedo-layout-demo/contents/projects');
+                if (ghRes.ok) {
+                    const files = await ghRes.json();
+                    if (Array.isArray(files)) {
+                        files.forEach(f => {
+                            if (f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.xml'))) {
+                                if (!availableProjects.some(p => p.id === f.name)) {
+                                    const icon = f.name.toLowerCase().endsWith('.json') ? '🚀' : '☁️';
+                                    availableProjects.push({ id: f.name, name: `${icon} ${f.name}` });
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch(err) {
+                console.warn("GitHub proje listesi çekilirken ağ hatası:", err);
+            }
+
+            if (availableProjects.length === 0) {
+                availableProjects.push(
+                    { id: 'OPP-0106989-1-R1.json', name: '🚀 OPP-0106989-1-R1.json' },
+                    { id: 'OPP-0106989-1-R1.xml', name: '☁️ OPP-0106989-1-R1.xml' }
+                );
+            }
+
+            const currentUrlParams = new URLSearchParams(window.location.search);
+            const activeProj = currentUrlParams.get('project') || currentUrlParams.get('xml') || 'OPP-0106989-1-R1.xml';
+
+            let html = '';
+            availableProjects.forEach(proj => {
+                const isSelected = (proj.id === activeProj || proj.id.replace(/\.(json|xml)$/i,'') === activeProj.replace(/\.(json|xml)$/i,'')) ? 'selected' : '';
+                html += `<option value="${proj.id}" ${isSelected}>${proj.name}</option>`;
+            });
+
+            dropdown.innerHTML = html;
+        }
+        window.syncCustomerProjectsList = syncCustomerProjectsList;
+
+        function loadCustomerProjectFromDropdown(projectId) {
+            if (!projectId) return;
+            if (typeof showNotice === 'function') {
+                showNotice(`⏳ "${projectId}" GitHub bulutundan yükleniyor...`);
+            }
+            const currentUrlParams = new URLSearchParams(window.location.search);
+            currentUrlParams.set('project', projectId);
+            window.location.search = currentUrlParams.toString();
+        }
+        window.loadCustomerProjectFromDropdown = loadCustomerProjectFromDropdown;
+
+        function loadXmlProjectFromFile(input) {
+            if (input && input.files && input.files.length > 0) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    await loadXmlProjectFromText(e.target.result, file.name);
+                    if (typeof syncCustomerProjectsList === 'function') {
+                        syncCustomerProjectsList();
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+        window.loadXmlProjectFromFile = loadXmlProjectFromFile;
+
+
+        // Camera and Context Menu Handlers
+        window.addCameraToScene = window.addCameraToScene || function() { if (typeof showNotice === 'function') showNotice('📷 Kamera eklendi'); };
+        window.closeCameraManagerModal = window.closeCameraManagerModal || function() { const m = document.getElementById('camera-manager-modal'); if (m) m.classList.add('hidden'); };
+        window.connectUnconnectedItem = window.connectUnconnectedItem || function() {};
+        window.deleteSelectedModelFromContext = window.deleteSelectedModelFromContext || function() { if (typeof deleteSelectedProduct === 'function') deleteSelectedProduct(); };
+        window.exitCameraViewHUD = window.exitCameraViewHUD || function() {};
+        window.focusOnSelectedModelFromContext = window.focusOnSelectedModelFromContext || function() { if (typeof focusOnMesh === 'function' && selectedMesh) focusOnMesh(selectedMesh); };
+        window.teleportCameraToFactoryCenter = window.teleportCameraToFactoryCenter || function() { if (typeof setViewportView === 'function') setViewportView('iso'); };
+        window.toggleCameraProjection = window.toggleCameraProjection || function() { if (typeof toggleProjection === 'function') toggleProjection(); };
+        window.toggleUnityFlyMode = window.toggleUnityFlyMode || function() {};
+
+
         function extractAndRegisterEmbeddedAssetsFromXml(xmlText) {
             if (!xmlText) return;
             try {
@@ -10997,6 +11082,7 @@
 
         window.onload = async function () {
             init3D();
+            if (typeof syncCustomerProjectsList === 'function') syncCustomerProjectsList();
             initManualLibraryModelPicker();
             initModelLibraryPanel();
             initWorldPositionEditor();
@@ -11016,7 +11102,7 @@
             // 2. URL Parametresi İle Canlı Proje Çağırma (Örn: ?project=firma-a VEYA ?xml=OPP-0106989-1-R1)
             else {
                 const urlParams = new URLSearchParams(window.location.search);
-                let projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
+                let projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file') || 'OPP-0106989-1-R1.xml';
 
                 if (projectQuery) {
                     projectQuery = projectQuery.trim();
@@ -11574,12 +11660,6 @@
                 selectEl.appendChild(opt);
             });
         }
-
-        function loadCustomerProjectFromDropdown(projectId) {
-            if (!projectId) return;
-            window.location.href = `?project=${projectId}`;
-        }
-        window.loadCustomerProjectFromDropdown = loadCustomerProjectFromDropdown;
 
         function openAdminProjectManagerModal() {
             renderAdminProjectList();
