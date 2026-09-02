@@ -8500,15 +8500,27 @@
             });
 
             return {
-                filename: currentXmlFilename || 'OPP-0106989-1-R1.xml',
+                format: "ProposalApp_3D_Scene_Document",
+                version: "2.0.0",
+                filename: currentXmlFilename || 'OPP-0106989-1-R1.json',
+                timestamp: Date.now(),
+                scene: {
+                    addedPanels: serializablePanels,
+                    savedCableLinks: serializableCableLinks,
+                    addedCables: addedCables || [],
+                    addedSensors: addedSensors || [],
+                    addedMachines: addedMachines || [],
+                    addedManualModels: manualModelsData,
+                    addedDxfDrawings: serializableDxfDrawings,
+                    buildingLevels: buildingLevels || []
+                },
                 addedPanels: serializablePanels,
                 savedCableLinks: serializableCableLinks,
                 addedCables: addedCables || [],
                 addedSensors: addedSensors || [],
                 addedMachines: addedMachines || [],
                 addedManualModels: manualModelsData,
-                addedDxfDrawings: serializableDxfDrawings,
-                timestamp: Date.now()
+                addedDxfDrawings: serializableDxfDrawings
             };
         }
 
@@ -8589,7 +8601,9 @@
         async function restoreStateData(data) {
             if (!data) return false;
 
-            // 1. Orijinal/Güncellenmiş XML'i yükle (eğer XML verisi var ise)
+            const sceneData = data.scene || data;
+
+            // 1. Orijinal/Güncellenmiş XML veya Modelleri yükle
             if (data.rawXmlText && data.rawXmlText.trim() !== '') {
                 try {
                     await loadXmlProjectFromText(data.rawXmlText, data.filename || 'Kaydedilmiş Oturum', true);
@@ -8598,10 +8612,11 @@
                 }
             }
 
-            // 2. Eklenen Panoları (addedPanels) Sahnede Doğru Konum ve Dönü İle Oluştur
+            // 2. Eklenen Panoları (addedPanels / panels) Sahnede Doğru Konum ve Dönü İle Oluştur
             addedPanels = [];
-            if (Array.isArray(data.addedPanels)) {
-                for (const p of data.addedPanels) {
+            const panelList = sceneData.addedPanels || sceneData.panels || [];
+            if (Array.isArray(panelList)) {
+                for (const p of panelList) {
                     try {
                         const params = p.parametricParams || {
                             width: 800, height: 1800, depth: 400, baseHeight: 100,
@@ -8625,10 +8640,11 @@
                 }
             }
 
-            // 3. Manuel Eklenen Modelleri (Duvar, Ceiling Support, GLB Modelleri) Oluştur
+            // 3. Manuel Eklenen Modelleri (Duvar, Ceiling Support, Kablo Tavaları, GLB Modelleri) Oluştur
             addedManualModels = [];
-            if (Array.isArray(data.addedManualModels)) {
-                for (const m of data.addedManualModels) {
+            const manualList = sceneData.addedManualModels || sceneData.manualModels || [];
+            if (Array.isArray(manualList)) {
+                for (const m of manualList) {
                     try {
                         if (m.path === 'parametric:wall') {
                             const wallGroup = createParametricWallGroup();
@@ -8674,9 +8690,10 @@
                 }
             }
 
-            // 5. Eklenen DXF Çizim Modellerini Geri Yükle
-            if (Array.isArray(data.addedDxfDrawings) && data.addedDxfDrawings.length > 0) {
-                for (const dxf of data.addedDxfDrawings) {
+            // 4. Eklenen DXF Çizim Modellerini Geri Yükle
+            const dxfList = sceneData.addedDxfDrawings || sceneData.dxfDrawings || [];
+            if (Array.isArray(dxfList) && dxfList.length > 0) {
+                for (const dxf of dxfList) {
                     try {
                         if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
                             const parsed = parseASCII_DXF(dxf.dxfText);
@@ -8696,6 +8713,18 @@
                         console.warn('DXF çizim modeli geri yükleme hatası:', dxf, err);
                     }
                 }
+            }
+
+            // 5. Kablo Hatlarını ve Ağlarını Geri Yükle
+            const cableLinkList = sceneData.savedCableLinks || sceneData.cableLinks || [];
+            if (Array.isArray(cableLinkList) && cableLinkList.length > 0) {
+                setTimeout(() => {
+                    restoreAllCableLinks(cableLinkList);
+                }, 200);
+            }
+
+            if (typeof rebuildModelTreeFromScene === 'function') {
+                rebuildModelTreeFromScene();
             }
 
             const cntPanelEl = document.getElementById('cnt-panel');
@@ -10986,21 +11015,17 @@
 
                 if (projectQuery) {
                     projectQuery = projectQuery.trim();
-                    if (!projectQuery.toLowerCase().endsWith('.xml')) {
-                        projectQuery += '.xml';
+                    const cleanName = projectQuery.replace(/\.(json|xml)$/i, '');
+                    const searchPaths = [
+                        `projects/${cleanName}.json`,
+                        `projects/${cleanName}.xml`,
+                        `${cleanName}.json`,
+                        `${cleanName}.xml`
+                    ];
+                    if (projectQuery.includes('.')) {
+                        searchPaths.unshift(`projects/${projectQuery}`, projectQuery);
                     }
-
-                    const searchPaths = [];
-                    if (projectQuery.startsWith('projects/')) {
-                        searchPaths.push(projectQuery);
-                        searchPaths.push(projectQuery.replace('projects/', ''));
-                    } else {
-                        searchPaths.push(`projects/${projectQuery}`);
-                        searchPaths.push(projectQuery);
-                    }
-                    // Gerçek ana proje dosyası yedek yolları (Fallback)
-                    searchPaths.push('projects/OPP-0106989-1-R1.xml');
-                    searchPaths.push('OPP-0106989-1-R1.xml');
+                    searchPaths.push('projects/OPP-0106989-1-R1.xml', 'OPP-0106989-1-R1.xml');
 
                     const statusEl = document.getElementById('import-status');
                     if (statusEl) {
@@ -11017,11 +11042,23 @@
 
                             const res = await fetch(path);
                             if (res.ok) {
-                                const xmlText = await res.text();
-                                await loadXmlProjectFromText(xmlText, projectQuery);
-                                restored = true;
+                                const textContent = await res.text();
+                                const trimmed = textContent.trim();
+                                if (trimmed.charAt(0) === '{') {
+                                    const jsonData = JSON.parse(trimmed);
+                                    if (jsonData.rawXmlText) {
+                                        try {
+                                            await loadXmlProjectFromText(jsonData.rawXmlText, projectQuery, true);
+                                        } catch(e) {}
+                                    }
+                                    await restoreStateData(jsonData);
+                                    restored = true;
+                                } else {
+                                    await loadXmlProjectFromText(textContent, projectQuery);
+                                    restored = true;
+                                }
                                 if (statusEl) {
-                                    statusEl.innerText = `🌐 "${projectQuery}" projesi canlı bağlantıdan yüklendi.`;
+                                    statusEl.innerText = `🌐 "${projectQuery}" projesi GitHub bulutundan yüklendi.`;
                                 }
                                 break;
                             }
