@@ -7259,9 +7259,15 @@
             }
 
             const group = new THREE.Group();
-            group.userData = { type: 'xml-product', product };
+            group.userData = { type: 'xml-product', product, customAttributes: product.customAttributes || {} };
             group.position.set(product.position.x, product.position.y, product.position.z);
-            group.quaternion.copy(product.position.quaternion);
+            if (product.position && product.position.quaternion) {
+                const q = product.position.quaternion;
+                group.quaternion.set(q.x || 0, q.y || 0, q.z || 0, (typeof q.w === 'number' ? q.w : 1));
+            } else if (product.quaternion) {
+                const q = product.quaternion;
+                group.quaternion.set(q.x || 0, q.y || 0, q.z || 0, (typeof q.w === 'number' ? q.w : 1));
+            }
 
             if (product?.isCeilingSupport) {
                 const params = {
@@ -8087,6 +8093,41 @@
             mesh.userData.product.position.quaternion = mesh.quaternion.clone();
         }
 
+        
+        function promptAddCustomAttribute() {
+            if (!selectedMesh) return;
+            const key = prompt("Yeni JSON Nitelik Adı (Key) girin (Örn: plcTag, motorPower, supplier, status):");
+            if (!key || !key.trim()) return;
+            const val = prompt(`"${key.trim()}" niteliği için değer (Value) girin:`);
+            if (val === null) return;
+            
+            if (!selectedMesh.userData.customAttributes) {
+                selectedMesh.userData.customAttributes = {};
+            }
+            // Try parsing number or boolean or json if applicable
+            let parsedVal = val.trim();
+            if (!isNaN(parsedVal) && parsedVal !== '') {
+                parsedVal = Number(parsedVal);
+            } else if (parsedVal.toLowerCase() === 'true') {
+                parsedVal = true;
+            } else if (parsedVal.toLowerCase() === 'false') {
+                parsedVal = false;
+            }
+            
+            selectedMesh.userData.customAttributes[key.trim()] = parsedVal;
+            if (selectedMesh.userData.product) {
+                if (!selectedMesh.userData.product.customAttributes) {
+                    selectedMesh.userData.product.customAttributes = {};
+                }
+                selectedMesh.userData.product.customAttributes[key.trim()] = parsedVal;
+            }
+            updateSelectionInfoPanel();
+            if (typeof showNotice === 'function') {
+                showNotice(`✅ "${key.trim()}": ${val.trim()} niteliği modele eklendi.`);
+            }
+        }
+        window.promptAddCustomAttribute = promptAddCustomAttribute;
+
         function updateSelectionInfoPanel() {
             const info = document.getElementById('selection-info');
             const leftInfo = document.getElementById('left-selection-info');
@@ -8110,6 +8151,24 @@
             }
 
             const modelOriginWorld = getSelectedModelOriginWorld(selectedMesh);
+            const customAttrs = selectedMesh.userData?.customAttributes || product.customAttributes || {};
+            let customAttrsHtml = '';
+            if (customAttrs && Object.keys(customAttrs).length > 0) {
+                customAttrsHtml = `<div class="mt-2 p-2 bg-gray-950/80 rounded border border-cyan-800/40">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-cyan-400 font-bold text-[10px] uppercase tracking-wider">🏷️ JSON Nitelikleri (Attributes):</span>
+                        <button onclick="promptAddCustomAttribute()" class="text-[9px] bg-cyan-900/60 hover:bg-cyan-800 text-cyan-200 px-1.5 py-0.5 rounded border border-cyan-700/50">+ Ekle</button>
+                    </div>
+                    <div class="space-y-1 font-mono text-[10px]">
+                        ${Object.entries(customAttrs).map(([k, v]) => `<div><span class="text-cyan-300 font-semibold">${k}:</span> <span class="text-amber-200">${typeof v === 'object' ? JSON.stringify(v) : v}</span></div>`).join('')}
+                    </div>
+                </div>`;
+            } else {
+                customAttrsHtml = `<div class="mt-2 p-1.5 bg-gray-950/50 rounded border border-gray-800 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-500 italic">Özel JSON Niteliği Yok</span>
+                    <button onclick="promptAddCustomAttribute()" class="text-[9px] bg-cyan-950 hover:bg-cyan-900 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">+ Nitelik Ekle</button>
+                </div>`;
+            }
             const parametric = selectedMesh.userData?.parametric;
             let parametricText = '';
             if (parametric) {
@@ -8140,6 +8199,7 @@
                     <p><span class="text-gray-500">Uzunluk:</span> ${product.length ? `${product.length} mm` : '-'}</p>
                     <p><span class="text-gray-500">Açı:</span> ${product.angle ? `${product.angle}°` : '-'}</p>
                     ${parametricText}
+                    ${customAttrsHtml}
                 </div>
             `;
 
@@ -8149,6 +8209,7 @@
                     <p><span class="text-gray-400">Montaj:</span> <span class="text-gray-200">${product.assemblyName || '-'}</span></p>
                     <p><span class="text-gray-400">Konum:</span> <span class="text-gray-200">X ${product.position.x.toFixed(3)} / Y ${product.position.y.toFixed(3)} / Z ${product.position.z.toFixed(3)}</span></p>
                     ${parametricText}
+                    ${customAttrsHtml}
                 </div>
             `;
 
@@ -8449,6 +8510,91 @@
         }
 
         function getSerializableStateWithoutXmlText() {
+            // 1. XML'den parse edilmiş ve sahnede bulunan tüm montajlar ve konveyör modelleri
+            const serializableAssemblies = [];
+            const allModelsList = [];
+
+            if (Array.isArray(importedProject)) {
+                importedProject.forEach((assy) => {
+                    const assyName = assy.assemblyName || assy.name || 'Montaj';
+                    const assyGroup = importedProjectRoot?.children?.find(c => c.userData?.assemblyName === assyName);
+
+                    const productsList = (assy.products || []).map((prod, pIdx) => {
+                        let targetMesh = null;
+                        if (assyGroup) {
+                            targetMesh = assyGroup.children.find(m => m.userData?.product?.guid && m.userData.product.guid === prod.guid) || assyGroup.children[pIdx];
+                        }
+
+                        const pos = targetMesh ? { 
+                            x: Number(targetMesh.position.x.toFixed(4)), 
+                            y: Number(targetMesh.position.y.toFixed(4)), 
+                            z: Number(targetMesh.position.z.toFixed(4)) 
+                        } : (prod.position ? { 
+                            x: Number(prod.position.x.toFixed(4)), 
+                            y: Number(prod.position.y.toFixed(4)), 
+                            z: Number(prod.position.z.toFixed(4)) 
+                        } : { x: 0, y: 0, z: 0 });
+
+                        const rot = targetMesh ? { 
+                            x: Number(targetMesh.rotation.x.toFixed(4)), 
+                            y: Number(targetMesh.rotation.y.toFixed(4)), 
+                            z: Number(targetMesh.rotation.z.toFixed(4)) 
+                        } : { x: 0, y: 0, z: 0 };
+
+                        const quat = targetMesh ? { 
+                            x: Number(targetMesh.quaternion.x.toFixed(6)), 
+                            y: Number(targetMesh.quaternion.y.toFixed(6)), 
+                            z: Number(targetMesh.quaternion.z.toFixed(6)), 
+                            w: Number(targetMesh.quaternion.w.toFixed(6)) 
+                        } : (prod.position?.quaternion ? { 
+                            x: Number(prod.position.quaternion.x.toFixed(6)), 
+                            y: Number(prod.position.quaternion.y.toFixed(6)), 
+                            z: Number(prod.position.quaternion.z.toFixed(6)), 
+                            w: Number((typeof prod.position.quaternion.w === 'number' ? prod.position.quaternion.w : 1).toFixed(6)) 
+                        } : { x: 0, y: 0, z: 0, w: 1 });
+
+                        const scale = targetMesh ? { 
+                            x: Number(targetMesh.scale.x.toFixed(4)), 
+                            y: Number(targetMesh.scale.y.toFixed(4)), 
+                            z: Number(targetMesh.scale.z.toFixed(4)) 
+                        } : { x: 1, y: 1, z: 1 };
+
+                        const modelItem = {
+                            guid: prod.guid || `guid_${assyName}_${pIdx}`,
+                            name: prod.name || 'Ürün',
+                            type: prod.type || 'conveyor',
+                            group: prod.group || '',
+                            assemblyName: assyName,
+                            sequence: prod.sequence ?? pIdx,
+                            isCeilingSupport: Boolean(prod.isCeilingSupport),
+                            cadBlockName: prod.cadBlockName || '',
+                            topOfChain: prod.topOfChain || null,
+                            bracketHeight: prod.bracketHeight || 100,
+                            platformType: prod.platformType || 'XH',
+                            length: prod.length || null,
+                            radius: prod.radius || 0,
+                            angle: prod.angle || 0,
+                            bendDirection: prod.bendDirection || '',
+                            motorPosition: prod.motorPosition || '',
+                            zeroPackageProductNo: prod.zeroPackageProductNo || '',
+                            position: pos,
+                            rotation: rot,
+                            quaternion: quat,
+                            scale: scale,
+                            customAttributes: (targetMesh?.userData?.customAttributes) ? { ...targetMesh.userData.customAttributes } : (prod.customAttributes ? { ...prod.customAttributes } : {})
+                        };
+                        allModelsList.push(modelItem);
+                        return modelItem;
+                    });
+
+                    serializableAssemblies.push({
+                        name: assyName,
+                        assemblyName: assyName,
+                        products: productsList
+                    });
+                });
+            }
+
             const serializablePanels = (addedPanels || []).map((p) => {
                 const mesh = p.mesh;
                 return {
@@ -8501,10 +8647,19 @@
 
             return {
                 format: "ProposalApp_3D_Scene_Document",
-                version: "2.0.0",
-                filename: currentXmlFilename || 'OPP-0106989-1-R1.json',
+                version: "2.1.0",
+                filename: currentXmlFilename ? currentXmlFilename.replace(/\.xml$/i, '.json') : 'OPP-0106989-1-R1.json',
                 timestamp: Date.now(),
+                assemblies: serializableAssemblies,
+                models: allModelsList,
+                panels: serializablePanels,
+                cableLinks: serializableCableLinks,
+                dxfDrawings: serializableDxfDrawings,
+                manualModels: manualModelsData,
+                buildingLevels: buildingLevels || [],
                 scene: {
+                    assemblies: serializableAssemblies,
+                    models: allModelsList,
                     addedPanels: serializablePanels,
                     savedCableLinks: serializableCableLinks,
                     addedCables: addedCables || [],
@@ -8603,8 +8758,61 @@
 
             const sceneData = data.scene || data;
 
-            // 1. Orijinal/Güncellenmiş XML veya Modelleri yükle
-            if (data.rawXmlText && data.rawXmlText.trim() !== '') {
+            // 1. Saf JSON Modellerini (assemblies veya models) doğrudan 3D sahnede oluştur
+            const assemblyList = data.assemblies || sceneData.assemblies || null;
+            if (Array.isArray(assemblyList) && assemblyList.length > 0) {
+                try {
+                    if (importedProjectRoot && importedProjectRoot.parent) {
+                        importedProjectRoot.parent.remove(importedProjectRoot);
+                    }
+                    importedProjectRoot = new THREE.Group();
+                    importedProjectRoot.userData = { type: 'project-root' };
+                    scene.add(importedProjectRoot);
+
+                    await renderImportedProject(assemblyList);
+
+                    // Özel JSON niteliklerini (customAttributes) 3D mesh'lere aktar
+                    assemblyList.forEach(assy => {
+                        (assy.products || []).forEach(prod => {
+                            if (prod.customAttributes && prod.guid) {
+                                scene.traverse(obj => {
+                                    if (obj.userData?.product?.guid === prod.guid) {
+                                        obj.userData.customAttributes = { ...(obj.userData.customAttributes || {}), ...prod.customAttributes };
+                                    }
+                                });
+                            }
+                        });
+                    });
+
+                    if (typeof rebuildModelTreeFromScene === 'function') rebuildModelTreeFromScene();
+                    if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
+                    console.log("🚀 [Restore] 3D Konveyör Modelleri Saf JSON'dan başarıyla oluşturuldu.");
+                } catch (e) {
+                    console.warn('JSON Assembly restore hatası:', e);
+                }
+            } else if (Array.isArray(data.models) && data.models.length > 0) {
+                try {
+                    const grouped = {};
+                    data.models.forEach(m => {
+                        const aName = m.assemblyName || 'Montaj 1';
+                        if (!grouped[aName]) grouped[aName] = { assemblyName: aName, products: [] };
+                        grouped[aName].products.push(m);
+                    });
+                    if (importedProjectRoot && importedProjectRoot.parent) {
+                        importedProjectRoot.parent.remove(importedProjectRoot);
+                    }
+                    importedProjectRoot = new THREE.Group();
+                    importedProjectRoot.userData = { type: 'project-root' };
+                    scene.add(importedProjectRoot);
+
+                    await renderImportedProject(Object.values(grouped));
+                    if (typeof rebuildModelTreeFromScene === 'function') rebuildModelTreeFromScene();
+                    if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
+                    console.log("🚀 [Restore] 3D Konveyör Modelleri Flat JSON Models listesinden oluşturuldu.");
+                } catch(e) {
+                    console.warn('JSON Models restore hatası:', e);
+                }
+            } else if (data.rawXmlText && data.rawXmlText.trim() !== '') {
                 try {
                     await loadXmlProjectFromText(data.rawXmlText, data.filename || 'Kaydedilmiş Oturum', true);
                 } catch (e) {
