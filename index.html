@@ -12020,10 +12020,123 @@ function cleanupLivePreview() {
         if (liveDistSprite.material) liveDistSprite.material.dispose();
         liveDistSprite = null;
     }
+    if (osnapMarker) {
+        osnapMarker.visible = false;
+    }
 }
 
 /**
- * 8. Raycast ile DXF ve Zemin Üzerinde OSnap Noktası Yakalama
+ * 8. AutoCAD Tarzı OSnap Gizmo Göstergesi (Endpoint: Kare, Midpoint: Üçgen, Nearest: Kum Saati)
+ */
+function ensureOSnapMarker() {
+    if (osnapMarker) return osnapMarker;
+
+    osnapMarker = new THREE.Group();
+    osnapMarker.name = 'ConveyorOSnapMarkerGroup';
+
+    // 1. Endpoint Square Marker (Yeşil Kare)
+    const sqSize = 0.16;
+    const halfSq = sqSize / 2;
+    const sqPts = [
+        new THREE.Vector3(-halfSq, -halfSq, 0), new THREE.Vector3(halfSq, -halfSq, 0),
+        new THREE.Vector3(halfSq, -halfSq, 0), new THREE.Vector3(halfSq, halfSq, 0),
+        new THREE.Vector3(halfSq, halfSq, 0), new THREE.Vector3(-halfSq, halfSq, 0),
+        new THREE.Vector3(-halfSq, halfSq, 0), new THREE.Vector3(-halfSq, -halfSq, 0)
+    ];
+    const sqGeo = new THREE.BufferGeometry().setFromPoints(sqPts);
+    const sqMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2, depthTest: false });
+    const sqMesh = new THREE.LineSegments(sqGeo, sqMat);
+    sqMesh.name = 'snapSquare';
+    sqMesh.renderOrder = 2000;
+    osnapMarker.add(sqMesh);
+
+    // 2. Midpoint Triangle Marker (Camgöbeği Üçgen)
+    const triH = sqSize * 0.95;
+    const triW = sqSize * 1.1;
+    const triPts = [
+        new THREE.Vector3(0, triH * 0.6, 0), new THREE.Vector3(-triW * 0.5, -triH * 0.4, 0),
+        new THREE.Vector3(-triW * 0.5, -triH * 0.4, 0), new THREE.Vector3(triW * 0.5, -triH * 0.4, 0),
+        new THREE.Vector3(triW * 0.5, -triH * 0.4, 0), new THREE.Vector3(0, triH * 0.6, 0)
+    ];
+    const triGeo = new THREE.BufferGeometry().setFromPoints(triPts);
+    const triMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, linewidth: 2, depthTest: false });
+    const triMesh = new THREE.LineSegments(triGeo, triMat);
+    triMesh.name = 'snapTriangle';
+    triMesh.renderOrder = 2000;
+    osnapMarker.add(triMesh);
+
+    // 3. Nearest on Line Hourglass Marker (Sarı Kum Saati)
+    const hgPts = [
+        new THREE.Vector3(-halfSq, -halfSq, 0), new THREE.Vector3(halfSq, halfSq, 0),
+        new THREE.Vector3(-halfSq, halfSq, 0), new THREE.Vector3(halfSq, -halfSq, 0),
+        new THREE.Vector3(-halfSq, halfSq, 0), new THREE.Vector3(halfSq, halfSq, 0),
+        new THREE.Vector3(-halfSq, -halfSq, 0), new THREE.Vector3(halfSq, -halfSq, 0)
+    ];
+    const hgGeo = new THREE.BufferGeometry().setFromPoints(hgPts);
+    const hgMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2, depthTest: false });
+    const hgMesh = new THREE.LineSegments(hgGeo, hgMat);
+    hgMesh.name = 'snapHourglass';
+    hgMesh.renderOrder = 2000;
+    osnapMarker.add(hgMesh);
+
+    osnapMarker.visible = false;
+    scene.add(osnapMarker);
+    return osnapMarker;
+}
+
+function updateOSnapMarker(snapInfo) {
+    if (!scene) return;
+    const marker = ensureOSnapMarker();
+    if (!snapInfo) {
+        marker.visible = false;
+        return;
+    }
+
+    marker.position.set(snapInfo.point.x, snapInfo.point.y, snapInfo.point.z + 0.08);
+    marker.visible = true;
+
+    const sq = marker.getObjectByName('snapSquare');
+    const tri = marker.getObjectByName('snapTriangle');
+    const hg = marker.getObjectByName('snapHourglass');
+
+    if (sq) sq.visible = (snapInfo.type === 'endpoint');
+    if (tri) tri.visible = (snapInfo.type === 'midpoint');
+    if (hg) hg.visible = (snapInfo.type === 'line');
+}
+
+/**
+ * Yardımcı: THREE.Line veya THREE.LineSegments nesnesinden 3D dünya segmentlerini ayıkla
+ */
+function extractSegmentsFromLineObject(lineObj, outList, sourceLabel, activeZ) {
+    if (!lineObj.geometry || !lineObj.geometry.attributes || !lineObj.geometry.attributes.position) return;
+    const pos = lineObj.geometry.attributes.position;
+    const isSegments = lineObj.isLineSegments;
+    const step = isSegments ? 2 : 1;
+    const count = isSegments ? pos.count : (pos.count - 1);
+    lineObj.updateWorldMatrix(true, false);
+    const m = lineObj.matrixWorld;
+
+    const pA = new THREE.Vector3();
+    const pB = new THREE.Vector3();
+
+    for (let i = 0; i < count; i += step) {
+        pA.fromBufferAttribute(pos, i).applyMatrix4(m);
+        pB.fromBufferAttribute(pos, i + 1).applyMatrix4(m);
+
+        pA.z = activeZ;
+        pB.z = activeZ;
+
+        outList.push({
+            pA: pA.clone(),
+            pB: pB.clone(),
+            mid: pA.clone().add(pB).multiplyScalar(0.5),
+            source: sourceLabel
+        });
+    }
+}
+
+/**
+ * 9. Raycast ile 2D Konveyör Çizgileri, DXF ve Zemin Üzerinde Akıllı OSnap Yakalama
  */
 function getSnapedWorldPointFromEvent(event) {
     if (!camera || !renderer) return null;
@@ -12037,51 +12150,152 @@ function getSnapedWorldPointFromEvent(event) {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    if (raycaster.params && raycaster.params.Line) {
-        raycaster.params.Line.threshold = 0.5;
+    const activeZ = typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0;
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -activeZ);
+    let rawHitPoint = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(groundPlane, rawHitPoint)) {
+        rawHitPoint = new THREE.Vector3(0, 0, activeZ);
     }
 
-    // DXF veya 3D zemin nesnelerini ara
-    const intersectableObjects = [];
+    // 1. Sahnedeki Tüm 2D Konveyör Taslaklarını ve DXF Çizgilerini Topla
+    const lineSegmentsList = [];
+    const keyVerticesList = [];
+
     if (scene) {
         scene.traverse(obj => {
-            if (obj.userData?.isDXFModel || obj.userData?.type === 'dxf-drawing' || obj.userData?.isBuildingLevelFloor) {
-                intersectableObjects.push(obj);
+            // A. Sahnede Çizilmiş 2D Konveyör Taslakları
+            if (obj.userData?.is2DConveyorSketch || obj.userData?.parametricKind === 'conveyor-2d') {
+                const convLabel = obj.userData?.assemblyName || obj.name || '2D Konveyör';
+
+                // Eksen düğüm noktaları (Idler başlangıç, motor tahrik ekseni, viraj düğümleri)
+                if (obj.userData?.pathData?.nodes && Array.isArray(obj.userData.pathData.nodes)) {
+                    obj.updateWorldMatrix(true, false);
+                    obj.userData.pathData.nodes.forEach((n, nIdx) => {
+                        const wp = n.clone().applyMatrix4(obj.matrixWorld);
+                        wp.z = activeZ;
+                        const role = nIdx === 0 ? 'Avare Başlangıç (Idler)' :
+                                     nIdx === obj.userData.pathData.nodes.length - 1 ? 'Motor Tahrik (Drive Axle)' : `Köşe ${nIdx + 1}`;
+                        keyVerticesList.push({ point: wp, source: `${convLabel} ${role}` });
+                    });
+                }
+
+                // Konveyörün tüm çizgilerini (Sınır rayları, eksen kesikli çizgisi, avare ucu, motor hatları) tara
+                obj.traverse(child => {
+                    if (child.isLine || child.isLineSegments) {
+                        extractSegmentsFromLineObject(child, lineSegmentsList, convLabel, activeZ);
+                    }
+                });
+            }
+
+            // B. DXF Çizim Modelleri
+            if (obj.userData?.isDXFModel || obj.userData?.type === 'dxf-drawing') {
+                const dxfLabel = obj.name || 'DXF Referansı';
+                obj.traverse(child => {
+                    if (child.isLine || child.isLineSegments) {
+                        extractSegmentsFromLineObject(child, lineSegmentsList, dxfLabel, activeZ);
+                    }
+                });
             }
         });
     }
 
-    let hitPoint = null;
-    if (intersectableObjects.length > 0) {
-        const hits = raycaster.intersectObjects(intersectableObjects, true);
-        if (hits && hits.length > 0) {
-            hitPoint = hits[0].point;
+    // C. Çizilmekte Olan Mevcut Konveyörün Önceki Noktaları
+    conveyorDrawNodes3D.forEach((n, idx) => {
+        keyVerticesList.push({ point: n.clone(), source: `Çizim Noktası ${idx + 1}` });
+    });
+
+    // 2. Snap Mesafeleri (Uç Nokta, Orta Nokta, Çizgi İzdüşümü)
+    let bestEndpoint = null;
+    let minEndDist = 0.38; // 380 mm çekim yarıçapı
+
+    let bestMidpoint = null;
+    let minMidDist = 0.30; // 300 mm çekim yarıçapı
+
+    let bestLineProj = null;
+    let minLineDist = 0.22; // 220 mm çizgi çekim yarıçapı
+
+    // A. Özel Anahtar Noktalar (Key Vertices / Centerline nodes)
+    keyVerticesList.forEach(item => {
+        const d = rawHitPoint.distanceTo(item.point);
+        if (d < minEndDist) {
+            minEndDist = d;
+            bestEndpoint = { point: item.point.clone(), type: 'endpoint', source: item.source };
+        }
+    });
+
+    // B. Çizgi Segmentlerinin Uçları, Orta Noktaları ve Doğru Parçası İzdüşümleri
+    lineSegmentsList.forEach(seg => {
+        // Uç Noktalar
+        const dA = rawHitPoint.distanceTo(seg.pA);
+        if (dA < minEndDist) {
+            minEndDist = dA;
+            bestEndpoint = { point: seg.pA.clone(), type: 'endpoint', source: `${seg.source} Ucu` };
+        }
+        const dB = rawHitPoint.distanceTo(seg.pB);
+        if (dB < minEndDist) {
+            minEndDist = dB;
+            bestEndpoint = { point: seg.pB.clone(), type: 'endpoint', source: `${seg.source} Ucu` };
+        }
+
+        // Orta Noktalar
+        const dMid = rawHitPoint.distanceTo(seg.mid);
+        if (dMid < minMidDist) {
+            minMidDist = dMid;
+            bestMidpoint = { point: seg.mid.clone(), type: 'midpoint', source: `${seg.source} Orta Nokta` };
+        }
+
+        // Çizgi Boyunca Dik İzdüşüm (Nearest on Line)
+        const AB = seg.pB.clone().sub(seg.pA);
+        const lenSq = AB.lengthSq();
+        if (lenSq > 1e-6) {
+            const t = Math.max(0.0, Math.min(1.0, rawHitPoint.clone().sub(seg.pA).dot(AB) / lenSq));
+            const proj = seg.pA.clone().addScaledVector(AB, t);
+            proj.z = activeZ;
+            const dLine = rawHitPoint.distanceTo(proj);
+            if (dLine < minLineDist) {
+                minLineDist = dLine;
+                bestLineProj = { point: proj, type: 'line', source: `${seg.source} Çizgisi` };
+            }
+        }
+    });
+
+    // 3. Öncelik Sıralaması: Uç Nokta > Orta Nokta > Çizgi Üzeri
+    let finalSnap = null;
+    if (bestEndpoint) {
+        finalSnap = bestEndpoint;
+    } else if (bestMidpoint) {
+        finalSnap = bestMidpoint;
+    } else if (bestLineProj) {
+        finalSnap = bestLineProj;
+    }
+
+    updateOSnapMarker(finalSnap);
+
+    let resultPoint = finalSnap ? finalSnap.point.clone() : rawHitPoint.clone();
+
+    // HUD snap bilgilendirmesi
+    const hudInfo = document.getElementById('conveyor-draw-hud-info');
+    if (hudInfo && isConveyorPathDrawingActive) {
+        if (finalSnap) {
+            const typeLabel = finalSnap.type === 'endpoint' ? '🟩 UÇ NOKTA' :
+                              finalSnap.type === 'midpoint' ? '🔷 ORTA NOKTA' : '⏳ ÇİZGİ ÜZERİ';
+            hudInfo.innerText = `🎯 OSNAP: ${finalSnap.source} (${typeLabel})`;
         }
     }
 
-    if (!hitPoint) {
-        // Z=0 veya aktif kat zeminine raycast yap
-        const activeZ = typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0;
-        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -activeZ);
-        hitPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(groundPlane, hitPoint);
-    }
-
-    if (!hitPoint) return null;
-
-    // Shift basılıysa veya Ortho modundaysa dik açı kilidi yap
-    if (conveyorDrawNodes3D.length > 0 && event.shiftKey) {
+    // Shift basılıysa veya Ortho modundaysa dik açı kilidi yap (Eğer serbest çiziliyorsa)
+    if (!finalSnap && conveyorDrawNodes3D.length > 0 && event.shiftKey) {
         const last = conveyorDrawNodes3D[conveyorDrawNodes3D.length - 1];
-        const dx = Math.abs(hitPoint.x - last.x);
-        const dy = Math.abs(hitPoint.y - last.y);
+        const dx = Math.abs(resultPoint.x - last.x);
+        const dy = Math.abs(resultPoint.y - last.y);
         if (dx > dy) {
-            hitPoint.y = last.y;
+            resultPoint.y = last.y;
         } else {
-            hitPoint.x = last.x;
+            resultPoint.x = last.x;
         }
     }
 
-    return hitPoint;
+    return resultPoint;
 }
 
 // Global Exports
