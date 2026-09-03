@@ -11700,45 +11700,14 @@ function renderPersistentConveyorGuide(pathData) {
 
     // Küçük Siyah Nokta Düğümleri
     points.forEach((pt, idx) => {
-        const isStart = idx === 0;
-        const isEnd = idx === points.length - 1;
-
         const sphereGeo = new THREE.SphereGeometry(0.08, 12, 12);
         const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const sphere = new THREE.Mesh(sphereGeo, sphereMat);
         sphere.position.copy(pt);
         persistentConveyorPathGroup.add(sphere);
-
-        // AutoCAD Teknik Metin Sprite'ı
-        let tagText = `#${idx + 1}`;
-        if (isStart) tagText = 'AVARE UC (XKEJ)';
-        else if (isEnd) tagText = 'MOTOR TAHRIK (XHEB)';
-        else {
-            const turn = pathData.turns.find(t => t.nodeIndex === idx);
-            if (turn) {
-                const dirLabel = turn.direction === 'left' ? 'SOL' : 'SAG';
-                tagText = `R700 / ${turn.standardAngle}° ${dirLabel}`;
-            }
-        }
-
-        const sprite = createCADTechnicalTextSprite(tagText);
-        if (sprite) {
-            sprite.position.set(pt.x, pt.y, pt.z + 0.2);
-            persistentConveyorPathGroup.add(sprite);
-        }
     });
 
-    // Düz Segment Metraj Etiketleri (Orta Noktada)
-    pathData.segments.forEach(seg => {
-        const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
-        mid.z += 0.15;
-        const lenText = `L = ${seg.length.toFixed(2)} m`;
-        const sprite = createCADTechnicalTextSprite(lenText);
-        if (sprite) {
-            sprite.position.copy(mid);
-            persistentConveyorPathGroup.add(sprite);
-        }
-    });
+    // Metinler tamamen kaldırıldı: Hat üzerinde etiket/metin yer almaz.
 
     scene.add(persistentConveyorPathGroup);
 }
@@ -12164,6 +12133,9 @@ function createCADTechnicalTextSprite(text) {
 
 /**
  * 1. 2D AutoCAD Tipi Parametrik Konveyör Gövde Geometrisini Doldur / Yenile
+ * - Metinler tamamen kaldırıldı (Temiz CAD çizgileri).
+ * - Virajlar: 200mm düzlük + R kavisli yay + 200mm çıkış düzlüğü.
+ * - Radius konveyörün orta ekseninden ölçülür.
  */
 function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName = null) {
     if (!group || !pathData || !pathData.nodes || pathData.nodes.length < 2) return;
@@ -12173,7 +12145,7 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     }
     group.name = assyName;
 
-    // Güvenli çocuk temizliği (Kopya dizi üzerinde döngü)
+    // 1. Güvenli çocuk temizliği (Kopya dizi üzerinde döngü)
     const existing = [...group.children];
     for (const c of existing) {
         group.remove(c);
@@ -12185,64 +12157,207 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     }
 
     const nodes = pathData.nodes;
-    const segments = pathData.segments;
-    const turns = pathData.turns || [];
     const halfW = widthM / 2;
     const zPos = (nodes[0].z || 0) + 0.05;
 
-    // 1. Düz Kolların Çift Cidar Çizgileri (İçi boyanmamış, tamamen açık tel kafes DXF stili)
-    const boundaryLinePts = [];
+    const lineMat = new THREE.LineBasicMaterial({
+        color: 0x000000, // Saf siyah ince çizgi (DXF stili)
+        linewidth: 1.5,
+        transparent: true,
+        opacity: 0.95,
+        depthTest: false
+    });
 
-    for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        const dir = seg.direction.clone();
-        const norm = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
-
-        const p1 = seg.from.clone(); p1.z = zPos;
-        const p2 = seg.to.clone(); p2.z = zPos;
-
-        const left1 = p1.clone().addScaledVector(norm, halfW);
-        const right1 = p1.clone().addScaledVector(norm, -halfW);
-        const left2 = p2.clone().addScaledVector(norm, halfW);
-        const right2 = p2.clone().addScaledVector(norm, -halfW);
-
-        boundaryLinePts.push(left1, left2);
-        boundaryLinePts.push(right1, right2);
-    }
-
-    // Çift kenar çizgileri (İnce siyah çizgiler - AutoCAD DXF Stili)
-    if (boundaryLinePts.length > 0) {
-        const lineGeo = new THREE.BufferGeometry().setFromPoints(boundaryLinePts);
-        const lineMat = new THREE.LineBasicMaterial({
-            color: 0x000000, // Saf siyah ince çizgi
-            linewidth: 1.5,
-            transparent: true,
-            opacity: 0.95,
-            depthTest: false
-        });
-        const lineSegments = new THREE.LineSegments(lineGeo, lineMat);
-        lineSegments.name = 'Conveyor2DBoundaryLines';
-        group.add(lineSegments);
-    }
-
-    // Eksen çizgisi (Siyah kesikli AutoCAD eksen çizgisi)
-    const axisPts = nodes.map(n => new THREE.Vector3(n.x, n.y, zPos + 0.01));
-    const axisGeo = new THREE.BufferGeometry().setFromPoints(axisPts);
     const axisMat = new THREE.LineDashedMaterial({
-        color: 0x000000, // Siyah kesikli
+        color: 0x000000, // Siyah kesikli AutoCAD eksen çizgisi
         linewidth: 1,
         dashSize: 0.25,
         gapSize: 0.15,
         depthTest: false
     });
-    const axisLine = new THREE.Line(axisGeo, axisMat);
-    axisLine.computeLineDistances();
-    axisLine.name = 'Conveyor2DCenterline';
-    group.add(axisLine);
 
-    // 2. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Siyah Çizgi Geometrisi
+    const boundaryLinePts = [];
+    const axisLinePts = [];
+
+    // 2. Her bir viraj (Bend) için matematiksel eğri ve 200mm giriş/çıkış teğetlerini hesapla
+    const bendDataMap = new Map(); // nodeIndex -> bend geometry info
+
+    for (let i = 0; i < nodes.length - 2; i++) {
+        const pPrev = nodes[i].clone(); pPrev.z = zPos;
+        const v = nodes[i + 1].clone(); v.z = zPos;
+        const pNext = nodes[i + 2].clone(); pNext.z = zPos;
+
+        const u1 = v.clone().sub(pPrev).normalize();
+        const u2 = pNext.clone().sub(v).normalize();
+
+        const cosTheta = Math.max(-1, Math.min(1, u1.dot(u2)));
+        const theta = Math.acos(cosTheta);
+
+        if (theta > 0.01) {
+            const crossZ = u1.x * u2.y - u1.y * u2.x;
+            const isLeft = crossZ > 0;
+
+            const turnInfo = (pathData.turns || []).find(t => t.nodeIndex === i + 1);
+            let R = (turnInfo && turnInfo.suggestedRadius) ? turnInfo.suggestedRadius : 0.7; // Varsayılan R = 700mm
+            const L_tan = 0.2; // 200 mm düzlük
+
+            let T_arc = R * Math.tan(theta / 2.0);
+            let T_total = T_arc + L_tan;
+
+            const len1 = pPrev.distanceTo(v);
+            const len2 = v.distanceTo(pNext);
+            const maxAllowedT = Math.min(len1 * 0.45, len2 * 0.45);
+            if (T_total > maxAllowedT && maxAllowedT > 0.1) {
+                const ratio = maxAllowedT / T_total;
+                R = Math.max(0.2, R * ratio);
+                T_arc = R * Math.tan(theta / 2.0);
+                T_total = maxAllowedT;
+            }
+
+            const pBendStart = v.clone().subScaledVector(u1, T_total);
+            const pArcStart = pBendStart.clone().addScaledVector(u1, L_tan);
+
+            const norm1 = isLeft ? new THREE.Vector3(-u1.y, u1.x, 0) : new THREE.Vector3(u1.y, -u1.x, 0);
+            const cArc = pArcStart.clone().addScaledVector(norm1, R);
+
+            const pArcEnd = v.clone().addScaledVector(u2, T_arc);
+            const pBendEnd = pArcEnd.clone().addScaledVector(u2, L_tan);
+
+            bendDataMap.set(i + 1, {
+                nodeIndex: i + 1,
+                isLeft,
+                R,
+                L_tan,
+                theta,
+                u1,
+                u2,
+                norm1,
+                cArc,
+                pBendStart,
+                pArcStart,
+                pArcEnd,
+                pBendEnd
+            });
+        }
+    }
+
+    // 3. Düz Segmentleri (Straight Beams) Çiz
+    for (let i = 0; i < nodes.length - 1; i++) {
+        let pStart = nodes[i].clone(); pStart.z = zPos;
+        let pEnd = nodes[i + 1].clone(); pEnd.z = zPos;
+
+        // Önceki düğüm bir bend bitişi ise başlangıcı oraya bağla
+        if (bendDataMap.has(i)) {
+            pStart = bendDataMap.get(i).pBendEnd.clone();
+        }
+        // Sonraki düğüm bir bend başlangıcı ise bitişi oraya bağla
+        if (bendDataMap.has(i + 1)) {
+            pEnd = bendDataMap.get(i + 1).pBendStart.clone();
+        }
+
+        const segDir = pEnd.clone().sub(pStart).normalize();
+        const segNorm = new THREE.Vector3(-segDir.y, segDir.x, 0).normalize();
+
+        const left1 = pStart.clone().addScaledVector(segNorm, halfW);
+        const right1 = pStart.clone().addScaledVector(segNorm, -halfW);
+        const left2 = pEnd.clone().addScaledVector(segNorm, halfW);
+        const right2 = pEnd.clone().addScaledVector(segNorm, -halfW);
+
+        boundaryLinePts.push(left1, left2);
+        boundaryLinePts.push(right1, right2);
+
+        axisLinePts.push(pStart, pEnd);
+    }
+
+    // 4. Viraj Parçalarını (Bend Modules) Çiz: 200mm düzlük + R kavisli yay + 200mm düzlük
+    bendDataMap.forEach((bend) => {
+        const { isLeft, R, norm1, cArc, pBendStart, pArcStart, pArcEnd, pBendEnd, u1, u2 } = bend;
+        const norm2 = isLeft ? new THREE.Vector3(-u2.y, u2.x, 0) : new THREE.Vector3(u2.y, -u2.x, 0);
+
+        const R_in = Math.max(0.01, R - halfW);
+        const R_out = R + halfW;
+
+        // A. Giriş Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendStart)
+        const inLeft1 = pBendStart.clone().addScaledVector(norm1, isLeft ? halfW : -halfW);
+        const inRight1 = pBendStart.clone().addScaledVector(norm1, isLeft ? -halfW : halfW);
+        boundaryLinePts.push(inLeft1, inRight1);
+
+        // B. 200mm Giriş Düzlüğü
+        const inLeft2 = pArcStart.clone().addScaledVector(norm1, isLeft ? halfW : -halfW);
+        const inRight2 = pArcStart.clone().addScaledVector(norm1, isLeft ? -halfW : halfW);
+        boundaryLinePts.push(inLeft1, inLeft2);
+        boundaryLinePts.push(inRight1, inRight2);
+        axisLinePts.push(pBendStart, pArcStart);
+
+        // C. Kavisli Yay (Radius Arc): Orta çizgi R, iç çizgi R-halfW, dış çizgi R+halfW
+        const aStart = Math.atan2(pArcStart.y - cArc.y, pArcStart.x - cArc.x);
+        const aEnd = Math.atan2(pArcEnd.y - cArc.y, pArcEnd.x - cArc.x);
+
+        let diff = aEnd - aStart;
+        if (isLeft) {
+            while (diff < 0) diff += 2 * Math.PI;
+            while (diff > 2 * Math.PI) diff -= 2 * Math.PI;
+        } else {
+            while (diff > 0) diff -= 2 * Math.PI;
+            while (diff < -2 * Math.PI) diff += 2 * Math.PI;
+        }
+
+        const arcSteps = 24;
+        let prevInner = inLeft2;
+        let prevOuter = inRight2;
+        let prevCenter = pArcStart;
+
+        for (let s = 1; s <= arcSteps; s++) {
+            const frac = s / arcSteps;
+            const angle = aStart + diff * frac;
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+
+            const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, zPos);
+            const currInner = new THREE.Vector3(cArc.x + cosA * R_in, cArc.y + sinA * R_in, zPos);
+            const currOuter = new THREE.Vector3(cArc.x + cosA * R_out, cArc.y + sinA * R_out, zPos);
+
+            boundaryLinePts.push(prevInner, currInner);
+            boundaryLinePts.push(prevOuter, currOuter);
+            axisLinePts.push(prevCenter, currCenter);
+
+            prevInner = currInner;
+            prevOuter = currOuter;
+            prevCenter = currCenter;
+        }
+
+        // D. 200mm Çıkış Düzlüğü
+        const outLeft2 = pBendEnd.clone().addScaledVector(norm2, isLeft ? halfW : -halfW);
+        const outRight2 = pBendEnd.clone().addScaledVector(norm2, isLeft ? -halfW : halfW);
+
+        boundaryLinePts.push(prevInner, outLeft2);
+        boundaryLinePts.push(prevOuter, outRight2);
+        axisLinePts.push(pArcEnd, pBendEnd);
+
+        // E. Çıkış Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendEnd)
+        boundaryLinePts.push(outLeft2, outRight2);
+    });
+
+    // Çift kenar sınır çizgilerini sahneye ekle
+    if (boundaryLinePts.length > 0) {
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(boundaryLinePts);
+        const lineSegments = new THREE.LineSegments(lineGeo, lineMat);
+        lineSegments.name = 'Conveyor2DBoundaryLines';
+        group.add(lineSegments);
+    }
+
+    // Eksen çizgisini (Dashed line) sahneye ekle
+    if (axisLinePts.length > 0) {
+        const axisGeo = new THREE.BufferGeometry().setFromPoints(axisLinePts);
+        const axisLine = new THREE.LineSegments(axisGeo, axisMat);
+        axisLine.computeLineDistances();
+        axisLine.name = 'Conveyor2DCenterline';
+        group.add(axisLine);
+    }
+
+    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Siyah Çizgi Geometrisi
     const startNode = nodes[0];
-    const firstDir = segments[0].direction;
+    const firstDir = pathData.segments[0].direction;
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
     const backDir = firstDir.clone().negate();
 
@@ -12257,8 +12372,7 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         arcPts.push(pt);
     }
     const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts);
-    const arcMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1.5, depthTest: false });
-    const arcLine = new THREE.Line(arcGeo, arcMat);
+    const arcLine = new THREE.Line(arcGeo, lineMat);
     group.add(arcLine);
 
     // Avare iç çemberi (rulman yatağı - sadece çizgi, içi boyasız)
@@ -12274,18 +12388,12 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         ));
     }
     const idlerGeo = new THREE.BufferGeometry().setFromPoints(idlerCirclePts);
-    const idlerCircle = new THREE.Line(idlerGeo, arcMat);
+    const idlerCircle = new THREE.Line(idlerGeo, lineMat);
     group.add(idlerCircle);
 
-    const startTag = createCADTechnicalTextSprite('AVARE UC (XKEJ)');
-    if (startTag) {
-        startTag.position.set(startNode.x + backDir.x * 0.4, startNode.y + backDir.y * 0.4, zPos + 0.15);
-        group.add(startTag);
-    }
-
-    // 3. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - Siyah Çizgi Geometrisi
+    // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - Siyah Çizgi Geometrisi
     const lastNode = nodes[nodes.length - 1];
-    const lastDir = segments[segments.length - 1].direction;
+    const lastDir = pathData.segments[pathData.segments.length - 1].direction;
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
 
     const driveHeadLen = 0.4;
@@ -12300,8 +12408,7 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         dRight2, dRight1,
         dRight1, dLeft1
     ]);
-    const driveBoxMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1.5, depthTest: false });
-    const driveBox = new THREE.LineSegments(driveBoxGeo, driveBoxMat);
+    const driveBox = new THREE.LineSegments(driveBoxGeo, lineMat);
     group.add(driveBox);
 
     // Motor / Redüktör yanal bloğu (Siyah ince çizgi)
@@ -12315,35 +12422,12 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         mOuter1, mOuter2,
         mOuter2, mRight2
     ]);
-    const motorBlock = new THREE.LineSegments(motorBlockGeo, driveBoxMat);
+    const motorBlock = new THREE.LineSegments(motorBlockGeo, lineMat);
     group.add(motorBlock);
 
-    const endTag = createCADTechnicalTextSprite('MOTOR TAHRIK (XHEB)');
-    if (endTag) {
-        endTag.position.set(lastNode.x + lastDir.x * 0.5, lastNode.y + lastDir.y * 0.5, zPos + 0.15);
-        group.add(endTag);
-    }
+    // METİNLER TAMAMEN KALDIRILDI: Konveyör çizimi üzerinde hiçbir etiket/metin yer almaz.
 
-    // 4. Viraj ve Boyut Bilgi Etiketleri (AutoCAD Teknik Metin)
-    turns.forEach((turn) => {
-        const dirName = turn.direction === 'left' ? 'SOL' : 'SAG';
-        const turnLabel = createCADTechnicalTextSprite(`R700 / ${turn.standardAngle}° ${dirName}`);
-        if (turnLabel) {
-            turnLabel.position.set(turn.point.x, turn.point.y, zPos + 0.15);
-            group.add(turnLabel);
-        }
-    });
-
-    segments.forEach((seg, idx) => {
-        const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
-        const segLabel = createCADTechnicalTextSprite(`L = ${seg.length.toFixed(2)} m`);
-        if (segLabel) {
-            segLabel.position.set(mid.x, mid.y, zPos + 0.15);
-            group.add(segLabel);
-        }
-    });
-
-    // 4. UserData & Ürün Ağacı Entegrasyonu
+    // 7. UserData & Ürün Ağacı Entegrasyonu
     group.userData = {
         type: 'xml-product',
         isParametric: true,
@@ -12518,9 +12602,11 @@ function update2DConveyorParametricEditor(groupObj) {
             const turn = (pathData.turns || []).find(t => t.nodeIndex === idx + 1);
             let turnHtml = '';
             if (turn) {
-                turnHtml = '<div class="flex items-center justify-between text-[10px] pt-1 border-t border-gray-800/60">' +
-                    '<span class="text-cyan-300">↪️ Viraj #' + (idx + 1) + ':</span>' +
-                    '<div class="flex items-center gap-1">' +
+                const curRadius = turn.suggestedRadius || 0.7;
+                turnHtml = '<div class="flex flex-col gap-1 pt-1.5 border-t border-gray-800/80">' +
+                    '<div class="flex items-center justify-between text-[10px]">' +
+                    '<span class="text-cyan-400 font-semibold">Viraj #' + (idx + 1) + ' (' + (turn.direction === 'left' ? 'SOL' : 'SAG') + '):</span>' +
+                    '<div class="flex items-center gap-1.5">' +
                     '<select id="turn-angle-input-' + idx + '" onchange="applySelected2DConveyorParameters()"' +
                     ' class="bg-black border border-gray-700 rounded px-1 py-0.5 text-cyan-300 font-mono text-[10px] outline-none">' +
                     '<option value="90"' + (turn.standardAngle === 90 ? ' selected' : '') + '>90°</option>' +
@@ -12529,13 +12615,20 @@ function update2DConveyorParametricEditor(groupObj) {
                     '<option value="60"' + (turn.standardAngle === 60 ? ' selected' : '') + '>60°</option>' +
                     '<option value="180"' + (turn.standardAngle === 180 ? ' selected' : '') + '>180°</option>' +
                     '</select>' +
-                    '<span class="text-gray-400 font-mono">(' + (turn.direction === 'left' ? 'Sol' : 'Sağ') + ')</span>' +
-                    '</div></div>';
+                    '<select id="turn-radius-input-' + idx + '" onchange="applySelected2DConveyorParameters()"' +
+                    ' class="bg-black border border-gray-700 rounded px-1 py-0.5 text-amber-300 font-mono text-[10px] outline-none">' +
+                    '<option value="0.7"' + (Math.abs(curRadius - 0.7) < 0.05 ? ' selected' : '') + '>R: 700mm</option>' +
+                    '<option value="0.5"' + (Math.abs(curRadius - 0.5) < 0.05 ? ' selected' : '') + '>R: 500mm</option>' +
+                    '<option value="1.0"' + (Math.abs(curRadius - 1.0) < 0.05 ? ' selected' : '') + '>R: 1000mm</option>' +
+                    '</select>' +
+                    '</div></div>' +
+                    '<div class="text-[9px] text-gray-500 font-mono">200mm giriş + R' + Math.round(curRadius * 1000) + ' yay + 200mm çıkış</div>' +
+                    '</div>';
             }
 
-            return '<div class="bg-gray-900 border border-gray-800 p-2 rounded space-y-1">' +
+            return '<div class="bg-gray-900 border border-gray-800 p-2 rounded space-y-1.5">' +
                 '<div class="flex items-center justify-between">' +
-                '<span class="font-bold text-gray-200">Kol #' + (idx + 1) + ' Uzunluğu:</span>' +
+                '<span class="font-medium text-gray-200 text-xs">Kol #' + (idx + 1) + ' Uzunluğu:</span>' +
                 '<div class="flex items-center gap-1">' +
                 '<input id="seg-len-input-' + idx + '" type="number" step="0.1" min="0.5" value="' + seg.length.toFixed(2) + '"' +
                 ' onchange="applySelected2DConveyorParameters()"' +
@@ -12573,13 +12666,18 @@ function applySelected2DConveyorParameters() {
         const nextNode = lastNode.clone().addScaledVector(currentDir, targetLen);
         newNodes.push(nextNode);
 
-        // Bir sonraki doğrultu için açıyı uygula
+        // Bir sonraki doğrultu için açıyı ve radiusu uygula
         const turn = (pathData.turns || []).find(t => t.nodeIndex === i + 1);
         if (turn) {
             const angleSelect = document.getElementById(`turn-angle-input-${i}`);
             const targetAngleDeg = angleSelect ? (parseFloat(angleSelect.value) || turn.standardAngle) : turn.standardAngle;
             const sign = turn.direction === 'left' ? 1 : -1;
             const angleRad = THREE.MathUtils.degToRad(targetAngleDeg * sign);
+
+            const radSelect = document.getElementById(`turn-radius-input-${i}`);
+            if (radSelect) {
+                turn.suggestedRadius = parseFloat(radSelect.value) || 0.7;
+            }
 
             const cosA = Math.cos(angleRad);
             const sinA = Math.sin(angleRad);
@@ -12593,6 +12691,18 @@ function applySelected2DConveyorParameters() {
 
     // Yeni polyline analizi
     const newPathData = typeof window.analyzeConveyorPolyline === 'function' ? window.analyzeConveyorPolyline(newNodes) : pathData;
+
+    // Radius bilgilerini newPathData.turns'e aktar
+    if (Array.isArray(newPathData.turns) && Array.isArray(pathData.turns)) {
+        newPathData.turns.forEach(nt => {
+            const ot = pathData.turns.find(t => t.nodeIndex === nt.nodeIndex);
+            if (ot && ot.suggestedRadius) {
+                nt.suggestedRadius = ot.suggestedRadius;
+            } else {
+                nt.suggestedRadius = 0.7;
+            }
+        });
+    }
 
     // active2DConveyorGroup nesnesinin çocuklarını güvenle doğrudan güncelle (Sonsuz döngü riski yok)
     populate2DConveyorCADGeometry(active2DConveyorGroup, newPathData, newWidthM, data.assemblyName);

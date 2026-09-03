@@ -250,45 +250,14 @@ function renderPersistentConveyorGuide(pathData) {
 
     // Küçük Siyah Nokta Düğümleri
     points.forEach((pt, idx) => {
-        const isStart = idx === 0;
-        const isEnd = idx === points.length - 1;
-
         const sphereGeo = new THREE.SphereGeometry(0.08, 12, 12);
         const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const sphere = new THREE.Mesh(sphereGeo, sphereMat);
         sphere.position.copy(pt);
         persistentConveyorPathGroup.add(sphere);
-
-        // AutoCAD Teknik Metin Sprite'ı
-        let tagText = `#${idx + 1}`;
-        if (isStart) tagText = 'AVARE UC (XKEJ)';
-        else if (isEnd) tagText = 'MOTOR TAHRIK (XHEB)';
-        else {
-            const turn = pathData.turns.find(t => t.nodeIndex === idx);
-            if (turn) {
-                const dirLabel = turn.direction === 'left' ? 'SOL' : 'SAG';
-                tagText = `R700 / ${turn.standardAngle}° ${dirLabel}`;
-            }
-        }
-
-        const sprite = createCADTechnicalTextSprite(tagText);
-        if (sprite) {
-            sprite.position.set(pt.x, pt.y, pt.z + 0.2);
-            persistentConveyorPathGroup.add(sprite);
-        }
     });
 
-    // Düz Segment Metraj Etiketleri (Orta Noktada)
-    pathData.segments.forEach(seg => {
-        const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
-        mid.z += 0.15;
-        const lenText = `L = ${seg.length.toFixed(2)} m`;
-        const sprite = createCADTechnicalTextSprite(lenText);
-        if (sprite) {
-            sprite.position.copy(mid);
-            persistentConveyorPathGroup.add(sprite);
-        }
-    });
+    // Metinler tamamen kaldırıldı: Hat üzerinde etiket/metin yer almaz.
 
     scene.add(persistentConveyorPathGroup);
 }
