@@ -12,6 +12,8 @@ import { openBuildingLevelsModal, closeBuildingLevelsModal } from './modules/bui
 import { saveActiveProjectToCloud, openSaveAsNewProjectModal, closeSaveAsNewProjectModal, executeSaveAsNewProject, syncCustomerProjectsList, loadCustomerProjectFromDropdown } from './modules/cloud_sync.js';
 import { parseXmlProject, resetSceneContent } from './core/xml_parser.js';
 import { toggleConveyorPathDrawer, openConveyorBOMModal, closeConveyorBOMModal, openConveyorBuilderModal, closeConveyorBuilderModal, initConveyorWizardUI } from './modules/conveyor_wizard_ui.js';
+import { startConveyorPathDrawing, cancelConveyorPathDrawing, finishConveyorPathDrawing, analyzeConveyorPolyline } from './modules/conveyor_path_drawer.js';
+import { calculateAndRenderConveyorBOM, executeConveyorBuild } from './modules/conveyor_builder.js';
 
 console.log("⚡ ProposalApp ES6 Modular Engine Starting...");
 
@@ -47,6 +49,12 @@ if (typeof window !== 'undefined') {
     window.openConveyorBuilderModal = openConveyorBuilderModal;
     window.closeConveyorBuilderModal = closeConveyorBuilderModal;
     window.initConveyorWizardUI = initConveyorWizardUI;
+    window.startConveyorPathDrawing = startConveyorPathDrawing;
+    window.cancelConveyorPathDrawing = cancelConveyorPathDrawing;
+    window.finishConveyorPathDrawing = finishConveyorPathDrawing;
+    window.analyzeConveyorPolyline = analyzeConveyorPolyline;
+    window.calculateAndRenderConveyorBOM = calculateAndRenderConveyorBOM;
+    window.executeConveyorBuild = executeConveyorBuild;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
