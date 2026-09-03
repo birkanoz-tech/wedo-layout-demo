@@ -279,41 +279,19 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         group.add(axisLine);
     }
 
-    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Siyah Çizgi Geometrisi
+    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Tamamen Düz Sınır Çizgisi (Radius ve Daire Kaldırıldı)
     const startNode = nodes[0];
     const firstDir = pathData.segments[0].direction;
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
-    const backDir = firstDir.clone().negate();
+    const idlerLeft = startNode.clone().addScaledVector(firstNorm, halfW);
+    const idlerRight = startNode.clone().addScaledVector(firstNorm, -halfW);
+    idlerLeft.z = zPos;
+    idlerRight.z = zPos;
 
-    const arcPts = [];
-    const arcSteps = 16;
-    for (let j = 0; j <= arcSteps; j++) {
-        const angle = -Math.PI / 2 + (Math.PI * j) / arcSteps;
-        const pt = startNode.clone()
-            .addScaledVector(firstNorm, Math.sin(angle) * halfW)
-            .addScaledVector(backDir, Math.cos(angle) * halfW);
-        pt.z = zPos + 0.02;
-        arcPts.push(pt);
-    }
-    const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts);
-    const arcLine = new THREE.Line(arcGeo, lineMat);
-    group.add(arcLine);
-
-    // Avare iç çemberi (rulman yatağı - sadece çizgi, içi boyasız)
-    const idlerCirclePts = [];
-    const cSteps = 24;
-    const idlerR = halfW * 0.45;
-    for (let j = 0; j <= cSteps; j++) {
-        const theta = (j / cSteps) * Math.PI * 2;
-        idlerCirclePts.push(new THREE.Vector3(
-            startNode.x + Math.cos(theta) * idlerR,
-            startNode.y + Math.sin(theta) * idlerR,
-            zPos + 0.02
-        ));
-    }
-    const idlerGeo = new THREE.BufferGeometry().setFromPoints(idlerCirclePts);
-    const idlerCircle = new THREE.Line(idlerGeo, lineMat);
-    group.add(idlerCircle);
+    const idlerGeo = new THREE.BufferGeometry().setFromPoints([idlerLeft, idlerRight]);
+    const idlerLine = new THREE.LineSegments(idlerGeo, lineMat);
+    idlerLine.name = 'Conveyor2DIdlerEnd';
+    group.add(idlerLine);
 
     // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - AutoCAD DXF Dış Sınır Çizgileri
     const lastNode = nodes[nodes.length - 1].clone(); lastNode.z = zPos;
