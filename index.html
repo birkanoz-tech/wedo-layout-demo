@@ -5918,13 +5918,15 @@
         }
 
         function createParametricWallGroup(parameters = {}) {
-            const width = Math.max(0.1, Number(parameters.width) || 4);
-            const height = Math.max(0.1, Number(parameters.height) || 3);
-            const thickness = Math.max(0.05, Number(parameters.thickness) || 0.25);
+            const params = parameters || {};
+            const width = Math.max(0.1, Number(params.width) || 4);
+            const height = Math.max(0.1, Number(params.height) || 3);
+            const thickness = Math.max(0.05, Number(params.thickness) || 0.25);
+            const wallColor = params.color || params.wallColor || 0x94a3b8;
 
             const wall = new THREE.Mesh(
                 new THREE.BoxGeometry(width, thickness, height),
-                new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.1, roughness: 0.82 })
+                new THREE.MeshStandardMaterial({ color: new THREE.Color(wallColor), metalness: 0.1, roughness: 0.82 })
             );
             wall.castShadow = true;
             wall.receiveShadow = true;
@@ -5937,7 +5939,7 @@
                 deletable: true,
                 isParametric: true,
                 parametricKind: 'wall',
-                parametric: { width, height, thickness },
+                parametric: { width, height, thickness, color: wallColor },
                 product: {
                     name: 'Wall',
                     type: 'parametric-wall',
@@ -8869,14 +8871,34 @@
                 }
             }
 
+            // 2.5. Bina Katlarını ve Zeminlerini Geri Yükle
+            const levelList = data.buildingLevels || sceneData.buildingLevels || [];
+            if (Array.isArray(levelList) && levelList.length > 0) {
+                try {
+                    buildingLevels = levelList;
+                    if (typeof renderBuildingLevelPlanes === 'function') {
+                        renderBuildingLevelPlanes();
+                    }
+                    if (typeof renderBuildingLevelsTable === 'function') {
+                        renderBuildingLevelsTable();
+                    }
+                } catch(lvlErr) {
+                    console.warn('Bina katları geri yükleme hatası:', lvlErr);
+                }
+            }
+
             // 3. Manuel Eklenen Modelleri (Duvar, Ceiling Support, Kablo Tavaları, GLB Modelleri) Oluştur
             addedManualModels = [];
             const manualList = sceneData.addedManualModels || sceneData.manualModels || [];
             if (Array.isArray(manualList)) {
                 for (const m of manualList) {
                     try {
-                        if (m.path === 'parametric:wall') {
-                            const wallGroup = createParametricWallGroup();
+                        if (m.path === 'parametric:building-level-floor') {
+                            // Bina kat zeminleri renderBuildingLevelPlanes() tarafından otomatik yönetilir
+                            continue;
+                        } else if (m.path === 'parametric:wall') {
+                            const wallParams = m.parametricParams || (m.userData && m.userData.parametric) || m.parametric || {};
+                            const wallGroup = createParametricWallGroup(wallParams);
                             if (wallGroup && m.position) {
                                 wallGroup.position.set(m.position.x, m.position.y, m.position.z);
                                 if (m.quaternion && typeof m.quaternion.w === 'number') {
@@ -8884,8 +8906,17 @@
                                 } else if (m.rotation) {
                                     wallGroup.rotation.set(m.rotation.x || 0, m.rotation.y || 0, m.rotation.z || 0);
                                 }
+                                if (m.scale) {
+                                    wallGroup.scale.set(m.scale.x || 1, m.scale.y || 1, m.scale.z || 1);
+                                }
                                 scene.add(wallGroup);
-                                addedManualModels.push({ path: m.path, label: m.label || 'Wall', point: wallGroup.position.clone(), ref: wallGroup });
+                                addedManualModels.push({
+                                    path: m.path,
+                                    label: m.label || 'Wall',
+                                    point: wallGroup.position.clone(),
+                                    ref: wallGroup,
+                                    parametricParams: wallParams
+                                });
                             }
                         } else if (m.path === 'parametric:ceiling-support') {
                             const csParams = m.parametricParams || (typeof getSelectedCSParams === 'function' ? getSelectedCSParams() : null);
