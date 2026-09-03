@@ -6,6 +6,37 @@
 let active2DConveyorGroup = null;
 
 /**
+ * AutoCAD Teknik Çizim Stili Metin Sprite Üretici (Arkaplansız, Saf Siyah İnce Yazı, İkonsuz)
+ */
+export function createCADTechnicalTextSprite(text) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Arkaplanı olmayan (Tamamen şeffaf canvas)
+    ctx.clearRect(0, 0, 512, 100);
+
+    // 2. İnce siyah teknik çizim yazısı (AutoCAD fontu)
+    ctx.font = '500 32px "ISOCPEUR", "simplex", "Segoe UI", "Arial", sans-serif';
+    ctx.fillStyle = '#000000'; // Saf siyah ince çizgi ile yazılmış metin
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 3. Herhangi bir ikon/emoji içermeyen temiz teknik metin
+    const cleanText = String(text).replace(/[📏↪️🟢🔴⚡#]/g, '').trim();
+    ctx.fillText(cleanText, 256, 50);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(2.0, 0.4, 1);
+    sprite.renderOrder = 1000;
+    return sprite;
+}
+
+/**
  * 1. 2D AutoCAD Tipi Parametrik Konveyör Gövde Geometrisini Doldur / Yenile
  */
 export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName = null) {
@@ -33,9 +64,8 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     const halfW = widthM / 2;
     const zPos = (nodes[0].z || 0) + 0.05;
 
-    // 1. Düz Kolların Çift Cidar Çizgileri ve 2D Dolgu Yüzeyi
+    // 1. Düz Kolların Çift Cidar Çizgileri (İçi boyanmamış, tamamen açık tel kafes DXF stili)
     const boundaryLinePts = [];
-    const ribbonVertices = [];
 
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
@@ -52,63 +82,39 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
 
         boundaryLinePts.push(left1, left2);
         boundaryLinePts.push(right1, right2);
-
-        ribbonVertices.push(
-            left1.x, left1.y, left1.z,
-            right1.x, right1.y, right1.z,
-            right2.x, right2.y, right2.z,
-
-            left1.x, left1.y, left1.z,
-            right2.x, right2.y, right2.z,
-            left2.x, left2.y, left2.z
-        );
     }
 
-    // Yarı saydam gövde dolgusu (Translucent blueprint ribbon)
-    if (ribbonVertices.length > 0) {
-        const ribbonGeo = new THREE.BufferGeometry();
-        ribbonGeo.setAttribute('position', new THREE.Float32BufferAttribute(ribbonVertices, 3));
-        const ribbonMat = new THREE.MeshBasicMaterial({
-            color: 0x0284c7, // Sky Blue
-            transparent: true,
-            opacity: 0.35,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-        const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
-        ribbonMesh.name = 'Conveyor2DRibbonBody';
-        group.add(ribbonMesh);
-    }
-
-    // Çift kenar çizgileri (AutoCAD Style)
+    // Çift kenar çizgileri (İnce siyah çizgiler - AutoCAD DXF Stili)
     if (boundaryLinePts.length > 0) {
         const lineGeo = new THREE.BufferGeometry().setFromPoints(boundaryLinePts);
         const lineMat = new THREE.LineBasicMaterial({
-            color: 0x38bdf8, // Açık cyan
-            linewidth: 2,
+            color: 0x000000, // Saf siyah ince çizgi
+            linewidth: 1.5,
             transparent: true,
-            opacity: 0.95
+            opacity: 0.95,
+            depthTest: false
         });
         const lineSegments = new THREE.LineSegments(lineGeo, lineMat);
         lineSegments.name = 'Conveyor2DBoundaryLines';
         group.add(lineSegments);
     }
 
-    // Eksen çizgisi (Dashed yellow)
+    // Eksen çizgisi (Siyah kesikli AutoCAD eksen çizgisi)
     const axisPts = nodes.map(n => new THREE.Vector3(n.x, n.y, zPos + 0.01));
     const axisGeo = new THREE.BufferGeometry().setFromPoints(axisPts);
     const axisMat = new THREE.LineDashedMaterial({
-        color: 0xfacc15,
+        color: 0x000000, // Siyah kesikli
         linewidth: 1,
-        dashSize: 0.4,
-        gapSize: 0.2
+        dashSize: 0.25,
+        gapSize: 0.15,
+        depthTest: false
     });
     const axisLine = new THREE.Line(axisGeo, axisMat);
     axisLine.computeLineDistances();
     axisLine.name = 'Conveyor2DCenterline';
     group.add(axisLine);
 
-    // 2. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End)
+    // 2. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Siyah Çizgi Geometrisi
     const startNode = nodes[0];
     const firstDir = segments[0].direction;
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
@@ -125,25 +131,33 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         arcPts.push(pt);
     }
     const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts);
-    const arcMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3 });
+    const arcMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1.5, depthTest: false });
     const arcLine = new THREE.Line(arcGeo, arcMat);
     group.add(arcLine);
 
-    const idlerCoreGeo = new THREE.CircleGeometry(halfW * 0.45, 16);
-    const idlerCoreMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
-    const idlerCore = new THREE.Mesh(idlerCoreGeo, idlerCoreMat);
-    idlerCore.position.set(startNode.x, startNode.y, zPos + 0.02);
-    group.add(idlerCore);
+    // Avare iç çemberi (rulman yatağı - sadece çizgi, içi boyasız)
+    const idlerCirclePts = [];
+    const cSteps = 24;
+    const idlerR = halfW * 0.45;
+    for (let j = 0; j <= cSteps; j++) {
+        const theta = (j / cSteps) * Math.PI * 2;
+        idlerCirclePts.push(new THREE.Vector3(
+            startNode.x + Math.cos(theta) * idlerR,
+            startNode.y + Math.sin(theta) * idlerR,
+            zPos + 0.02
+        ));
+    }
+    const idlerGeo = new THREE.BufferGeometry().setFromPoints(idlerCirclePts);
+    const idlerCircle = new THREE.Line(idlerGeo, arcMat);
+    group.add(idlerCircle);
 
-    if (typeof createGuideTextSprite === 'function') {
-        const startTag = createGuideTextSprite('🟢 AVARE UÇ (Başlangıç)', '#10b981');
-        if (startTag) {
-            startTag.position.set(startNode.x, startNode.y, zPos + 0.45);
-            group.add(startTag);
-        }
+    const startTag = createCADTechnicalTextSprite('AVARE UC (XKEJ)');
+    if (startTag) {
+        startTag.position.set(startNode.x + backDir.x * 0.4, startNode.y + backDir.y * 0.4, zPos + 0.15);
+        group.add(startTag);
     }
 
-    // 3. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit)
+    // 3. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - Siyah Çizgi Geometrisi
     const lastNode = nodes[nodes.length - 1];
     const lastDir = segments[segments.length - 1].direction;
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
@@ -160,11 +174,11 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         dRight2, dRight1,
         dRight1, dLeft1
     ]);
-    const driveBoxMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 3 });
+    const driveBoxMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1.5, depthTest: false });
     const driveBox = new THREE.LineSegments(driveBoxGeo, driveBoxMat);
     group.add(driveBox);
 
-    // Motor / Redüktör yanal bloğu
+    // Motor / Redüktör yanal bloğu (Siyah ince çizgi)
     const mRight1 = dRight1.clone().addScaledVector(lastDir, 0.05);
     const mRight2 = dRight2.clone().addScaledVector(lastDir, -0.05);
     const mOuter1 = mRight1.clone().addScaledVector(lastNorm, -0.25);
@@ -178,30 +192,30 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     const motorBlock = new THREE.LineSegments(motorBlockGeo, driveBoxMat);
     group.add(motorBlock);
 
-    if (typeof createGuideTextSprite === 'function') {
-        const endTag = createGuideTextSprite('⚡ MOTOR (Bitiş)', '#f59e0b');
-        if (endTag) {
-            endTag.position.set(lastNode.x, lastNode.y, zPos + 0.45);
-            group.add(endTag);
-        }
-
-        turns.forEach((turn) => {
-            const turnLabel = createGuideTextSprite(`↪️ ${turn.standardAngle}° ${turn.direction === 'left' ? 'Sol' : 'Sağ'} Viraj`, '#06b6d4');
-            if (turnLabel) {
-                turnLabel.position.set(turn.point.x, turn.point.y, zPos + 0.4);
-                group.add(turnLabel);
-            }
-        });
-
-        segments.forEach((seg, idx) => {
-            const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
-            const segLabel = createGuideTextSprite(`📏 Kol #${idx + 1}: ${seg.length.toFixed(2)}m`, '#eab308');
-            if (segLabel) {
-                segLabel.position.set(mid.x, mid.y, zPos + 0.35);
-                group.add(segLabel);
-            }
-        });
+    const endTag = createCADTechnicalTextSprite('MOTOR TAHRIK (XHEB)');
+    if (endTag) {
+        endTag.position.set(lastNode.x + lastDir.x * 0.5, lastNode.y + lastDir.y * 0.5, zPos + 0.15);
+        group.add(endTag);
     }
+
+    // 4. Viraj ve Boyut Bilgi Etiketleri (AutoCAD Teknik Metin)
+    turns.forEach((turn) => {
+        const dirName = turn.direction === 'left' ? 'SOL' : 'SAG';
+        const turnLabel = createCADTechnicalTextSprite(`R700 / ${turn.standardAngle}° ${dirName}`);
+        if (turnLabel) {
+            turnLabel.position.set(turn.point.x, turn.point.y, zPos + 0.15);
+            group.add(turnLabel);
+        }
+    });
+
+    segments.forEach((seg, idx) => {
+        const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
+        const segLabel = createCADTechnicalTextSprite(`L = ${seg.length.toFixed(2)} m`);
+        if (segLabel) {
+            segLabel.position.set(mid.x, mid.y, zPos + 0.15);
+            group.add(segLabel);
+        }
+    });
 
     // 4. UserData & Ürün Ağacı Entegrasyonu
     group.userData = {

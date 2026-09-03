@@ -236,49 +236,44 @@ function renderPersistentConveyorGuide(pathData) {
 
     const points = pathData.nodes.map(n => new THREE.Vector3(n.x, n.y, (n.z || 0) + 0.05));
 
-    // Kalın Parlak Neon Çizgi
+    // İnce Siyah Teknik Çizgi (AutoCAD DXF Stili)
     const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
     const lineMat = new THREE.LineBasicMaterial({
-        color: 0x06b6d4, // Cyan
-        linewidth: 3,
+        color: 0x000000,
+        linewidth: 1.5,
         transparent: true,
-        opacity: 0.95
+        opacity: 0.95,
+        depthTest: false
     });
     const line = new THREE.Line(lineGeo, lineMat);
     persistentConveyorPathGroup.add(line);
 
-    // Nokta Düğümleri (Sphere markers)
+    // Küçük Siyah Nokta Düğümleri
     points.forEach((pt, idx) => {
         const isStart = idx === 0;
         const isEnd = idx === points.length - 1;
 
-        const sphereGeo = new THREE.SphereGeometry(0.18, 16, 16);
-        const color = isStart ? 0x10b981 : (isEnd ? 0xef4444 : 0x06b6d4);
-        const sphereMat = new THREE.MeshStandardMaterial({
-            color,
-            emissive: color,
-            emissiveIntensity: 0.6,
-            roughness: 0.2
-        });
+        const sphereGeo = new THREE.SphereGeometry(0.08, 12, 12);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const sphere = new THREE.Mesh(sphereGeo, sphereMat);
         sphere.position.copy(pt);
         persistentConveyorPathGroup.add(sphere);
 
-        // 3D Bilgi Etiketi Sprite'ı
+        // AutoCAD Teknik Metin Sprite'ı
         let tagText = `#${idx + 1}`;
-        if (isStart) tagText = '🟢 AVARE UÇ (Başlangıç)';
-        else if (isEnd) tagText = '⚡ MOTOR (Bitiş)';
+        if (isStart) tagText = 'AVARE UC (XKEJ)';
+        else if (isEnd) tagText = 'MOTOR TAHRIK (XHEB)';
         else {
             const turn = pathData.turns.find(t => t.nodeIndex === idx);
             if (turn) {
-                const dirLabel = turn.direction === 'left' ? 'Sol' : 'Sağ';
-                tagText = `⚡ ${turn.standardAngle}° ${dirLabel} Dönüş`;
+                const dirLabel = turn.direction === 'left' ? 'SOL' : 'SAG';
+                tagText = `R700 / ${turn.standardAngle}° ${dirLabel}`;
             }
         }
 
-        const sprite = createGuideTextSprite(tagText, isStart ? '#10b981' : (isEnd ? '#ef4444' : '#06b6d4'));
+        const sprite = createCADTechnicalTextSprite(tagText);
         if (sprite) {
-            sprite.position.set(pt.x, pt.y, pt.z + 0.45);
+            sprite.position.set(pt.x, pt.y, pt.z + 0.2);
             persistentConveyorPathGroup.add(sprite);
         }
     });
@@ -286,12 +281,12 @@ function renderPersistentConveyorGuide(pathData) {
     // Düz Segment Metraj Etiketleri (Orta Noktada)
     pathData.segments.forEach(seg => {
         const mid = seg.from.clone().add(seg.to).multiplyScalar(0.5);
-        mid.z += 0.25;
-        const lenText = `${seg.length.toFixed(2)}m`;
-        const lenSprite = createGuideTextSprite(`📏 ${lenText}`, '#eab308');
-        if (lenSprite) {
-            lenSprite.position.copy(mid);
-            persistentConveyorPathGroup.add(lenSprite);
+        mid.z += 0.15;
+        const lenText = `L = ${seg.length.toFixed(2)} m`;
+        const sprite = createCADTechnicalTextSprite(lenText);
+        if (sprite) {
+            sprite.position.copy(mid);
+            persistentConveyorPathGroup.add(sprite);
         }
     });
 
@@ -299,38 +294,37 @@ function renderPersistentConveyorGuide(pathData) {
 }
 
 /**
- * 6. Şık 3D Canvas Text Sprite Üretici
+ * 6. AutoCAD Teknik Çizim Stili Metin Sprite Üretici (Arkaplansız, Saf Siyah İnce Yazı, İkonsuz)
  */
-function createGuideTextSprite(text, bgColor = '#0f172a') {
+export function createCADTechnicalTextSprite(text) {
     const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 70;
+    canvas.width = 512;
+    canvas.height = 100;
     const ctx = canvas.getContext('2d');
 
-    // Yuvarlak Kutu Arka Planı
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-    ctx.strokeStyle = bgColor;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.roundRect(4, 4, 312, 62, 10);
-    ctx.fill();
-    ctx.stroke();
+    // 1. Arkaplanı olmayan (Tamamen şeffaf canvas)
+    ctx.clearRect(0, 0, 512, 100);
 
-    // Metin
-    ctx.font = 'bold 22px Inter, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    // 2. İnce siyah teknik çizim yazısı (AutoCAD fontu)
+    ctx.font = '500 32px "ISOCPEUR", "simplex", "Segoe UI", "Arial", sans-serif';
+    ctx.fillStyle = '#000000'; // Saf siyah ince çizgi ile yazılmış metin
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 160, 35);
+
+    // 3. Herhangi bir ikon/emoji içermeyen temiz teknik metin
+    const cleanText = String(text).replace(/[📏↪️🟢🔴⚡#]/g, '').trim();
+    ctx.fillText(cleanText, 256, 50);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(1.4, 0.32, 1);
-    sprite.renderOrder = 999;
+    sprite.scale.set(2.0, 0.4, 1);
+    sprite.renderOrder = 1000;
     return sprite;
 }
+
+export const createGuideTextSprite = createCADTechnicalTextSprite;
 
 /**
  * 7. Fare ve Klavye Dinleyicilerini Kur
@@ -462,14 +456,14 @@ function renderTempNodes() {
 function updateLivePreview(mousePt) {
     if (!scene) return;
 
-    // 1. İmleç / Cursor halka göstergesi
+    // 1. İmleç / Cursor halka göstergesi (İnce siyah CAD hedefleme halkası)
     if (!cursorMarker) {
-        const ringGeo = new THREE.RingGeometry(0.16, 0.24, 32);
+        const ringGeo = new THREE.RingGeometry(0.12, 0.16, 32);
         const ringMat = new THREE.MeshBasicMaterial({
-            color: 0xfacc15,
+            color: 0x000000,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.9,
+            opacity: 0.85,
             depthTest: false
         });
         cursorMarker = new THREE.Mesh(ringGeo, ringMat);
@@ -489,17 +483,17 @@ function updateLivePreview(mousePt) {
     const lastNode = conveyorDrawNodes3D[conveyorDrawNodes3D.length - 1];
     const dist = lastNode.distanceTo(mousePt);
 
-    // 2. Dinamik Önizleme Çizgisi (Canlı Lastik Bant / Rubber-Band Line)
+    // 2. Dinamik Önizleme Çizgisi (İnce Siyah Kesikli CAD Kılavuzu)
     const p1 = new THREE.Vector3(lastNode.x, lastNode.y, lastNode.z + 0.06);
     const p2 = new THREE.Vector3(mousePt.x, mousePt.y, mousePt.z + 0.06);
 
     if (!livePreviewLine) {
         const lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
         const lineMat = new THREE.LineDashedMaterial({
-            color: 0xfacc15, // Parlak sarı önizleme
-            linewidth: 3,
-            dashSize: 0.4,
-            gapSize: 0.2,
+            color: 0x000000, // Saf siyah ince çizgi
+            linewidth: 1.5,
+            dashSize: 0.3,
+            gapSize: 0.15,
             depthTest: false,
             transparent: true,
             opacity: 0.95
@@ -519,7 +513,7 @@ function updateLivePreview(mousePt) {
 
     // 3. Çizgi Üzerinde Canlı Mesafe Etiketi (Floating Sprite)
     const midPoint = p1.clone().add(p2).multiplyScalar(0.5);
-    midPoint.z += 0.35;
+    midPoint.z += 0.25;
 
     let totalLen = 0;
     for (let i = 0; i < conveyorDrawNodes3D.length - 1; i++) {
@@ -527,7 +521,7 @@ function updateLivePreview(mousePt) {
     }
     totalLen += dist;
 
-    // Açı tespiti: Eğer 1'den fazla nokta varsa yaklaşan viraj açısını da göster
+    // Açı tespiti: Yaklaşan viraj açısı (İkonsuz, saf CAD metni)
     let angleInfo = '';
     if (conveyorDrawNodes3D.length >= 1) {
         if (conveyorDrawNodes3D.length >= 2) {
@@ -539,15 +533,15 @@ function updateLivePreview(mousePt) {
                 const dot = Math.max(-1, Math.min(1, v1.dot(v2)));
                 const deg = Math.round(THREE.MathUtils.radToDeg(Math.acos(dot)));
                 const crossZ = v1.x * v2.y - v1.y * v2.x;
-                const dir = crossZ >= 0 ? 'Sol' : 'Sağ';
+                const dir = crossZ >= 0 ? 'SOL' : 'SAG';
                 if (deg > 10) {
-                    angleInfo = ` | ↪️ ${deg}° ${dir}`;
+                    angleInfo = ` | ${deg}° ${dir}`;
                 }
             }
         }
     }
 
-    const tagText = `📏 ${dist.toFixed(2)}m${angleInfo}`;
+    const tagText = `L = ${dist.toFixed(2)} m${angleInfo}`;
     updateLiveDistSprite(tagText, midPoint);
 
     const hudLen = document.getElementById('conveyor-draw-hud-len');
@@ -558,28 +552,23 @@ function updateLivePreview(mousePt) {
 
 function updateLiveDistSprite(text, position) {
     if (!scene) return;
+    const cleanText = String(text).replace(/[📏↪️🟢🔴⚡]/g, '').trim();
 
     if (!liveDistSprite) {
-        liveDistSprite = createGuideTextSprite(text, '#facc15');
+        liveDistSprite = createCADTechnicalTextSprite(cleanText);
         scene.add(liveDistSprite);
     } else {
         const canvas = document.createElement('canvas');
-        canvas.width = 340;
-        canvas.height = 70;
+        canvas.width = 512;
+        canvas.height = 100;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.roundRect(4, 4, 332, 62, 10);
-        ctx.fill();
-        ctx.stroke();
+        ctx.clearRect(0, 0, 512, 100);
 
-        ctx.font = 'bold 22px Inter, sans-serif';
-        ctx.fillStyle = '#fef08a';
+        ctx.font = '500 32px "ISOCPEUR", "simplex", "Segoe UI", "Arial", sans-serif';
+        ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(text, 170, 35);
+        ctx.fillText(cleanText, 256, 50);
 
         if (liveDistSprite.material.map) {
             liveDistSprite.material.map.dispose();
