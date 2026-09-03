@@ -12272,25 +12272,31 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
 
     // 4. Viraj Parçalarını (Bend Modules) Çiz: 200mm düzlük + R kavisli yay + 200mm düzlük
     bendDataMap.forEach((bend) => {
-        const { isLeft, R, norm1, cArc, pBendStart, pArcStart, pArcEnd, pBendEnd, u1, u2 } = bend;
-        const norm2 = isLeft ? new THREE.Vector3(-u2.y, u2.x, 0) : new THREE.Vector3(u2.y, -u2.x, 0);
+        const { isLeft, R, cArc, pBendStart, pArcStart, pArcEnd, pBendEnd, u1, u2 } = bend;
 
-        const R_in = Math.max(0.01, R - halfW);
-        const R_out = R + halfW;
+        // Sol normal birim vektörler (Track coordinate system: daima sola bakan dik vektör)
+        const n1Left = new THREE.Vector3(-u1.y, u1.x, 0).normalize();
+        const n2Left = new THREE.Vector3(-u2.y, u2.x, 0).normalize();
+
+        // Sol ray ve sağ ray yarıçapları (Kavis merkezine göre):
+        // Sol dönüşte kavis merkezi sol tarafta -> Sol ray içte (R - halfW), Sağ ray dışta (R + halfW)
+        // Sağ dönüşte kavis merkezi sağ tarafta -> Sağ ray içte (R - halfW), Sol ray dışta (R + halfW)
+        const R_left = isLeft ? Math.max(0.01, R - halfW) : (R + halfW);
+        const R_right = isLeft ? (R + halfW) : Math.max(0.01, R - halfW);
 
         // A. Giriş Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendStart)
-        const inLeft1 = pBendStart.clone().addScaledVector(norm1, isLeft ? halfW : -halfW);
-        const inRight1 = pBendStart.clone().addScaledVector(norm1, isLeft ? -halfW : halfW);
+        const inLeft1 = pBendStart.clone().addScaledVector(n1Left, halfW);
+        const inRight1 = pBendStart.clone().addScaledVector(n1Left, -halfW);
         boundaryLinePts.push(inLeft1, inRight1);
 
-        // B. 200mm Giriş Düzlüğü
-        const inLeft2 = pArcStart.clone().addScaledVector(norm1, isLeft ? halfW : -halfW);
-        const inRight2 = pArcStart.clone().addScaledVector(norm1, isLeft ? -halfW : halfW);
+        // B. 200mm Giriş Düzlüğü (Sol ve Sağ Raylar)
+        const inLeft2 = pArcStart.clone().addScaledVector(n1Left, halfW);
+        const inRight2 = pArcStart.clone().addScaledVector(n1Left, -halfW);
         boundaryLinePts.push(inLeft1, inLeft2);
         boundaryLinePts.push(inRight1, inRight2);
         axisLinePts.push(pBendStart, pArcStart);
 
-        // C. Kavisli Yay (Radius Arc): Orta çizgi R, iç çizgi R-halfW, dış çizgi R+halfW
+        // C. Kavisli Yay (Radius Arc): Sol ray daima sol raya, sağ ray daima sağ raya bağlanır
         const aStart = Math.atan2(pArcStart.y - cArc.y, pArcStart.x - cArc.x);
         const aEnd = Math.atan2(pArcEnd.y - cArc.y, pArcEnd.x - cArc.x);
 
@@ -12304,8 +12310,8 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         }
 
         const arcSteps = 24;
-        let prevInner = inLeft2;
-        let prevOuter = inRight2;
+        let prevLeft = inLeft2;
+        let prevRight = inRight2;
         let prevCenter = pArcStart;
 
         for (let s = 1; s <= arcSteps; s++) {
@@ -12315,24 +12321,24 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
             const sinA = Math.sin(angle);
 
             const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, zPos);
-            const currInner = new THREE.Vector3(cArc.x + cosA * R_in, cArc.y + sinA * R_in, zPos);
-            const currOuter = new THREE.Vector3(cArc.x + cosA * R_out, cArc.y + sinA * R_out, zPos);
+            const currLeft = new THREE.Vector3(cArc.x + cosA * R_left, cArc.y + sinA * R_left, zPos);
+            const currRight = new THREE.Vector3(cArc.x + cosA * R_right, cArc.y + sinA * R_right, zPos);
 
-            boundaryLinePts.push(prevInner, currInner);
-            boundaryLinePts.push(prevOuter, currOuter);
+            boundaryLinePts.push(prevLeft, currLeft);
+            boundaryLinePts.push(prevRight, currRight);
             axisLinePts.push(prevCenter, currCenter);
 
-            prevInner = currInner;
-            prevOuter = currOuter;
+            prevLeft = currLeft;
+            prevRight = currRight;
             prevCenter = currCenter;
         }
 
-        // D. 200mm Çıkış Düzlüğü
-        const outLeft2 = pBendEnd.clone().addScaledVector(norm2, isLeft ? halfW : -halfW);
-        const outRight2 = pBendEnd.clone().addScaledVector(norm2, isLeft ? -halfW : halfW);
+        // D. 200mm Çıkış Düzlüğü (Sol ve Sağ Raylar)
+        const outLeft2 = pBendEnd.clone().addScaledVector(n2Left, halfW);
+        const outRight2 = pBendEnd.clone().addScaledVector(n2Left, -halfW);
 
-        boundaryLinePts.push(prevInner, outLeft2);
-        boundaryLinePts.push(prevOuter, outRight2);
+        boundaryLinePts.push(prevLeft, outLeft2);
+        boundaryLinePts.push(prevRight, outRight2);
         axisLinePts.push(pArcEnd, pBendEnd);
 
         // E. Çıkış Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendEnd)
