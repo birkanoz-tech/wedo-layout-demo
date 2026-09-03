@@ -9298,6 +9298,9 @@
             const success = await saveProjectDirectlyToGitHubRepo(newName, fileContent);
 
             if (success) {
+                try {
+                    sessionStorage.setItem('CACHED_PROJECT_' + newName, fileContent);
+                } catch(e) {}
                 closeSaveAsNewProjectModal();
 
                 if (typeof syncCustomerProjectsList === 'function') {
@@ -11351,28 +11354,48 @@
             // 2. URL Parametresi İle Canlı Proje Çağırma (Örn: ?project=firma-a VEYA ?xml=OPP-0106989-1-R1)
             else {
                 const urlParams = new URLSearchParams(window.location.search);
-                let projectQuery = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file') || 'OPP-0106989-1-R1.xml';
+                const explicitProject = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
+                let projectQuery = explicitProject || 'OPP-0106989-1-R1.xml';
 
                 if (projectQuery) {
                     projectQuery = projectQuery.trim();
                     const cleanName = projectQuery.replace(/\.(json|xml)$/i, '');
+                    const rawGitHubBase = 'https://raw.githubusercontent.com/birkanoz-tech/wedo-layout-demo/main';
                     const searchPaths = [
+                        `${rawGitHubBase}/projects/${cleanName}.json`,
                         `projects/${cleanName}.json`,
+                        `${rawGitHubBase}/projects/${cleanName}.xml`,
                         `projects/${cleanName}.xml`,
                         `${cleanName}.json`,
                         `${cleanName}.xml`
                     ];
                     if (projectQuery.includes('.')) {
-                        searchPaths.unshift(`projects/${projectQuery}`, projectQuery);
+                        searchPaths.unshift(`${rawGitHubBase}/projects/${projectQuery}`, `projects/${projectQuery}`, projectQuery);
                     }
-                    searchPaths.push('projects/OPP-0106989-1-R1.xml', 'OPP-0106989-1-R1.xml');
+                    if (!explicitProject) {
+                        searchPaths.push('projects/OPP-0106989-1-R1.xml', 'OPP-0106989-1-R1.xml');
+                    }
 
                     const statusEl = document.getElementById('import-status');
                     if (statusEl) {
                         statusEl.innerText = `⏳ "${projectQuery}" projesi canlı bağlantıdan çekiliyor...`;
                     }
 
-                    for (const path of searchPaths) {
+                    // 0. Öncelikli olarak az önce kaydedilen oturum belleğini (sessionStorage) kontrol et
+                    try {
+                        const sessionCached = sessionStorage.getItem('CACHED_PROJECT_' + projectQuery);
+                        if (sessionCached) {
+                            const trimmed = sessionCached.trim();
+                            if (trimmed.charAt(0) === '{') {
+                                const jsonData = JSON.parse(trimmed);
+                                await restoreStateData(jsonData);
+                                restored = true;
+                                if (statusEl) statusEl.innerText = `⚡ "${projectQuery}" hafızadan anında yüklendi.`;
+                            }
+                        }
+                    } catch(e) {}
+
+                    if (!restored) for (const path of searchPaths) {
                         try {
                             // Yetki kontrolü yap
                             if (!checkProjectAuthorization()) {
@@ -11863,9 +11886,10 @@
                     const files = await ghRes.json();
                     if (Array.isArray(files)) {
                         files.forEach(f => {
-                            if (f.name && f.name.toLowerCase().endsWith('.xml')) {
+                            if (f.name && (f.name.toLowerCase().endsWith('.json') || f.name.toLowerCase().endsWith('.xml'))) {
                                 if (!userProjects.some(p => p.id === f.name)) {
-                                    userProjects.push({ id: f.name, name: `☁️ ${f.name}`, allowedEmails: ['*'] });
+                                    const icon = f.name.toLowerCase().endsWith('.json') ? '🚀' : '☁️';
+                                    userProjects.push({ id: f.name, name: `${icon} ${f.name}`, allowedEmails: ['*'] });
                                 }
                             }
                         });
