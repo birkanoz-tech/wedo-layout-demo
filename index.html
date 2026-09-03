@@ -159,8 +159,8 @@
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
                     <label
                         class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm">
-                        <span>📥</span> XML Proje Yükle (.xml)
-                        <input type="file" id="xml-file-input" accept=".xml,text/xml" class="hidden"
+                        <span>📥</span> Proje Aç (.json / .xml)
+                        <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json" class="hidden"
                             onchange="loadXmlProjectFromFile(this)">
                     </label>
                     <button onclick="exportXmlProjectAsNewFile()"
@@ -8673,18 +8673,6 @@
                 dxfDrawings: serializableDxfDrawings,
                 manualModels: manualModelsData,
                 buildingLevels: buildingLevels || [],
-                scene: {
-                    assemblies: serializableAssemblies,
-                    models: allModelsList,
-                    addedPanels: serializablePanels,
-                    savedCableLinks: serializableCableLinks,
-                    addedCables: addedCables || [],
-                    addedSensors: addedSensors || [],
-                    addedMachines: addedMachines || [],
-                    addedManualModels: manualModelsData,
-                    addedDxfDrawings: serializableDxfDrawings,
-                    buildingLevels: buildingLevels || []
-                },
                 addedPanels: serializablePanels,
                 savedCableLinks: serializableCableLinks,
                 addedCables: addedCables || [],
@@ -9387,7 +9375,27 @@
                 const file = input.files[0];
                 const reader = new FileReader();
                 reader.onload = async (e) => {
-                    await loadXmlProjectFromText(e.target.result, file.name);
+                    const content = e.target.result;
+                    const trimmed = (content || '').trim();
+                    if (trimmed.startsWith('{') || file.name.toLowerCase().endsWith('.json')) {
+                        try {
+                            const jsonData = JSON.parse(trimmed);
+                            await restoreStateData(jsonData);
+                            currentXmlFilename = file.name;
+                            const statusEl = document.getElementById('import-status');
+                            if (statusEl) {
+                                statusEl.innerText = `📂 "${file.name}" JSON projesi yerel dosyadan başarıyla yüklendi.`;
+                            }
+                            if (typeof showNotice === 'function') {
+                                showNotice(`📂 "${file.name}" yüklendi.`);
+                            }
+                        } catch(err) {
+                            console.error('JSON proje yükleme hatası:', err);
+                            alert('JSON proje dosyası okunamadı: ' + err.message);
+                        }
+                    } else {
+                        await loadXmlProjectFromText(content, file.name);
+                    }
                     if (typeof syncCustomerProjectsList === 'function') {
                         syncCustomerProjectsList();
                     }
