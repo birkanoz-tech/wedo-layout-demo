@@ -104,7 +104,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
 
             const turnInfo = (pathData.turns || []).find(t => t.nodeIndex === i + 1);
             let R = (turnInfo && turnInfo.suggestedRadius) ? turnInfo.suggestedRadius : 0.7; // Varsayılan R = 700mm
-            const L_tan = 0.2; // 200 mm düzlük
+            let L_tan = 0.2; // 200 mm düzlük
 
             let T_arc = R * Math.tan(theta / 2.0);
             let T_total = T_arc + L_tan;
@@ -112,14 +112,15 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
             const len1 = pPrev.distanceTo(v);
             const len2 = v.distanceTo(pNext);
             const maxAllowedT = Math.min(len1 * 0.45, len2 * 0.45);
-            if (T_total > maxAllowedT && maxAllowedT > 0.1) {
+            if (T_total > maxAllowedT && maxAllowedT > 0.05) {
                 const ratio = maxAllowedT / T_total;
-                R = Math.max(0.2, R * ratio);
+                R *= ratio;
+                L_tan *= ratio;
                 T_arc = R * Math.tan(theta / 2.0);
-                T_total = maxAllowedT;
+                T_total = T_arc + L_tan;
             }
 
-            const pBendStart = v.clone().subScaledVector(u1, T_total);
+            const pBendStart = v.clone().addScaledVector(u1, -T_total);
             const pArcStart = pBendStart.clone().addScaledVector(u1, L_tan);
 
             const norm1 = isLeft ? new THREE.Vector3(-u1.y, u1.x, 0) : new THREE.Vector3(u1.y, -u1.x, 0);
