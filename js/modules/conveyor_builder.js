@@ -14,16 +14,12 @@ export function createCADTechnicalTextSprite(text) {
     canvas.height = 100;
     const ctx = canvas.getContext('2d');
 
-    // 1. Arkaplanı olmayan (Tamamen şeffaf canvas)
     ctx.clearRect(0, 0, 512, 100);
-
-    // 2. İnce siyah teknik çizim yazısı (AutoCAD fontu)
     ctx.font = '500 32px "ISOCPEUR", "simplex", "Segoe UI", "Arial", sans-serif';
-    ctx.fillStyle = '#000000'; // Saf siyah ince çizgi ile yazılmış metin
+    ctx.fillStyle = '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 3. Herhangi bir ikon/emoji içermeyen temiz teknik metin
     const cleanText = String(text).replace(/[📏↪️🟢🔴⚡#]/g, '').trim();
     ctx.fillText(cleanText, 256, 50);
 
@@ -38,11 +34,12 @@ export function createCADTechnicalTextSprite(text) {
 
 /**
  * 1. 2D AutoCAD Tipi Parametrik Konveyör Gövde Geometrisini Doldur / Yenile
- * - Metinler tamamen kaldırıldı (Temiz CAD çizgileri).
- * - Virajlar: 200mm düzlük + R kavisli yay + 200mm çıkış düzlüğü.
- * - Radius konveyörün orta ekseninden ölçülür.
+ * - Zemin Kotu: Referans zemin kotunun hemen 20mm üzerinde (zPos = floorZ + 0.02)
+ * - Başlangıç: Tamamen düz Avare uç çizgisi (radius ve daire yok)
+ * - Virajlar: 200mm giriş düzlüğü + R kavisli yay + 200mm çıkış düzlüğü (büzülmesiz, teğet)
+ * - Bitiş: Detaylı XHEB Motor Tahrik dış sınır çizgileri (kademeli redüktör, kollar, motor, pahlı fan kapağı)
  */
-export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName = null) {
+export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName = null, floorElev = null) {
     if (!group || !pathData || !pathData.nodes || pathData.nodes.length < 2) return;
 
     if (!assyName) {
@@ -50,11 +47,11 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     }
     group.name = assyName;
 
-    // 1. Güvenli çocuk temizliği (Kopya dizi üzerinde döngü)
+    // Güvenli çocuk temizliği (Kopya dizi üzerinde döngü)
     const existing = [...group.children];
     for (const c of existing) {
         group.remove(c);
-        if (c.geometry) c.geometry.dispose();
+        if (c.geometry) c.geometry.dispose?.();
         if (c.material) {
             if (Array.isArray(c.material)) c.material.forEach(m => m.dispose?.());
             else c.material.dispose?.();
@@ -63,10 +60,15 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
 
     const nodes = pathData.nodes;
     const halfW = widthM / 2;
-    const zPos = (nodes[0].z || 0) + 0.05;
+
+    const floorZ = (typeof floorElev === 'number') ? floorElev :
+                   (typeof group.parent?.userData?.floorElevation === 'number' ? group.parent.userData.floorElevation :
+                   ((nodes[0] && typeof nodes[0].z === 'number') ? nodes[0].z :
+                   (typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0)));
+    const zPos = floorZ + 0.02;
 
     const lineMat = new THREE.LineBasicMaterial({
-        color: 0x000000, // Saf siyah ince çizgi (DXF stili)
+        color: 0x000000,
         linewidth: 1.5,
         transparent: true,
         opacity: 0.95,
@@ -74,7 +76,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     });
 
     const axisMat = new THREE.LineDashedMaterial({
-        color: 0x000000, // Siyah kesikli AutoCAD eksen çizgisi
+        color: 0x000000,
         linewidth: 1,
         dashSize: 0.25,
         gapSize: 0.15,
@@ -85,7 +87,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     const axisLinePts = [];
 
     // 2. Her bir viraj (Bend) için matematiksel eğri ve 200mm giriş/çıkış teğetlerini hesapla
-    const bendDataMap = new Map(); // nodeIndex -> bend geometry info
+    const bendDataMap = new Map();
 
     for (let i = 0; i < nodes.length - 2; i++) {
         const pPrev = nodes[i].clone(); pPrev.z = zPos;
@@ -95,16 +97,16 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         const u1 = v.clone().sub(pPrev).normalize();
         const u2 = pNext.clone().sub(v).normalize();
 
-        const cosTheta = Math.max(-1, Math.min(1, u1.dot(u2)));
+        const cosTheta = THREE.MathUtils.clamp(u1.dot(u2), -1.0, 1.0);
         const theta = Math.acos(cosTheta);
 
-        if (theta > 0.01) {
+        if (theta > 0.03) {
             const crossZ = u1.x * u2.y - u1.y * u2.x;
             const isLeft = crossZ > 0;
 
             const turnInfo = (pathData.turns || []).find(t => t.nodeIndex === i + 1);
-            let R = (turnInfo && turnInfo.suggestedRadius) ? turnInfo.suggestedRadius : 0.7; // Varsayılan R = 700mm
-            let L_tan = 0.2; // 200 mm düzlük
+            let R = (turnInfo && turnInfo.suggestedRadius) ? turnInfo.suggestedRadius : 0.7;
+            let L_tan = 0.2;
 
             let T_arc = R * Math.tan(theta / 2.0);
             let T_total = T_arc + L_tan;
@@ -130,14 +132,11 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
             const pBendEnd = pArcEnd.clone().addScaledVector(u2, L_tan);
 
             bendDataMap.set(i + 1, {
-                nodeIndex: i + 1,
                 isLeft,
                 R,
-                L_tan,
                 theta,
                 u1,
                 u2,
-                norm1,
                 cArc,
                 pBendStart,
                 pArcStart,
@@ -161,15 +160,12 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         let pStart = nodes[i].clone(); pStart.z = zPos;
         let pEnd = nodes[i + 1].clone(); pEnd.z = zPos;
 
-        // Önceki düğüm bir bend bitişi ise başlangıcı oraya bağla
         if (bendDataMap.has(i)) {
             pStart = bendDataMap.get(i).pBendEnd.clone();
         }
-        // Sonraki düğüm bir bend başlangıcı ise bitişi oraya bağla
         if (bendDataMap.has(i + 1)) {
             pEnd = bendDataMap.get(i + 1).pBendStart.clone();
         } else if (i === lastSegIdx) {
-            // Son segment ise tahrik kafasının başlangıcına bağla
             pEnd = pDriveStart.clone();
         }
 
@@ -191,29 +187,25 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     bendDataMap.forEach((bend) => {
         const { isLeft, R, cArc, pBendStart, pArcStart, pArcEnd, pBendEnd, u1, u2 } = bend;
 
-        // Sol normal birim vektörler (Track coordinate system: daima sola bakan dik vektör)
         const n1Left = new THREE.Vector3(-u1.y, u1.x, 0).normalize();
         const n2Left = new THREE.Vector3(-u2.y, u2.x, 0).normalize();
 
-        // Sol ray ve sağ ray yarıçapları (Kavis merkezine göre):
-        // Sol dönüşte kavis merkezi sol tarafta -> Sol ray içte (R - halfW), Sağ ray dışta (R + halfW)
-        // Sağ dönüşte kavis merkezi sağ tarafta -> Sağ ray içte (R - halfW), Sol ray dışta (R + halfW)
         const R_left = isLeft ? Math.max(0.01, R - halfW) : (R + halfW);
         const R_right = isLeft ? (R + halfW) : Math.max(0.01, R - halfW);
 
-        // A. Giriş Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendStart)
+        // A. Giriş Flanşı
         const inLeft1 = pBendStart.clone().addScaledVector(n1Left, halfW);
         const inRight1 = pBendStart.clone().addScaledVector(n1Left, -halfW);
         boundaryLinePts.push(inLeft1, inRight1);
 
-        // B. 200mm Giriş Düzlüğü (Sol ve Sağ Raylar)
+        // B. 200mm Giriş Düzlüğü
         const inLeft2 = pArcStart.clone().addScaledVector(n1Left, halfW);
         const inRight2 = pArcStart.clone().addScaledVector(n1Left, -halfW);
         boundaryLinePts.push(inLeft1, inLeft2);
         boundaryLinePts.push(inRight1, inRight2);
         axisLinePts.push(pBendStart, pArcStart);
 
-        // C. Kavisli Yay (Radius Arc): Sol ray daima sol raya, sağ ray daima sağ raya bağlanır
+        // C. Kavisli Yay (Radius Arc)
         const aStart = Math.atan2(pArcStart.y - cArc.y, pArcStart.x - cArc.x);
         const aEnd = Math.atan2(pArcEnd.y - cArc.y, pArcEnd.x - cArc.x);
 
@@ -250,7 +242,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
             prevCenter = currCenter;
         }
 
-        // D. 200mm Çıkış Düzlüğü (Sol ve Sağ Raylar)
+        // D. 200mm Çıkış Düzlüğü
         const outLeft2 = pBendEnd.clone().addScaledVector(n2Left, halfW);
         const outRight2 = pBendEnd.clone().addScaledVector(n2Left, -halfW);
 
@@ -258,11 +250,10 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         boundaryLinePts.push(prevRight, outRight2);
         axisLinePts.push(pArcEnd, pBendEnd);
 
-        // E. Çıkış Flanşı / Birleşim Çizgisi (Seam line across conveyor at pBendEnd)
+        // E. Çıkış Flanşı
         boundaryLinePts.push(outLeft2, outRight2);
     });
 
-    // Çift kenar sınır çizgilerini sahneye ekle
     if (boundaryLinePts.length > 0) {
         const lineGeo = new THREE.BufferGeometry().setFromPoints(boundaryLinePts);
         const lineSegments = new THREE.LineSegments(lineGeo, lineMat);
@@ -270,7 +261,6 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         group.add(lineSegments);
     }
 
-    // Eksen çizgisini (Dashed line) sahneye ekle
     if (axisLinePts.length > 0) {
         const axisGeo = new THREE.BufferGeometry().setFromPoints(axisLinePts);
         const axisLine = new THREE.LineSegments(axisGeo, axisMat);
@@ -279,7 +269,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         group.add(axisLine);
     }
 
-    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Tamamen Düz Sınır Çizgisi (Radius ve Daire Kaldırıldı)
+    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Tamamen Düz Sınır Çizgisi
     const startNode = nodes[0];
     const firstDir = pathData.segments[0].direction;
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
@@ -296,7 +286,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - AutoCAD DXF Dış Sınır Çizgileri
     const lastNode = nodes[nodes.length - 1].clone(); lastNode.z = zPos;
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
-    const mSide = lastNorm.clone().negate(); // Sağ tarafa monteli motor (Resimdeki yeşil kısım ile birebir uyumlu)
+    const mSide = lastNorm.clone().negate();
 
     const pt = (x_rel, y_out) => {
         return lastNode.clone()
@@ -312,52 +302,40 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
 
     const driveUnitPts = [];
 
-    // A. Ana Tahrik Kafası Şasi Kutusu (x: -0.40 -> 0.0)
-    // Kiriş birleşim flanş çizgisi (Gövde ile birleşim ek yeri)
+    // A. Ana Tahrik Kafası Şasi Kutusu
     driveUnitPts.push(ptLeft(-0.40), pt(-0.40, 0.0));
-    // Sol ve sağ gövde sınır hatları
     driveUnitPts.push(ptLeft(-0.40), ptLeft(0.0));
     driveUnitPts.push(pt(-0.40, 0.0), pt(0.0, 0.0));
-    // Ön kafa çizgisi (Tahrik mili ucu)
     driveUnitPts.push(ptLeft(0.0), pt(0.0, 0.0));
 
-    // Eksen çizgisi (Tahrik kafası içi)
     axisLinePts.push(lastNode.clone().addScaledVector(lastDir, -L_drive), lastNode.clone());
 
-    // B. Redüktör Bağlantı Kolları (Montaj Boyunları)
-    // Ön kol:
+    // B. Redüktör Bağlantı Kolları
     driveUnitPts.push(pt(-0.06, 0.0), pt(-0.06, 0.04));
     driveUnitPts.push(pt(-0.09, 0.0), pt(-0.09, 0.04));
-    // Arka kol:
     driveUnitPts.push(pt(-0.17, 0.0), pt(-0.17, 0.04));
     driveUnitPts.push(pt(-0.20, 0.0), pt(-0.20, 0.04));
 
-    // C. Redüktör Gövdesi (Gearbox Housing - Kademeli DXF Sınır Hatları)
-    // Ön kademe çıkıntısı
+    // C. Redüktör Gövdesi
     driveUnitPts.push(pt(-0.06, 0.07), pt(-0.02, 0.07));
     driveUnitPts.push(pt(-0.02, 0.07), pt(-0.02, 0.19));
     driveUnitPts.push(pt(-0.02, 0.19), pt(-0.06, 0.19));
-    // Ana redüktör gövde çerçevesi
     driveUnitPts.push(pt(-0.06, 0.04), pt(-0.06, 0.07));
     driveUnitPts.push(pt(-0.06, 0.19), pt(-0.06, 0.22));
     driveUnitPts.push(pt(-0.06, 0.22), pt(-0.22, 0.22));
     driveUnitPts.push(pt(-0.22, 0.22), pt(-0.22, 0.04));
     driveUnitPts.push(pt(-0.22, 0.04), pt(-0.06, 0.04));
 
-    // D. Elektrik Motoru (Gövde, Klemens Kutusu ve Pah Kırılmış Pervane Kapağı)
-    // Motor iç kenarı
+    // D. Elektrik Motoru
     driveUnitPts.push(pt(-0.22, 0.06), pt(-0.39, 0.06));
-    // Arka fan kapağı (45° pah kırılmış köşeler)
     driveUnitPts.push(pt(-0.39, 0.06), pt(-0.42, 0.08));
     driveUnitPts.push(pt(-0.42, 0.08), pt(-0.42, 0.18));
     driveUnitPts.push(pt(-0.42, 0.18), pt(-0.39, 0.20));
-    // Dış kenar ve Klemens Kutusu çıkıntısı
     driveUnitPts.push(pt(-0.39, 0.20), pt(-0.31, 0.20));
     driveUnitPts.push(pt(-0.31, 0.20), pt(-0.31, 0.235));
     driveUnitPts.push(pt(-0.31, 0.235), pt(-0.25, 0.235));
     driveUnitPts.push(pt(-0.25, 0.235), pt(-0.25, 0.20));
     driveUnitPts.push(pt(-0.25, 0.20), pt(-0.22, 0.20));
-    // Motorun redüktöre flanş bağlantı çizgisi
     driveUnitPts.push(pt(-0.22, 0.20), pt(-0.22, 0.06));
 
     if (driveUnitPts.length > 0) {
@@ -366,38 +344,65 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         driveUnitMesh.name = 'Conveyor2DDriveUnit';
         group.add(driveUnitMesh);
     }
+}
 
-    // METİNLER TAMAMEN KALDIRILDI: Konveyör çizimi üzerinde hiçbir etiket/metin yer almaz.
+/**
+ * 2. Yeni 2D/3D Entegre Konveyör Montaj Grubu Oluştur (Root Assembly)
+ */
+export function generate2DConveyorCADGroup(pathData, widthM = 0.105, assyName = null, floorElev = null) {
+    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return null;
+    const group = new THREE.Group();
+    if (!assyName) {
+        assyName = `Conveyor_${String(Date.now()).slice(-4)}`;
+    }
+    group.name = assyName;
 
-    // 7. UserData & Ürün Ağacı Entegrasyonu
+    const floorZ = (typeof floorElev === 'number') ? floorElev :
+                   ((pathData.nodes[0] && typeof pathData.nodes[0].z === 'number') ? pathData.nodes[0].z :
+                   (typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0));
+
+    // Kapsayıcı Root userData
     group.userData = {
         type: 'xml-product',
         isParametric: true,
         parametricKind: 'conveyor-2d',
         is2DConveyorSketch: true,
+        isConveyorAssemblyRoot: true,
         assemblyName: assyName,
+        displayMode: '2D', // '2D' | '3D' | 'BOTH'
+        floorElevation: floorZ,
+        topOfChainMM: 850,
+        platformType: 'XH',
         parametric: {
             width: widthM,
             pathData: pathData,
             assemblyName: assyName
         },
         product: {
-            name: `${assyName} (2D Taslak - ${pathData.totalLength.toFixed(1)}m)`,
-            type: 'conveyor-2d-sketch',
+            name: `${assyName} (${pathData.totalLength.toFixed(1)}m)`,
+            type: 'conveyor-assembly',
             group: 'Conveyors',
             assemblyName: assyName,
-            position: { x: startNode.x, y: startNode.y, z: zPos }
+            position: { x: pathData.nodes[0].x, y: pathData.nodes[0].y, z: floorZ }
         }
     };
-}
 
-/**
- * 2. Yeni 2D AutoCAD Konveyör Grubu Oluştur
- */
-export function generate2DConveyorCADGroup(pathData, widthM = 0.105, assyName = null) {
-    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return null;
-    const group = new THREE.Group();
-    populate2DConveyorCADGeometry(group, pathData, widthM, assyName);
+    // 1. 2D Çizim Katmanı (sketch2DGroup)
+    let sketch2DGroup = new THREE.Group();
+    sketch2DGroup.name = 'Conveyor2DSketch';
+    group.add(sketch2DGroup);
+    group.userData.sketch2DGroup = sketch2DGroup;
+
+    // 2. 3D Katı Model Katmanı (model3DGroup)
+    let model3DGroup = new THREE.Group();
+    model3DGroup.name = 'Conveyor3DModel';
+    model3DGroup.visible = false;
+    group.add(model3DGroup);
+    group.userData.model3DGroup = model3DGroup;
+
+    // 2D Çizimi oluştur
+    populate2DConveyorCADGeometry(sketch2DGroup, pathData, widthM, assyName, floorZ);
+
     active2DConveyorGroup = group;
     return group;
 }
@@ -413,90 +418,62 @@ export function calculateAndRenderConveyorBOM(pathData) {
 
     const bendRadiusM = 0.7;
     let totalBendLength = 0;
-    turns.forEach(t => {
-        const rad = THREE.MathUtils.degToRad(t.standardAngle || 90);
-        totalBendLength += rad * bendRadiusM;
+    turns.forEach(turn => {
+        const rad = (turn.standardAngle * Math.PI) / 180;
+        totalBendLength += (bendRadiusM * rad) + 0.4;
     });
 
-    const netStraightLen = Math.max(0.5, totalLength - totalBendLength);
-    const standard3mBeams = Math.floor(netStraightLen / 3.0);
-    const remainderM = (netStraightLen % 3.0);
+    const straightLength = Math.max(0, totalLength - totalBendLength);
+    const beamProfilesCount = Math.ceil(straightLength / 3.0);
+    const supportLegsCount = Math.max(2, Math.ceil(totalLength / 2.0));
 
-    const totalChainLen = (totalLength * 2) + 1.8;
-    const supportLegsCount = Math.max(2, Math.ceil(totalLength / 2.5) + turns.length);
-
-    const costBeams = (netStraightLen * 85);
-    const costBends = (turns.length * 320);
+    const costBeams = beamProfilesCount * 140;
+    const costBends = turns.length * 480;
     const costDrive = 750;
     const costIdler = 220;
-    const costChain = (totalChainLen * 38);
-    const costGuides = (totalLength * 2 * 18);
-    const costLegs = (supportLegsCount * 65);
+    const costChain = Math.round(totalLength * 85);
+    const costGuides = Math.round(totalLength * 2 * 45);
+    const costLegs = supportLegsCount * 110;
 
     const totalEstCost = Math.round(costBeams + costBends + costDrive + costIdler + costChain + costGuides + costLegs);
 
-    const lenEl = document.getElementById('bom-total-length');
-    if (lenEl) lenEl.innerText = `${totalLength.toFixed(2)} m`;
+    const costEl = document.getElementById('conveyor-bom-total-cost');
+    if (costEl) {
+        costEl.innerText = `${totalEstCost.toLocaleString('tr-TR')} €`;
+    }
 
-    const turnsEl = document.getElementById('bom-turns-count');
-    if (turnsEl) turnsEl.innerText = `${turns.length} Adet`;
-
-    const motorsEl = document.getElementById('bom-motors-count');
-    if (motorsEl) motorsEl.innerText = `1 Adet`;
-
-    const costEl = document.getElementById('bom-est-cost');
-    if (costEl) costEl.innerText = `~${totalEstCost.toLocaleString('tr-TR')} €`;
-
-    const tbody = document.getElementById('bom-table-body');
-    if (tbody) {
-        let remainderHtml = '';
-        if (remainderM > 0.05) {
-            remainderHtml = `
+    const tableBody = document.getElementById('conveyor-bom-table-body');
+    if (tableBody) {
+        tableBody.innerHTML = `
             <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>✂️</span> Özel Boy Ara Kiriş Kesimi</td>
-                <td class="py-2 px-3 text-cyan-400">XCB-CUT</td>
-                <td class="py-2 px-3 text-gray-400">Hatta Özel Net Ölçü Kesim Parçası</td>
-                <td class="py-2 px-3 text-right text-amber-400 font-bold">1 Parça (${remainderM.toFixed(2)}m)</td>
-            </tr>`;
-        }
-
-        let turnsHtml = '';
-        turns.forEach((t, idx) => {
-            turnsHtml += `
-            <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>↪️</span> Yatay Dönüş Virajı #${idx + 1}</td>
-                <td class="py-2 px-3 text-cyan-400">CE01 / XBEJ ${t.standardAngle}</td>
-                <td class="py-2 px-3 text-gray-400">${t.standardAngle}° ${t.direction === 'left' ? 'Sol' : 'Sağ'} Dönüş (R: 700mm)</td>
-                <td class="py-2 px-3 text-right text-cyan-400 font-bold">1 Adet</td>
-            </tr>`;
-        });
-
-        tbody.innerHTML = `
-            <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>🔄</span> Avare Dönüş Başlığı (Başlangıç)</td>
-                <td class="py-2 px-3 text-cyan-400">XKEJ 160 / 200</td>
-                <td class="py-2 px-3 text-gray-400">Rulmanlı, Yay Gergi Mekanizmalı</td>
+                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>⚡</span> Motorlu Tahrik Ünitesi (Direct Drive)</td>
+                <td class="py-2 px-3 text-cyan-400">XHEB 0 HNRP</td>
+                <td class="py-2 px-3 text-gray-400">0.37 kW SEW Motor & Redüktör Paketi</td>
                 <td class="py-2 px-3 text-right text-emerald-400 font-bold">1 Adet</td>
             </tr>
             <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>⚡</span> Tahrik Ünitesi (Motorlu Bitiş)</td>
-                <td class="py-2 px-3 text-cyan-400">XHEB 0 / XHEJ</td>
-                <td class="py-2 px-3 text-gray-400">0.37 kW Motor & Sonsuz Redüktörlü</td>
+                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>🟢</span> Avare Dönüş Uç Ünitesi (Idler End)</td>
+                <td class="py-2 px-3 text-cyan-400">XHEJ 325</td>
+                <td class="py-2 px-3 text-gray-400">Kompakt Bilyalı Rulmanlı Başlangıç Modülü</td>
                 <td class="py-2 px-3 text-right text-emerald-400 font-bold">1 Adet</td>
             </tr>
             <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>📏</span> Standart Konveyör Gövde Kirişleri</td>
-                <td class="py-2 px-3 text-cyan-400">XCB 3000</td>
-                <td class="py-2 px-3 text-gray-400">3000 mm Eloksallı Alüminyum Gövde</td>
-                <td class="py-2 px-3 text-right text-amber-400 font-bold">${standard3mBeams} Boy (3.0m)</td>
+                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>📏</span> Alüminyum Gövde Profil Kirişleri</td>
+                <td class="py-2 px-3 text-cyan-400">XBCB L (3 Metre)</td>
+                <td class="py-2 px-3 text-gray-400">Eloksallı Alüminyum Konveyör Gövdesi</td>
+                <td class="py-2 px-3 text-right text-cyan-400 font-bold">${beamProfilesCount} Boy (${straightLength.toFixed(1)}m)</td>
             </tr>
-            ${remainderHtml}
-            ${turnsHtml}
             <tr class="hover:bg-zinc-800/50">
-                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>⛓️</span> Modüler Baklalı Plastik Zincir</td>
-                <td class="py-2 px-3 text-cyan-400">XKP 85 / XTP</td>
-                <td class="py-2 px-3 text-gray-400">Düşük Sürtünmeli Asetal (POM), Pim Bağlantılı</td>
-                <td class="py-2 px-3 text-right text-purple-400 font-bold">${totalChainLen.toFixed(1)} Metre</td>
+                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>↪️</span> Yatay Viraj Modülleri (Wheel Bends)</td>
+                <td class="py-2 px-3 text-cyan-400">XHBP R700</td>
+                <td class="py-2 px-3 text-gray-400">Düşük Sürtünmeli Tekerlekli Kavisler</td>
+                <td class="py-2 px-3 text-right text-amber-400 font-bold">${turns.length} Adet</td>
+            </tr>
+            <tr class="hover:bg-zinc-800/50">
+                <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>🔗</span> Plastik Baklalı Düz Zincir</td>
+                <td class="py-2 px-3 text-cyan-400">XKTP 5A</td>
+                <td class="py-2 px-3 text-gray-400">Asetal (POM) Beyaz Konveyör Zinciri</td>
+                <td class="py-2 px-3 text-right text-yellow-400 font-bold">${totalLength.toFixed(1)} Metre</td>
             </tr>
             <tr class="hover:bg-zinc-800/50">
                 <td class="py-2 px-3 font-medium text-white flex items-center gap-1.5"><span>🚧</span> Yan Kılavuz Korkuluklar (Guide Rails)</td>
@@ -518,12 +495,20 @@ export function calculateAndRenderConveyorBOM(pathData) {
  * 4. 2D Parametrik Özellikler Panelini Doldur (Sağ Panel)
  */
 export function update2DConveyorParametricEditor(groupObj) {
-    if (!groupObj || !groupObj.userData?.is2DConveyorSketch) return;
-    active2DConveyorGroup = groupObj;
+    if (!groupObj) return;
+    let root = groupObj;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
+    }
+    if (!root.userData?.is2DConveyorSketch && !root.userData?.isConveyorAssemblyRoot) return;
+    active2DConveyorGroup = root;
 
-    const data = groupObj.userData.parametric || {};
-    const pathData = data.pathData || {};
-    const assyName = data.assemblyName || groupObj.name || 'Conveyor';
+    const data = root.userData.parametric || {};
+    const pathData = data.pathData || root.userData.pathData || {};
+    const assyName = data.assemblyName || root.userData.assemblyName || root.name || 'Conveyor';
+    const floorZ = typeof root.userData.floorElevation === 'number' ? root.userData.floorElevation : 0;
+    const topOfChainMM = root.userData.topOfChainMM || 850;
+    const curMode = root.userData.displayMode || '2D';
 
     const nameEl = document.getElementById('conveyor-2d-name');
     if (nameEl) nameEl.innerText = assyName;
@@ -536,6 +521,28 @@ export function update2DConveyorParametricEditor(groupObj) {
         const widthMM = Math.round((data.width || 0.105) * 1000);
         widthSelect.value = String(widthMM);
     }
+
+    const floorElevInput = document.getElementById('conveyor-floor-elev-input');
+    if (floorElevInput) {
+        floorElevInput.value = floorZ.toFixed(2);
+    }
+
+    const tocInput = document.getElementById('conveyor-top-of-chain-input');
+    if (tocInput) {
+        tocInput.value = String(topOfChainMM);
+    }
+
+    // Görünüm butonlarını güncelle
+    const btn2d = document.getElementById('btn-mode-2d');
+    const btn3d = document.getElementById('btn-mode-3d');
+    const btnBoth = document.getElementById('btn-mode-both');
+
+    const activeClass = 'bg-cyan-950/60 text-cyan-300 border border-cyan-700/50';
+    const inactiveClass = 'bg-gray-900 text-gray-400 hover:text-gray-200 border-transparent';
+
+    if (btn2d) btn2d.className = `py-1 rounded font-medium transition cursor-pointer text-center ${curMode === '2D' ? activeClass : inactiveClass}`;
+    if (btn3d) btn3d.className = `py-1 rounded font-medium transition cursor-pointer text-center ${curMode === '3D' ? activeClass : inactiveClass}`;
+    if (btnBoth) btnBoth.className = `py-1 rounded font-medium transition cursor-pointer text-center ${curMode === 'BOTH' ? activeClass : inactiveClass}`;
 
     // Segmentler ve Açıları Listele
     const listEl = document.getElementById('conveyor-2d-segments-list');
@@ -584,12 +591,16 @@ export function update2DConveyorParametricEditor(groupObj) {
 }
 
 /**
- * 5. Parametre Değiştiğinde 2D Çizimi Anında Yeniden Hesapla (Forward Kinematics)
+ * 5. Parametre Değiştiğinde 2D Çizimi ve 3D Modelleri Anında Senkronize Güncelle
  */
 export function applySelected2DConveyorParameters() {
-    if (!active2DConveyorGroup || !active2DConveyorGroup.userData?.is2DConveyorSketch) return;
+    if (!active2DConveyorGroup) return;
+    let root = active2DConveyorGroup;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
+    }
 
-    const data = active2DConveyorGroup.userData.parametric;
+    const data = root.userData.parametric;
     const pathData = data.pathData;
     if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return;
 
@@ -597,7 +608,7 @@ export function applySelected2DConveyorParameters() {
     const newWidthM = widthSelect ? (parseFloat(widthSelect.value) || 105) / 1000 : (data.width || 0.105);
 
     // Segment boylarını ve açıları oku
-    const newNodes = [pathData.nodes[0].clone()]; // Başlangıç Avare noktası sabit
+    const newNodes = [pathData.nodes[0].clone()];
     let currentDir = pathData.segments[0].direction.clone();
 
     for (let i = 0; i < pathData.segments.length; i++) {
@@ -608,7 +619,6 @@ export function applySelected2DConveyorParameters() {
         const nextNode = lastNode.clone().addScaledVector(currentDir, targetLen);
         newNodes.push(nextNode);
 
-        // Bir sonraki doğrultu için açıyı ve radiusu uygula
         const turn = (pathData.turns || []).find(t => t.nodeIndex === i + 1);
         if (turn) {
             const angleSelect = document.getElementById(`turn-angle-input-${i}`);
@@ -631,10 +641,8 @@ export function applySelected2DConveyorParameters() {
         }
     }
 
-    // Yeni polyline analizi
     const newPathData = typeof window.analyzeConveyorPolyline === 'function' ? window.analyzeConveyorPolyline(newNodes) : pathData;
 
-    // Radius bilgilerini newPathData.turns'e aktar
     if (Array.isArray(newPathData.turns) && Array.isArray(pathData.turns)) {
         newPathData.turns.forEach(nt => {
             const ot = pathData.turns.find(t => t.nodeIndex === nt.nodeIndex);
@@ -646,10 +654,21 @@ export function applySelected2DConveyorParameters() {
         });
     }
 
-    // active2DConveyorGroup nesnesinin çocuklarını güvenle doğrudan güncelle (Sonsuz döngü riski yok)
-    populate2DConveyorCADGeometry(active2DConveyorGroup, newPathData, newWidthM, data.assemblyName);
+    root.userData.parametric.width = newWidthM;
+    root.userData.parametric.pathData = newPathData;
 
-    // Sağ panel metraj göstergesini güncelle
+    const floorZ = typeof root.userData.floorElevation === 'number' ? root.userData.floorElevation : 0;
+    const sketch2D = root.userData?.sketch2DGroup || root.getObjectByName('Conveyor2DSketch');
+    if (sketch2D) {
+        populate2DConveyorCADGeometry(sketch2D, newPathData, newWidthM, root.name, floorZ);
+    }
+
+    // Eğer 3D modeller zaten mevcutsa, anlık olarak 3D'yi de yeni geometriye uyarla!
+    const model3D = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+    if (model3D && model3D.children.length > 0) {
+        convertConveyorTo3D(root);
+    }
+
     const lenEl = document.getElementById('conveyor-2d-total-len');
     if (lenEl) lenEl.innerText = `${newPathData.totalLength.toFixed(2)} m`;
 
@@ -663,154 +682,238 @@ export function applySelected2DConveyorParameters() {
 }
 
 /**
- * 6. 2D Taslağı Tam 3D Modele Dönüştür (2D Gizle)
+ * 6. Zemin Kotu Değiştiğinde 2D ve 3D'yi Aynı Anda Yeni Kota Taşı
  */
-export async function convertActive2DConveyorTo3D() {
-    if (!active2DConveyorGroup || !active2DConveyorGroup.userData?.is2DConveyorSketch) return;
-
-    const data = active2DConveyorGroup.userData.parametric;
-    const pathData = data.pathData;
-    const assyName = data.assemblyName;
-
-    if (typeof window.openConveyorBuilderModal === 'function') {
-        window.setActiveConveyorPathData(pathData);
-        window.openConveyorBuilderModal();
-
-        const nameInput = document.getElementById('builder-assembly-name');
-        if (nameInput) nameInput.value = assyName;
-
-        // İnşa edildikten sonra 2D görünümü gizle
-        setTimeout(() => {
-            if (active2DConveyorGroup) {
-                active2DConveyorGroup.visible = false;
-            }
-        }, 1000);
-    }
-}
-
-/**
- * 7. 2D Taslak Görünürlüğünü Aç / Kapat
- */
-export function toggleActive2DConveyorVisibility() {
+export function applyConveyorFloorElevation() {
     if (!active2DConveyorGroup) return;
-    active2DConveyorGroup.visible = !active2DConveyorGroup.visible;
+    let root = active2DConveyorGroup;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
+    }
+
+    const elevInput = document.getElementById('conveyor-floor-elev-input');
+    const newFloorZ = elevInput ? parseFloat(elevInput.value) || 0 : (root.userData.floorElevation || 0);
+    root.userData.floorElevation = newFloorZ;
+
+    const sketch2D = root.userData?.sketch2DGroup || root.getObjectByName('Conveyor2DSketch');
+    const pathData = root.userData?.parametric?.pathData;
+    const widthM = root.userData?.parametric?.width || 0.105;
+
+    if (sketch2D && pathData) {
+        populate2DConveyorCADGeometry(sketch2D, pathData, widthM, root.name, newFloorZ);
+    }
+
+    const model3D = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+    if (model3D && model3D.children.length > 0) {
+        convertConveyorTo3D(root);
+    }
+
     if (typeof showNotice === 'function') {
-        showNotice(`👁️ 2D Taslak Görünürlüğü: ${active2DConveyorGroup.visible ? 'Açık' : 'Gizli'}`);
+        showNotice(`📍 Referans Zemin Kotu Güncellendi: +${newFloorZ.toFixed(2)} m`);
     }
 }
 
 /**
- * 8. Polyline'dan 3D Konveyör Modellerini Sahneye İnşa Et (Start = Avare, End = Motor)
+ * 7. Taşıma Yüksekliği (Top of Chain) Değiştiğinde 3D Modelleri Güncelle
  */
-export async function executeConveyorBuild() {
-    const pathData = typeof window.activeConveyorPathData !== 'undefined' ? window.activeConveyorPathData : null;
-    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) {
-        if (typeof showNotice === 'function') {
-            showNotice('⚠️ İnşa edilecek geçerli bir güzergah polyline verisi bulunamadı.');
-        }
+export function applyConveyorTopOfChain() {
+    if (!active2DConveyorGroup) return;
+    let root = active2DConveyorGroup;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
+    }
+
+    const tocInput = document.getElementById('conveyor-top-of-chain-input');
+    const newTocMM = tocInput ? parseFloat(tocInput.value) || 850 : (root.userData.topOfChainMM || 850);
+    root.userData.topOfChainMM = newTocMM;
+
+    const model3D = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+    if (model3D && model3D.children.length > 0) {
+        convertConveyorTo3D(root);
+    }
+
+    if (typeof showNotice === 'function') {
+        showNotice(`📏 Taşıma Kotu (Top of Chain): ${newTocMM} mm (+${(newTocMM / 1000).toFixed(2)} m)`);
+    }
+}
+
+/**
+ * 8. Görünüm Modunu Değiştir ('2D' | '3D' | 'BOTH')
+ */
+export function setConveyorDisplayMode(conveyorGroup, mode) {
+    if (!conveyorGroup) return;
+    let root = conveyorGroup;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
+    }
+
+    const sketch2D = root.userData?.sketch2DGroup || root.getObjectByName('Conveyor2DSketch');
+    const model3D = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+
+    // Eğer 3D model isteniyor ama henüz üretilmemişse, otomatik üret
+    if ((mode === '3D' || mode === 'BOTH') && (!model3D || model3D.children.length === 0)) {
+        convertConveyorTo3D(root).then(() => {
+            applyModeVisibility(root, mode);
+        });
         return;
     }
 
-    const assyNameInput = document.getElementById('builder-assembly-name');
-    const platformSelect = document.getElementById('builder-platform-type');
-    const radiusSelect = document.getElementById('builder-bend-radius');
-    const tocInput = document.getElementById('builder-top-of-chain');
+    applyModeVisibility(root, mode);
+}
 
-    const assemblyName = assyNameInput ? assyNameInput.value.trim() || 'Conveyor_New' : 'Conveyor_New';
-    const platformType = platformSelect ? platformSelect.value : 'XH';
-    const bendRadiusMM = radiusSelect ? parseInt(radiusSelect.value, 10) || 700 : 700;
-    const topOfChainMM = tocInput ? parseFloat(tocInput.value) || 850 : 850;
+function applyModeVisibility(root, mode) {
+    const sketch2D = root.userData?.sketch2DGroup || root.getObjectByName('Conveyor2DSketch');
+    const model3D = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+
+    root.userData.displayMode = mode;
+
+    if (mode === '2D') {
+        if (sketch2D) sketch2D.visible = true;
+        if (model3D) model3D.visible = false;
+    } else if (mode === '3D') {
+        if (sketch2D) sketch2D.visible = false;
+        if (model3D) model3D.visible = true;
+    } else if (mode === 'BOTH') {
+        if (sketch2D) sketch2D.visible = true;
+        if (model3D) model3D.visible = true;
+    }
 
     if (typeof showNotice === 'function') {
-        showNotice(`⏳ "${assemblyName}" konveyör hattı 3D sahnede inşa ediliyor...`);
+        const modeLabel = mode === '2D' ? 'Yalnızca 2D Taslak' :
+                          mode === '3D' ? 'Yalnızca 3D Model' : '2D Taslak + 3D Model Birlikte';
+        showNotice(`👁️ Görünüm: ${modeLabel}`);
     }
 
-    if (typeof window.closeConveyorBuilderModal === 'function') {
-        window.closeConveyorBuilderModal();
+    update2DConveyorParametricEditor(root);
+}
+
+/**
+ * 9. 2D Taslağı 3D Gerçek Katı Modellerine Dönüştür
+ */
+export async function convertConveyorTo3D(conveyorRoot) {
+    if (!conveyorRoot) return;
+    let root = conveyorRoot;
+    if (!root.userData?.isConveyorAssemblyRoot && root.parent?.userData?.isConveyorAssemblyRoot) {
+        root = root.parent;
     }
 
-    // Parça listesi oluştur (Başlangıç Avare, Bitiş Motor)
+    let model3DGroup = root.userData?.model3DGroup || root.getObjectByName('Conveyor3DModel');
+    if (!model3DGroup) {
+        model3DGroup = new THREE.Group();
+        model3DGroup.name = 'Conveyor3DModel';
+        root.add(model3DGroup);
+        root.userData.model3DGroup = model3DGroup;
+    }
+
+    let sketch2DGroup = root.userData?.sketch2DGroup || root.getObjectByName('Conveyor2DSketch');
+
+    const data = root.userData?.parametric || {};
+    const pathData = data.pathData || root.userData?.pathData;
+    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return;
+
+    const floorZ = typeof root.userData?.floorElevation === 'number' ? root.userData.floorElevation : 0;
+    const topOfChainMM = root.userData?.topOfChainMM || 850;
+    const platformType = root.userData?.platformType || 'XH';
+    const assyName = root.userData?.assemblyName || root.name;
+
+    if (typeof showNotice === 'function') {
+        showNotice(`⏳ "${assyName}" için 3D katı modeller oluşturuluyor...`);
+    }
+
+    // Önceki 3D parçaları temizle
+    while (model3DGroup.children.length > 0) {
+        const c = model3DGroup.children[0];
+        model3DGroup.remove(c);
+        if (c.geometry) c.geometry.dispose?.();
+        if (c.material) {
+            if (Array.isArray(c.material)) c.material.forEach(m => m.dispose?.());
+            else c.material.dispose?.();
+        }
+    }
+
+    // Parça listesi oluştur (FloorZ ve TopOfChain hesabı ile)
     const products = generateConveyorProductsFromPath(pathData, {
-        assemblyName,
-        platformType,
-        bendRadiusMM,
-        topOfChainMM
+        assemblyName: assyName,
+        platformType: platformType,
+        bendRadiusMM: (pathData.turns && pathData.turns[0]?.suggestedRadius) ? Math.round(pathData.turns[0].suggestedRadius * 1000) : 700,
+        topOfChainMM: topOfChainMM,
+        floorElev: floorZ
     });
 
-    if (!products || products.length === 0) {
-        if (typeof showNotice === 'function') {
-            showNotice('❌ Konveyör parçaları türetilemedi.');
-        }
-        return;
+    if (typeof ensureAllXLCTModelsPreloaded === 'function') {
+        await ensureAllXLCTModelsPreloaded();
     }
-
-    if (!Array.isArray(importedProject)) {
-        importedProject = [];
-    }
-
-    const newAssembly = {
-        name: assemblyName,
-        assemblyName: assemblyName,
-        products: products
-    };
-    importedProject.push(newAssembly);
-
-    const assemblyGroup = new THREE.Group();
-    assemblyGroup.name = assemblyName;
-    assemblyGroup.userData = { type: 'assembly', assemblyName: assemblyName };
-
-    await ensureAllXLCTModelsPreloaded();
 
     for (const product of products) {
-        const mesh = await createProductMesh(product);
-        if (mesh) {
-            mesh.userData.assemblyName = assemblyName;
-            assemblyGroup.add(mesh);
+        if (typeof createProductMesh === 'function') {
+            const mesh = await createProductMesh(product);
+            if (mesh) {
+                mesh.userData.assemblyName = assyName;
+                model3DGroup.add(mesh);
+            }
         }
-        modelTreeEntries.push({ assemblyName: assemblyName, product, mesh: mesh || null });
     }
 
-    if (importedProjectRoot) {
-        importedProjectRoot.add(assemblyGroup);
-    } else {
-        scene.add(assemblyGroup);
+    // 3D katmanı görünür yap, 2D katmanı gizle
+    model3DGroup.visible = true;
+    root.userData.displayMode = '3D';
+    if (sketch2DGroup) {
+        sketch2DGroup.visible = false;
     }
 
     if (typeof rebuildModelTreeFromScene === 'function') {
         rebuildModelTreeFromScene();
     }
 
-    if (typeof generateAllConveyorPathways === 'function') {
-        setTimeout(() => { generateAllConveyorPathways(); }, 300);
+    if (typeof showNotice === 'function') {
+        showNotice(`✅ "${assyName}" 3D Modeli Hazır: Zemin Kotu: +${floorZ.toFixed(2)}m, Taşıma: +${(topOfChainMM / 1000).toFixed(2)}m`);
     }
 
-    if (typeof showNotice === 'function') {
-        showNotice(`🚀 "${assemblyName}" konveyör hattı ${pathData.totalLength.toFixed(1)}m uzunluğunda 3D olarak başarıyla inşa edildi!`);
-    }
+    update2DConveyorParametricEditor(root);
+}
+
+export async function convertActive2DConveyorTo3D() {
+    if (!active2DConveyorGroup) return;
+    await convertConveyorTo3D(active2DConveyorGroup);
+}
+
+export function toggleActive2DConveyorVisibility() {
+    if (!active2DConveyorGroup) return;
+    const cur = active2DConveyorGroup.userData.displayMode || '2D';
+    const next = cur === '2D' ? '3D' : (cur === '3D' ? 'BOTH' : '2D');
+    setConveyorDisplayMode(active2DConveyorGroup, next);
 }
 
 /**
- * 9. Polyline Geometrisinden Sıralı Ürün Listesi Türet
- * BAŞLANGIÇ: HER ZAMAN AVARE (XKEJ), BİTİŞ: HER ZAMAN MOTOR (XHEB)
+ * 10. Polyline Geometrisinden Sıralı Ürün Listesi Türet
+ * BAŞLANGIÇ: HER ZAMAN AVARE (XHEJ), BİTİŞ: HER ZAMAN MOTOR (XHEB)
  */
 function generateConveyorProductsFromPath(pathData, config) {
     const products = [];
     const nodes = pathData.nodes;
     const segments = pathData.segments;
-    const turns = pathData.turns;
-    const elevationZ = (config.topOfChainMM / 1000);
+    const turns = pathData.turns || [];
+    const floorElev = typeof config.floorElev === 'number' ? config.floorElev : 0;
+    const elevationZ = floorElev + (config.topOfChainMM / 1000);
 
     let seq = 0;
 
-    // BAŞLANGIÇ: Her zaman AVARE UÇ (Idler End - XKEJ)
+    const isXB = config.platformType === 'XB' || config.platformType === 'X180';
+    const idlerType = isXB ? 'XBEJ' : 'XHEJ';
+    const driveType = isXB ? 'XBEB' : 'XHEB';
+    const bendType = isXB ? 'XBBP' : 'XHBP';
+    const beamType = isXB ? 'XBCB' : 'XBCB';
+
+    // BAŞLANGIÇ: Her zaman AVARE UÇ (Idler End)
     const startNode = nodes[0];
     const firstSeg = segments[0];
     const firstAngleZ = Math.atan2(firstSeg.direction.y, firstSeg.direction.x);
 
     products.push({
         guid: `conv-idler-start-${Date.now()}-${seq}`,
-        name: `${config.platformType}EJ Idler End (Avare)`,
-        type: 'XKEJ',
+        name: `${idlerType} Idler End (Avare)`,
+        productno: idlerType,
+        type: idlerType,
         group: 'IdlerEnds',
         assemblyName: config.assemblyName,
         sequence: seq++,
@@ -830,6 +933,7 @@ function generateConveyorProductsFromPath(pathData, config) {
         products.push({
             guid: `conv-seg-${Date.now()}-${seq}`,
             name: `Straight Beam L:${seg.length.toFixed(1)}m`,
+            productno: beamType,
             type: 'SE01',
             group: 'StraightBeams',
             assemblyName: config.assemblyName,
@@ -847,6 +951,7 @@ function generateConveyorProductsFromPath(pathData, config) {
             products.push({
                 guid: `conv-bend-${Date.now()}-${seq}`,
                 name: `Curve ${turn.standardAngle}° (${turn.direction === 'left' ? 'L' : 'R'})`,
+                productno: bendType,
                 type: 'CE01',
                 group: 'Bends',
                 assemblyName: config.assemblyName,
@@ -863,15 +968,16 @@ function generateConveyorProductsFromPath(pathData, config) {
         }
     }
 
-    // BİTİŞ: Her zaman MOTOR / TAHRİK ÜNİTESİ (Drive Unit - XHEB)
+    // BİTİŞ: Her zaman MOTOR / TAHRİK ÜNİTESİ (Drive Unit)
     const lastNode = nodes[nodes.length - 1];
     const lastSeg = segments[segments.length - 1];
     const lastAngleZ = Math.atan2(lastSeg.direction.y, lastSeg.direction.x);
 
     products.push({
         guid: `conv-drive-end-${Date.now()}-${seq}`,
-        name: `${config.platformType}EB Drive Unit (Motor)`,
-        type: 'XHEB',
+        name: `${driveType} Drive Unit (Motor)`,
+        productno: `${driveType}HNRP`,
+        type: driveType,
         group: 'Motors',
         assemblyName: config.assemblyName,
         sequence: seq++,
@@ -888,12 +994,16 @@ function generateConveyorProductsFromPath(pathData, config) {
 
 // Global Exports
 if (typeof window !== 'undefined') {
+    window.createCADTechnicalTextSprite = createCADTechnicalTextSprite;
     window.populate2DConveyorCADGeometry = populate2DConveyorCADGeometry;
     window.generate2DConveyorCADGroup = generate2DConveyorCADGroup;
     window.calculateAndRenderConveyorBOM = calculateAndRenderConveyorBOM;
     window.update2DConveyorParametricEditor = update2DConveyorParametricEditor;
     window.applySelected2DConveyorParameters = applySelected2DConveyorParameters;
+    window.convertConveyorTo3D = convertConveyorTo3D;
     window.convertActive2DConveyorTo3D = convertActive2DConveyorTo3D;
+    window.setConveyorDisplayMode = setConveyorDisplayMode;
+    window.applyConveyorFloorElevation = applyConveyorFloorElevation;
+    window.applyConveyorTopOfChain = applyConveyorTopOfChain;
     window.toggleActive2DConveyorVisibility = toggleActive2DConveyorVisibility;
-    window.executeConveyorBuild = executeConveyorBuild;
 }
