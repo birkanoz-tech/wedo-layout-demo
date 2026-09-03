@@ -6,17 +6,27 @@
 let active2DConveyorGroup = null;
 
 /**
- * 1. 2D AutoCAD Tipi Parametrik Konveyör Gövde Çizimi Üretici
+ * 1. 2D AutoCAD Tipi Parametrik Konveyör Gövde Geometrisini Doldur / Yenile
  */
-export function generate2DConveyorCADGroup(pathData, widthM = 0.105, assyName = null) {
-    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return null;
+export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName = null) {
+    if (!group || !pathData || !pathData.nodes || pathData.nodes.length < 2) return;
 
     if (!assyName) {
-        assyName = `Conveyor_${String(Date.now()).slice(-4)}`;
+        assyName = group.name || `Conveyor_${String(Date.now()).slice(-4)}`;
+    }
+    group.name = assyName;
+
+    // Güvenli çocuk temizliği (Kopya dizi üzerinde döngü)
+    const existing = [...group.children];
+    for (const c of existing) {
+        group.remove(c);
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) {
+            if (Array.isArray(c.material)) c.material.forEach(m => m.dispose?.());
+            else c.material.dispose?.();
+        }
     }
 
-    const group = new THREE.Group();
-    group.name = assyName;
     const nodes = pathData.nodes;
     const segments = pathData.segments;
     const turns = pathData.turns || [];
@@ -213,13 +223,21 @@ export function generate2DConveyorCADGroup(pathData, widthM = 0.105, assyName = 
             position: { x: startNode.x, y: startNode.y, z: zPos }
         }
     };
+}
 
+/**
+ * 2. Yeni 2D AutoCAD Konveyör Grubu Oluştur
+ */
+export function generate2DConveyorCADGroup(pathData, widthM = 0.105, assyName = null) {
+    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return null;
+    const group = new THREE.Group();
+    populate2DConveyorCADGeometry(group, pathData, widthM, assyName);
     active2DConveyorGroup = group;
     return group;
 }
 
 /**
- * 2. 3D Model Yüklemeden Hızlı BOM (Malzeme & Maliyet) Listesi Hesapla
+ * 3. 3D Model Yüklemeden Hızlı BOM (Malzeme & Maliyet) Listesi Hesapla
  */
 export function calculateAndRenderConveyorBOM(pathData) {
     if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return;
@@ -331,7 +349,7 @@ export function calculateAndRenderConveyorBOM(pathData) {
 }
 
 /**
- * 3. 2D Parametrik Özellikler Panelini Doldur (Sağ Panel)
+ * 4. 2D Parametrik Özellikler Panelini Doldur (Sağ Panel)
  */
 export function update2DConveyorParametricEditor(groupObj) {
     if (!groupObj || !groupObj.userData?.is2DConveyorSketch) return;
@@ -391,15 +409,17 @@ export function update2DConveyorParametricEditor(groupObj) {
 }
 
 /**
- * 4. Parametre Değiştiğinde 2D Çizimi Anında Yeniden Hesapla (Forward Kinematics)
+ * 5. Parametre Değiştiğinde 2D Çizimi Anında Yeniden Hesapla (Forward Kinematics)
  */
 export function applySelected2DConveyorParameters() {
     if (!active2DConveyorGroup || !active2DConveyorGroup.userData?.is2DConveyorSketch) return;
 
     const data = active2DConveyorGroup.userData.parametric;
     const pathData = data.pathData;
+    if (!pathData || !pathData.nodes || pathData.nodes.length < 2) return;
+
     const widthSelect = document.getElementById('conveyor-2d-width-select');
-    const newWidthM = widthSelect ? (parseFloat(widthSelect.value) || 105) / 1000 : 0.105;
+    const newWidthM = widthSelect ? (parseFloat(widthSelect.value) || 105) / 1000 : (data.width || 0.105);
 
     // Segment boylarını ve açıları oku
     const newNodes = [pathData.nodes[0].clone()]; // Başlangıç Avare noktası sabit
@@ -431,34 +451,19 @@ export function applySelected2DConveyorParameters() {
         }
     }
 
-    // Yeni analiz
+    // Yeni polyline analizi
     const newPathData = typeof window.analyzeConveyorPolyline === 'function' ? window.analyzeConveyorPolyline(newNodes) : pathData;
 
-    // 2D Grubu güncelle
-    while (active2DConveyorGroup.children.length > 0) {
-        const c = active2DConveyorGroup.children[0];
-        active2DConveyorGroup.remove(c);
-        if (c.geometry) c.geometry.dispose();
-        if (c.material) {
-            if (Array.isArray(c.material)) c.material.forEach(m => m.dispose?.());
-            else c.material.dispose?.();
-        }
+    // active2DConveyorGroup nesnesinin çocuklarını güvenle doğrudan güncelle (Sonsuz döngü riski yok)
+    populate2DConveyorCADGeometry(active2DConveyorGroup, newPathData, newWidthM, data.assemblyName);
+
+    // Sağ panel metraj göstergesini güncelle
+    const lenEl = document.getElementById('conveyor-2d-total-len');
+    if (lenEl) lenEl.innerText = `${newPathData.totalLength.toFixed(2)} m`;
+
+    if (typeof window.setActiveConveyorPathData === 'function') {
+        window.setActiveConveyorPathData(newPathData);
     }
-
-    const updatedGroup = generate2DConveyorCADGroup(newPathData, newWidthM, data.assemblyName);
-    while (updatedGroup.children.length > 0) {
-        active2DConveyorGroup.add(updatedGroup.children[0]);
-    }
-
-    active2DConveyorGroup.userData.parametric = {
-        width: newWidthM,
-        pathData: newPathData,
-        assemblyName: data.assemblyName
-    };
-    active2DConveyorGroup.userData.product.name = `${data.assemblyName} (2D Taslak - ${newPathData.totalLength.toFixed(1)}m)`;
-
-    // Sağ paneli güncelle
-    update2DConveyorParametricEditor(active2DConveyorGroup);
 
     if (typeof window.rebuildModelTreeFromScene === 'function') {
         window.rebuildModelTreeFromScene();
@@ -466,7 +471,7 @@ export function applySelected2DConveyorParameters() {
 }
 
 /**
- * 5. 2D Taslağı Tam 3D Modele Dönüştür (2D Gizle)
+ * 6. 2D Taslağı Tam 3D Modele Dönüştür (2D Gizle)
  */
 export async function convertActive2DConveyorTo3D() {
     if (!active2DConveyorGroup || !active2DConveyorGroup.userData?.is2DConveyorSketch) return;
@@ -492,7 +497,7 @@ export async function convertActive2DConveyorTo3D() {
 }
 
 /**
- * 6. 2D Taslak Görünürlüğünü Aç / Kapat
+ * 7. 2D Taslak Görünürlüğünü Aç / Kapat
  */
 export function toggleActive2DConveyorVisibility() {
     if (!active2DConveyorGroup) return;
@@ -503,7 +508,7 @@ export function toggleActive2DConveyorVisibility() {
 }
 
 /**
- * 7. Polyline'dan 3D Konveyör Modellerini Sahneye İnşa Et (Start = Avare, End = Motor)
+ * 8. Polyline'dan 3D Konveyör Modellerini Sahneye İnşa Et (Start = Avare, End = Motor)
  */
 export async function executeConveyorBuild() {
     const pathData = typeof window.activeConveyorPathData !== 'undefined' ? window.activeConveyorPathData : null;
@@ -593,7 +598,7 @@ export async function executeConveyorBuild() {
 }
 
 /**
- * 8. Polyline Geometrisinden Sıralı Ürün Listesi Türet
+ * 9. Polyline Geometrisinden Sıralı Ürün Listesi Türet
  * BAŞLANGIÇ: HER ZAMAN AVARE (XKEJ), BİTİŞ: HER ZAMAN MOTOR (XHEB)
  */
 function generateConveyorProductsFromPath(pathData, config) {
@@ -691,6 +696,7 @@ function generateConveyorProductsFromPath(pathData, config) {
 
 // Global Exports
 if (typeof window !== 'undefined') {
+    window.populate2DConveyorCADGeometry = populate2DConveyorCADGeometry;
     window.generate2DConveyorCADGroup = generate2DConveyorCADGroup;
     window.calculateAndRenderConveyorBOM = calculateAndRenderConveyorBOM;
     window.update2DConveyorParametricEditor = update2DConveyorParametricEditor;
