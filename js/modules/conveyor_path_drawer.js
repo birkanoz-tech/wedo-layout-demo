@@ -114,14 +114,42 @@ export function finishConveyorPathDrawing() {
         tempLineMesh = null;
     }
 
-    renderPersistentConveyorGuide(pathData);
+    // 2D AutoCAD Tipi Parametrik Konveyör Gövdesini Oluştur
+    const nextAssyIndex = (Array.isArray(window.importedProject) ? window.importedProject.length : 0) + (Array.isArray(window.addedManualModels) ? window.addedManualModels.filter(m => m.path === 'parametric:conveyor-2d').length : 0) + 1;
+    const nextAssyName = `Conveyor_${String(nextAssyIndex).padStart(2, '0')}`;
+
+    let conv2D = null;
+    if (typeof window.generate2DConveyorCADGroup === 'function') {
+        conv2D = window.generate2DConveyorCADGroup(pathData, 0.105, nextAssyName);
+    }
+
+    if (conv2D && typeof scene !== 'undefined') {
+        scene.add(conv2D);
+        if (Array.isArray(window.addedManualModels)) {
+            window.addedManualModels.push({
+                path: 'parametric:conveyor-2d',
+                label: conv2D.userData.product?.name || nextAssyName,
+                point: conv2D.position ? conv2D.position.clone() : new THREE.Vector3(),
+                ref: conv2D,
+                assemblyName: nextAssyName
+            });
+        }
+        if (typeof window.rebuildModelTreeFromScene === 'function') {
+            window.rebuildModelTreeFromScene();
+        }
+        if (typeof window.selectMesh === 'function') {
+            window.selectMesh(conv2D);
+        }
+    } else {
+        renderPersistentConveyorGuide(pathData);
+    }
 
     if (typeof window.setActiveConveyorPathData === 'function') {
         window.setActiveConveyorPathData(pathData);
     }
 
     if (typeof showNotice === 'function') {
-        showNotice(`✅ Güzergah Tamamlandı: Toplam ${pathData.totalLength.toFixed(2)}m (${pathData.turns.length} Dönüş). Şimdi "Hat BOM" veya "3D Konveyör İnşa Et" butonlarına basabilirsiniz!`);
+        showNotice(`✅ ${nextAssyName} 2D Taslağı Oluşturuldu: Toplam ${pathData.totalLength.toFixed(2)}m (${pathData.turns.length} Dönüş). Sağ panelden genişlik, kol boyları ve viraj açılarını parametrik olarak düzenleyebilirsiniz!`);
     }
 }
 
@@ -238,8 +266,8 @@ function renderPersistentConveyorGuide(pathData) {
 
         // 3D Bilgi Etiketi Sprite'ı
         let tagText = `#${idx + 1}`;
-        if (isStart) tagText = '🟢 BAŞLANGIÇ (Motor/Tahrik)';
-        else if (isEnd) tagText = '🔴 BİTİŞ (Avare Uç)';
+        if (isStart) tagText = '🟢 AVARE UÇ (Başlangıç)';
+        else if (isEnd) tagText = '⚡ MOTOR (Bitiş)';
         else {
             const turn = pathData.turns.find(t => t.nodeIndex === idx);
             if (turn) {

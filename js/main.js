@@ -13,7 +13,15 @@ import { saveActiveProjectToCloud, openSaveAsNewProjectModal, closeSaveAsNewProj
 import { parseXmlProject, resetSceneContent } from './core/xml_parser.js';
 import { toggleConveyorPathDrawer, openConveyorBOMModal, closeConveyorBOMModal, openConveyorBuilderModal, closeConveyorBuilderModal, initConveyorWizardUI } from './modules/conveyor_wizard_ui.js';
 import { startConveyorPathDrawing, cancelConveyorPathDrawing, finishConveyorPathDrawing, analyzeConveyorPolyline } from './modules/conveyor_path_drawer.js';
-import { calculateAndRenderConveyorBOM, executeConveyorBuild } from './modules/conveyor_builder.js';
+import { 
+    calculateAndRenderConveyorBOM, 
+    executeConveyorBuild, 
+    generate2DConveyorCADGroup, 
+    update2DConveyorParametricEditor, 
+    applySelected2DConveyorParameters, 
+    convertActive2DConveyorTo3D, 
+    toggleActive2DConveyorVisibility 
+} from './modules/conveyor_builder.js';
 
 console.log("⚡ ProposalApp ES6 Modular Engine Starting...");
 
@@ -55,6 +63,11 @@ if (typeof window !== 'undefined') {
     window.analyzeConveyorPolyline = analyzeConveyorPolyline;
     window.calculateAndRenderConveyorBOM = calculateAndRenderConveyorBOM;
     window.executeConveyorBuild = executeConveyorBuild;
+    window.generate2DConveyorCADGroup = generate2DConveyorCADGroup;
+    window.update2DConveyorParametricEditor = update2DConveyorParametricEditor;
+    window.applySelected2DConveyorParameters = applySelected2DConveyorParameters;
+    window.convertActive2DConveyorTo3D = convertActive2DConveyorTo3D;
+    window.toggleActive2DConveyorVisibility = toggleActive2DConveyorVisibility;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
