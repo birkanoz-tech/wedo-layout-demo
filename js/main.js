@@ -11,6 +11,7 @@ import { openPanelDesignerModal, closePanelDesignerModal, switchPanelModalTab } 
 import { openBuildingLevelsModal, closeBuildingLevelsModal } from './modules/building_levels.js';
 import { saveActiveProjectToCloud, openSaveAsNewProjectModal, closeSaveAsNewProjectModal, executeSaveAsNewProject, syncCustomerProjectsList, loadCustomerProjectFromDropdown } from './modules/cloud_sync.js';
 import { parseXmlProject, resetSceneContent } from './core/xml_parser.js';
+import { toggleConveyorPathDrawer, openConveyorBOMModal, closeConveyorBOMModal, openConveyorBuilderModal, closeConveyorBuilderModal, initConveyorWizardUI } from './modules/conveyor_wizard_ui.js';
 
 console.log("⚡ ProposalApp ES6 Modular Engine Starting...");
 
@@ -40,10 +41,17 @@ if (typeof window !== 'undefined') {
     window.loadCustomerProjectFromDropdown = loadCustomerProjectFromDropdown;
     window.parseXmlProject = parseXmlProject;
     window.resetSceneContent = resetSceneContent;
+    window.toggleConveyorPathDrawer = toggleConveyorPathDrawer;
+    window.openConveyorBOMModal = openConveyorBOMModal;
+    window.closeConveyorBOMModal = closeConveyorBOMModal;
+    window.openConveyorBuilderModal = openConveyorBuilderModal;
+    window.closeConveyorBuilderModal = closeConveyorBuilderModal;
+    window.initConveyorWizardUI = initConveyorWizardUI;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     init3D();
     syncCustomerProjectsList();
+    initConveyorWizardUI();
     showNotice("Modüler JavaScript Motoru Başarıyla Başlatıldı! 🚀");
 });
