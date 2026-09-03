@@ -13,6 +13,11 @@ let osnapMarker = null;
 let latestMousePoint = null;
 let typedDistBuffer = '';
 
+// Canlı Önizleme (Rubber-band line & cursor) Nesneleri
+let livePreviewLine = null;
+let cursorMarker = null;
+let liveDistSprite = null;
+
 /**
  * 1. Çizim Modunu Başlat
  */
@@ -21,11 +26,13 @@ export function startConveyorPathDrawing() {
     conveyorDrawNodes3D = [];
     typedDistBuffer = '';
 
+    cleanupLivePreview();
+
     const hud = document.getElementById('conveyor-draw-hud');
     if (hud) hud.classList.remove('hidden');
 
     const hudInfo = document.getElementById('conveyor-draw-hud-info');
-    if (hudInfo) hudInfo.innerText = 'Başlangıç noktasını tıklayın (DXF veya zemin)';
+    if (hudInfo) hudInfo.innerText = '🟢 Başlangıç noktasını tıklayın (DXF veya zemin)';
 
     const hudLen = document.getElementById('conveyor-draw-hud-len');
     if (hudLen) hudLen.innerText = '0.00 m';
@@ -54,6 +61,8 @@ export function cancelConveyorPathDrawing() {
     isConveyorPathDrawingActive = false;
     conveyorDrawNodes3D = [];
     typedDistBuffer = '';
+
+    cleanupLivePreview();
 
     if (tempNodesGroup && tempNodesGroup.parent) {
         tempNodesGroup.parent.remove(tempNodesGroup);
@@ -86,6 +95,8 @@ export function finishConveyorPathDrawing() {
     }
 
     isConveyorPathDrawingActive = false;
+
+    cleanupLivePreview();
 
     const hud = document.getElementById('conveyor-draw-hud');
     if (hud) hud.classList.add('hidden');
@@ -421,19 +432,157 @@ function renderTempNodes() {
 }
 
 function updateLivePreview(mousePt) {
-    if (conveyorDrawNodes3D.length === 0) return;
-    const lastNode = conveyorDrawNodes3D[conveyorDrawNodes3D.length - 1];
+    if (!scene) return;
 
-    let dist = lastNode.distanceTo(mousePt);
+    // 1. İmleç / Cursor halka göstergesi
+    if (!cursorMarker) {
+        const ringGeo = new THREE.RingGeometry(0.16, 0.24, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xfacc15,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9,
+            depthTest: false
+        });
+        cursorMarker = new THREE.Mesh(ringGeo, ringMat);
+        cursorMarker.renderOrder = 1000;
+        scene.add(cursorMarker);
+    }
+    cursorMarker.position.set(mousePt.x, mousePt.y, mousePt.z + 0.08);
+    cursorMarker.visible = true;
+
+    // Henüz ilk nokta seçilmemişse önizleme çizgisi çizilmez
+    if (conveyorDrawNodes3D.length === 0) {
+        if (livePreviewLine) livePreviewLine.visible = false;
+        if (liveDistSprite) liveDistSprite.visible = false;
+        return;
+    }
+
+    const lastNode = conveyorDrawNodes3D[conveyorDrawNodes3D.length - 1];
+    const dist = lastNode.distanceTo(mousePt);
+
+    // 2. Dinamik Önizleme Çizgisi (Canlı Lastik Bant / Rubber-Band Line)
+    const p1 = new THREE.Vector3(lastNode.x, lastNode.y, lastNode.z + 0.06);
+    const p2 = new THREE.Vector3(mousePt.x, mousePt.y, mousePt.z + 0.06);
+
+    if (!livePreviewLine) {
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        const lineMat = new THREE.LineDashedMaterial({
+            color: 0xfacc15, // Parlak sarı önizleme
+            linewidth: 3,
+            dashSize: 0.4,
+            gapSize: 0.2,
+            depthTest: false,
+            transparent: true,
+            opacity: 0.95
+        });
+        livePreviewLine = new THREE.Line(lineGeo, lineMat);
+        livePreviewLine.computeLineDistances();
+        livePreviewLine.renderOrder = 999;
+        scene.add(livePreviewLine);
+    } else {
+        const posAttr = livePreviewLine.geometry.attributes.position;
+        posAttr.setXYZ(0, p1.x, p1.y, p1.z);
+        posAttr.setXYZ(1, p2.x, p2.y, p2.z);
+        posAttr.needsUpdate = true;
+        livePreviewLine.computeLineDistances();
+        livePreviewLine.visible = true;
+    }
+
+    // 3. Çizgi Üzerinde Canlı Mesafe Etiketi (Floating Sprite)
+    const midPoint = p1.clone().add(p2).multiplyScalar(0.5);
+    midPoint.z += 0.35;
+
     let totalLen = 0;
     for (let i = 0; i < conveyorDrawNodes3D.length - 1; i++) {
         totalLen += conveyorDrawNodes3D[i].distanceTo(conveyorDrawNodes3D[i + 1]);
     }
     totalLen += dist;
 
+    // Açı tespiti: Eğer 1'den fazla nokta varsa yaklaşan viraj açısını da göster
+    let angleInfo = '';
+    if (conveyorDrawNodes3D.length >= 1) {
+        if (conveyorDrawNodes3D.length >= 2) {
+            const prevNode = conveyorDrawNodes3D[conveyorDrawNodes3D.length - 2];
+            const v1 = lastNode.clone().sub(prevNode).normalize();
+            const v2 = mousePt.clone().sub(lastNode).normalize();
+            v1.z = 0; v2.z = 0;
+            if (v1.lengthSq() > 0.01 && v2.lengthSq() > 0.01) {
+                const dot = Math.max(-1, Math.min(1, v1.dot(v2)));
+                const deg = Math.round(THREE.MathUtils.radToDeg(Math.acos(dot)));
+                const crossZ = v1.x * v2.y - v1.y * v2.x;
+                const dir = crossZ >= 0 ? 'Sol' : 'Sağ';
+                if (deg > 10) {
+                    angleInfo = ` | ↪️ ${deg}° ${dir}`;
+                }
+            }
+        }
+    }
+
+    const tagText = `📏 ${dist.toFixed(2)}m${angleInfo}`;
+    updateLiveDistSprite(tagText, midPoint);
+
     const hudLen = document.getElementById('conveyor-draw-hud-len');
     if (hudLen && typedDistBuffer.length === 0) {
-        hudLen.innerText = `${totalLen.toFixed(2)} m`;
+        hudLen.innerText = `${totalLen.toFixed(2)} m (Bu kol: ${dist.toFixed(2)}m)`;
+    }
+}
+
+function updateLiveDistSprite(text, position) {
+    if (!scene) return;
+
+    if (!liveDistSprite) {
+        liveDistSprite = createGuideTextSprite(text, '#facc15');
+        scene.add(liveDistSprite);
+    } else {
+        const canvas = document.createElement('canvas');
+        canvas.width = 340;
+        canvas.height = 70;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(4, 4, 332, 62, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 22px Inter, sans-serif';
+        ctx.fillStyle = '#fef08a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 170, 35);
+
+        if (liveDistSprite.material.map) {
+            liveDistSprite.material.map.dispose();
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        liveDistSprite.material.map = texture;
+        liveDistSprite.material.needsUpdate = true;
+    }
+    liveDistSprite.position.copy(position);
+    liveDistSprite.visible = true;
+}
+
+function cleanupLivePreview() {
+    if (livePreviewLine) {
+        if (livePreviewLine.parent) livePreviewLine.parent.remove(livePreviewLine);
+        if (livePreviewLine.geometry) livePreviewLine.geometry.dispose();
+        if (livePreviewLine.material) livePreviewLine.material.dispose();
+        livePreviewLine = null;
+    }
+    if (cursorMarker) {
+        if (cursorMarker.parent) cursorMarker.parent.remove(cursorMarker);
+        if (cursorMarker.geometry) cursorMarker.geometry.dispose();
+        if (cursorMarker.material) cursorMarker.material.dispose();
+        cursorMarker = null;
+    }
+    if (liveDistSprite) {
+        if (liveDistSprite.parent) liveDistSprite.parent.remove(liveDistSprite);
+        if (liveDistSprite.material.map) liveDistSprite.material.map.dispose();
+        if (liveDistSprite.material) liveDistSprite.material.dispose();
+        liveDistSprite = null;
     }
 }
 
@@ -451,6 +600,10 @@ function getSnapedWorldPointFromEvent(event) {
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
+
+    if (raycaster.params && raycaster.params.Line) {
+        raycaster.params.Line.threshold = 0.5;
+    }
 
     // DXF veya 3D zemin nesnelerini ara
     const intersectableObjects = [];
