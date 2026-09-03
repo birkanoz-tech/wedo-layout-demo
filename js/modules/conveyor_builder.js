@@ -148,6 +148,15 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     }
 
     // 3. Düz Segmentleri (Straight Beams) Çiz
+    const lastSegIdx = nodes.length - 2;
+    const lastDir = pathData.segments[pathData.segments.length - 1].direction.clone().normalize();
+    const lastNodePt = nodes[nodes.length - 1].clone(); lastNodePt.z = zPos;
+    const lastNodePrevPt = nodes[nodes.length - 2].clone(); lastNodePrevPt.z = zPos;
+    const lastSegTotalLen = lastNodePrevPt.distanceTo(lastNodePt);
+    const L_drive = Math.min(0.40, lastSegTotalLen * 0.45);
+    const driveScale = L_drive / 0.40;
+    const pDriveStart = lastNodePt.clone().addScaledVector(lastDir, -L_drive);
+
     for (let i = 0; i < nodes.length - 1; i++) {
         let pStart = nodes[i].clone(); pStart.z = zPos;
         let pEnd = nodes[i + 1].clone(); pEnd.z = zPos;
@@ -159,6 +168,9 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         // Sonraki düğüm bir bend başlangıcı ise bitişi oraya bağla
         if (bendDataMap.has(i + 1)) {
             pEnd = bendDataMap.get(i + 1).pBendStart.clone();
+        } else if (i === lastSegIdx) {
+            // Son segment ise tahrik kafasının başlangıcına bağla
+            pEnd = pDriveStart.clone();
         }
 
         const segDir = pEnd.clone().sub(pStart).normalize();
@@ -303,39 +315,79 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     const idlerCircle = new THREE.Line(idlerGeo, lineMat);
     group.add(idlerCircle);
 
-    // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - Siyah Çizgi Geometrisi
-    const lastNode = nodes[nodes.length - 1];
-    const lastDir = pathData.segments[pathData.segments.length - 1].direction;
+    // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - AutoCAD DXF Dış Sınır Çizgileri
+    const lastNode = nodes[nodes.length - 1].clone(); lastNode.z = zPos;
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
+    const mSide = lastNorm.clone().negate(); // Sağ tarafa monteli motor (Resimdeki yeşil kısım ile birebir uyumlu)
 
-    const driveHeadLen = 0.4;
-    const dLeft1 = lastNode.clone().addScaledVector(lastNorm, halfW * 1.1);
-    const dRight1 = lastNode.clone().addScaledVector(lastNorm, -halfW * 1.1);
-    const dLeft2 = dLeft1.clone().addScaledVector(lastDir, driveHeadLen);
-    const dRight2 = dRight1.clone().addScaledVector(lastDir, driveHeadLen);
+    const pt = (x_rel, y_out) => {
+        return lastNode.clone()
+            .addScaledVector(lastDir, x_rel * driveScale)
+            .addScaledVector(mSide, halfW + y_out * driveScale);
+    };
 
-    const driveBoxGeo = new THREE.BufferGeometry().setFromPoints([
-        dLeft1, dLeft2,
-        dLeft2, dRight2,
-        dRight2, dRight1,
-        dRight1, dLeft1
-    ]);
-    const driveBox = new THREE.LineSegments(driveBoxGeo, lineMat);
-    group.add(driveBox);
+    const ptLeft = (x_rel) => {
+        return lastNode.clone()
+            .addScaledVector(lastDir, x_rel * driveScale)
+            .addScaledVector(lastNorm, halfW);
+    };
 
-    // Motor / Redüktör yanal bloğu (Siyah ince çizgi)
-    const mRight1 = dRight1.clone().addScaledVector(lastDir, 0.05);
-    const mRight2 = dRight2.clone().addScaledVector(lastDir, -0.05);
-    const mOuter1 = mRight1.clone().addScaledVector(lastNorm, -0.25);
-    const mOuter2 = mRight2.clone().addScaledVector(lastNorm, -0.25);
+    const driveUnitPts = [];
 
-    const motorBlockGeo = new THREE.BufferGeometry().setFromPoints([
-        mRight1, mOuter1,
-        mOuter1, mOuter2,
-        mOuter2, mRight2
-    ]);
-    const motorBlock = new THREE.LineSegments(motorBlockGeo, lineMat);
-    group.add(motorBlock);
+    // A. Ana Tahrik Kafası Şasi Kutusu (x: -0.40 -> 0.0)
+    // Kiriş birleşim flanş çizgisi (Gövde ile birleşim ek yeri)
+    driveUnitPts.push(ptLeft(-0.40), pt(-0.40, 0.0));
+    // Sol ve sağ gövde sınır hatları
+    driveUnitPts.push(ptLeft(-0.40), ptLeft(0.0));
+    driveUnitPts.push(pt(-0.40, 0.0), pt(0.0, 0.0));
+    // Ön kafa çizgisi (Tahrik mili ucu)
+    driveUnitPts.push(ptLeft(0.0), pt(0.0, 0.0));
+
+    // Eksen çizgisi (Tahrik kafası içi)
+    axisLinePts.push(lastNode.clone().addScaledVector(lastDir, -L_drive), lastNode.clone());
+
+    // B. Redüktör Bağlantı Kolları (Montaj Boyunları)
+    // Ön kol:
+    driveUnitPts.push(pt(-0.06, 0.0), pt(-0.06, 0.04));
+    driveUnitPts.push(pt(-0.09, 0.0), pt(-0.09, 0.04));
+    // Arka kol:
+    driveUnitPts.push(pt(-0.17, 0.0), pt(-0.17, 0.04));
+    driveUnitPts.push(pt(-0.20, 0.0), pt(-0.20, 0.04));
+
+    // C. Redüktör Gövdesi (Gearbox Housing - Kademeli DXF Sınır Hatları)
+    // Ön kademe çıkıntısı
+    driveUnitPts.push(pt(-0.06, 0.07), pt(-0.02, 0.07));
+    driveUnitPts.push(pt(-0.02, 0.07), pt(-0.02, 0.19));
+    driveUnitPts.push(pt(-0.02, 0.19), pt(-0.06, 0.19));
+    // Ana redüktör gövde çerçevesi
+    driveUnitPts.push(pt(-0.06, 0.04), pt(-0.06, 0.07));
+    driveUnitPts.push(pt(-0.06, 0.19), pt(-0.06, 0.22));
+    driveUnitPts.push(pt(-0.06, 0.22), pt(-0.22, 0.22));
+    driveUnitPts.push(pt(-0.22, 0.22), pt(-0.22, 0.04));
+    driveUnitPts.push(pt(-0.22, 0.04), pt(-0.06, 0.04));
+
+    // D. Elektrik Motoru (Gövde, Klemens Kutusu ve Pah Kırılmış Pervane Kapağı)
+    // Motor iç kenarı
+    driveUnitPts.push(pt(-0.22, 0.06), pt(-0.39, 0.06));
+    // Arka fan kapağı (45° pah kırılmış köşeler)
+    driveUnitPts.push(pt(-0.39, 0.06), pt(-0.42, 0.08));
+    driveUnitPts.push(pt(-0.42, 0.08), pt(-0.42, 0.18));
+    driveUnitPts.push(pt(-0.42, 0.18), pt(-0.39, 0.20));
+    // Dış kenar ve Klemens Kutusu çıkıntısı
+    driveUnitPts.push(pt(-0.39, 0.20), pt(-0.31, 0.20));
+    driveUnitPts.push(pt(-0.31, 0.20), pt(-0.31, 0.235));
+    driveUnitPts.push(pt(-0.31, 0.235), pt(-0.25, 0.235));
+    driveUnitPts.push(pt(-0.25, 0.235), pt(-0.25, 0.20));
+    driveUnitPts.push(pt(-0.25, 0.20), pt(-0.22, 0.20));
+    // Motorun redüktöre flanş bağlantı çizgisi
+    driveUnitPts.push(pt(-0.22, 0.20), pt(-0.22, 0.06));
+
+    if (driveUnitPts.length > 0) {
+        const driveUnitGeo = new THREE.BufferGeometry().setFromPoints(driveUnitPts);
+        const driveUnitMesh = new THREE.LineSegments(driveUnitGeo, lineMat);
+        driveUnitMesh.name = 'Conveyor2DDriveUnit';
+        group.add(driveUnitMesh);
+    }
 
     // METİNLER TAMAMEN KALDIRILDI: Konveyör çizimi üzerinde hiçbir etiket/metin yer almaz.
 
