@@ -118,10 +118,9 @@ export function finishConveyorPathDrawing() {
     const nextAssyIndex = (Array.isArray(window.importedProject) ? window.importedProject.length : 0) + (Array.isArray(window.addedManualModels) ? window.addedManualModels.filter(m => m.path === 'parametric:conveyor-2d').length : 0) + 1;
     const nextAssyName = `Conveyor_${String(nextAssyIndex).padStart(2, '0')}`;
 
-    const activeZ = typeof getActiveLevelElevation === 'function' ? getActiveLevelElevation() : 0;
     let conv2D = null;
     if (typeof window.generate2DConveyorCADGroup === 'function') {
-        conv2D = window.generate2DConveyorCADGroup(pathData, 0.105, nextAssyName, activeZ);
+        conv2D = window.generate2DConveyorCADGroup(pathData, 0.105, nextAssyName);
     }
 
     if (conv2D && typeof scene !== 'undefined') {
