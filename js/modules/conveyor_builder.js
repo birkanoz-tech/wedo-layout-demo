@@ -62,8 +62,9 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     }
 
     const nodes = pathData.nodes;
+    const startNode = nodes[0];
     const halfW = widthM / 2;
-    const zPos = (nodes[0].z || 0) + 0.05;
+    const zPos = (startNode.z || 0) + 0.05;
 
     const lineMat = new THREE.LineBasicMaterial({
         color: 0x000000, // Saf siyah ince çizgi (DXF stili)
@@ -149,22 +150,26 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
 
     // 3. Düz Segmentleri (Straight Beams) Çiz
     // Idler (Avare Uç) Kutusu: 300 mm (0.30m)
-    const firstDir = pathData.segments[0].direction.clone().normalize();
+    const firstDir = (pathData.segments && pathData.segments[0] && pathData.segments[0].direction)
+        ? pathData.segments[0].direction.clone().normalize()
+        : nodes[1].clone().sub(nodes[0]).setZ(0).normalize();
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
-    const firstNodePt = nodes[0].clone(); firstNodePt.z = zPos;
+    const firstNodePt = startNode.clone(); firstNodePt.z = zPos;
     const firstNodeNextPt = nodes[1].clone(); firstNodeNextPt.z = zPos;
-    const firstSegTotalLen = firstNodePt.distanceTo(firstNodeNextPt);
+    const firstSegTotalLen = Math.max(0.01, firstNodePt.distanceTo(firstNodeNextPt));
     const maxAvailableFirst = (nodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
     const L_idler = Math.min(0.30, maxAvailableFirst); // 300 mm (0.30m)
     const pIdlerEnd = firstNodePt.clone().addScaledVector(firstDir, L_idler);
 
     const lastSegIdx = nodes.length - 2;
-    const lastDir = pathData.segments[pathData.segments.length - 1].direction.clone().normalize();
+    const lastDir = (pathData.segments && pathData.segments.length > 0)
+        ? pathData.segments[pathData.segments.length - 1].direction.clone().normalize()
+        : nodes[nodes.length - 1].clone().sub(nodes[nodes.length - 2]).setZ(0).normalize();
     const lastNodePt = nodes[nodes.length - 1].clone(); lastNodePt.z = zPos;
     const lastNodePrevPt = nodes[nodes.length - 2].clone(); lastNodePrevPt.z = zPos;
-    const lastSegTotalLen = lastNodePrevPt.distanceTo(lastNodePt);
+    const lastSegTotalLen = Math.max(0.01, lastNodePrevPt.distanceTo(lastNodePt));
     const L_drive = Math.min(0.40, lastSegTotalLen * 0.45);
-    const driveScale = L_drive / 0.40;
+    const driveScale = L_drive > 0 ? (L_drive / 0.40) : 1.0;
     const pDriveStart = lastNodePt.clone().addScaledVector(lastDir, -L_drive);
 
     for (let i = 0; i < nodes.length - 1; i++) {
@@ -187,18 +192,21 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
             pEnd = pDriveStart.clone();
         }
 
-        const segDir = pEnd.clone().sub(pStart).normalize();
-        const segNorm = new THREE.Vector3(-segDir.y, segDir.x, 0).normalize();
+        const segVec = pEnd.clone().sub(pStart);
+        if (segVec.length() >= 0.01) {
+            const segDir = segVec.normalize();
+            const segNorm = new THREE.Vector3(-segDir.y, segDir.x, 0).normalize();
 
-        const left1 = pStart.clone().addScaledVector(segNorm, halfW);
-        const right1 = pStart.clone().addScaledVector(segNorm, -halfW);
-        const left2 = pEnd.clone().addScaledVector(segNorm, halfW);
-        const right2 = pEnd.clone().addScaledVector(segNorm, -halfW);
+            const left1 = pStart.clone().addScaledVector(segNorm, halfW);
+            const right1 = pStart.clone().addScaledVector(segNorm, -halfW);
+            const left2 = pEnd.clone().addScaledVector(segNorm, halfW);
+            const right2 = pEnd.clone().addScaledVector(segNorm, -halfW);
 
-        boundaryLinePts.push(left1, left2);
-        boundaryLinePts.push(right1, right2);
+            boundaryLinePts.push(left1, left2);
+            boundaryLinePts.push(right1, right2);
 
-        axisLinePts.push(pStart, pEnd);
+            axisLinePts.push(pStart, pEnd);
+        }
     }
 
     // 4. Viraj Parçalarını (Bend Modules) Çiz: 200mm düzlük + R kavisli yay + 200mm düzlük
