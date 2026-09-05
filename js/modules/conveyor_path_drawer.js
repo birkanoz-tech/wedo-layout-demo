@@ -125,20 +125,26 @@ export function finishConveyorPathDrawing() {
 
     if (conv2D && typeof scene !== 'undefined') {
         scene.add(conv2D);
-        if (Array.isArray(window.addedManualModels)) {
-            window.addedManualModels.push({
+        const manualList = window.addedManualModels || (typeof addedManualModels !== 'undefined' ? addedManualModels : null);
+        if (Array.isArray(manualList)) {
+            const label = conv2D.userData.product?.name || `${nextAssyName} (2D Model)`;
+            manualList.push({
                 path: 'parametric:conveyor-2d',
-                label: conv2D.userData.product?.name || nextAssyName,
+                label: label,
                 point: conv2D.position ? conv2D.position.clone() : new THREE.Vector3(),
                 ref: conv2D,
-                assemblyName: nextAssyName
+                assemblyName: '🛤️ 2D Konveyör Modelleri'
             });
         }
         if (typeof window.rebuildModelTreeFromScene === 'function') {
             window.rebuildModelTreeFromScene();
+        } else if (typeof rebuildModelTreeFromScene === 'function') {
+            rebuildModelTreeFromScene();
         }
         if (typeof window.selectMesh === 'function') {
             window.selectMesh(conv2D);
+        } else if (typeof selectMesh === 'function') {
+            selectMesh(conv2D);
         }
     } else {
         renderPersistentConveyorGuide(pathData);

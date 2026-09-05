@@ -66,6 +66,17 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     const halfW = widthM / 2;
     const zPos = (startNode.z || 0) + 0.05;
 
+    // 2D Model Anchor Konumu: Başlangıç noktası (startNode) grubun dünya pozisyonu (origin) olur.
+    // Bu sayede TransformControls (Gizmo) konveyörün başlangıcına yapışır ve World Position doğrudan konveyör konumunu verir.
+    const origin = startNode.clone(); origin.z = zPos;
+    if (!group.position || (group.position.x === 0 && group.position.y === 0 && group.position.z === 0)) {
+        group.position.copy(origin);
+        group.rotation.set(0, 0, 0);
+    }
+
+    // Tüm iç CAD geometri koordinatlarını başlangıç düğümüne (origin) göre LOKAL koordinatlara dönüştür:
+    const localNodes = nodes.map(n => new THREE.Vector3(n.x - origin.x, n.y - origin.y, 0));
+
     const lineMat = new THREE.LineBasicMaterial({
         color: 0x000000, // Saf siyah ince çizgi (DXF stili)
         linewidth: 1.5,
@@ -88,10 +99,10 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     // 2. Her bir viraj (Bend) için matematiksel eğri ve 200mm giriş/çıkış teğetlerini hesapla
     const bendDataMap = new Map(); // nodeIndex -> bend geometry info
 
-    for (let i = 0; i < nodes.length - 2; i++) {
-        const pPrev = nodes[i].clone(); pPrev.z = zPos;
-        const v = nodes[i + 1].clone(); v.z = zPos;
-        const pNext = nodes[i + 2].clone(); pNext.z = zPos;
+    for (let i = 0; i < localNodes.length - 2; i++) {
+        const pPrev = localNodes[i].clone();
+        const v = localNodes[i + 1].clone();
+        const pNext = localNodes[i + 2].clone();
 
         const u1 = v.clone().sub(pPrev).normalize();
         const u2 = pNext.clone().sub(v).normalize();
@@ -152,29 +163,29 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     // Idler (Avare Uç) Kutusu: 300 mm (0.30m)
     const firstDir = (pathData.segments && pathData.segments[0] && pathData.segments[0].direction)
         ? pathData.segments[0].direction.clone().normalize()
-        : nodes[1].clone().sub(nodes[0]).setZ(0).normalize();
+        : localNodes[1].clone().sub(localNodes[0]).normalize();
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
-    const firstNodePt = startNode.clone(); firstNodePt.z = zPos;
-    const firstNodeNextPt = nodes[1].clone(); firstNodeNextPt.z = zPos;
+    const firstNodePt = localNodes[0].clone();
+    const firstNodeNextPt = localNodes[1].clone();
     const firstSegTotalLen = Math.max(0.01, firstNodePt.distanceTo(firstNodeNextPt));
-    const maxAvailableFirst = (nodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
+    const maxAvailableFirst = (localNodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
     const L_idler = Math.min(0.30, maxAvailableFirst); // 300 mm (0.30m)
     const pIdlerEnd = firstNodePt.clone().addScaledVector(firstDir, L_idler);
 
-    const lastSegIdx = nodes.length - 2;
+    const lastSegIdx = localNodes.length - 2;
     const lastDir = (pathData.segments && pathData.segments.length > 0)
         ? pathData.segments[pathData.segments.length - 1].direction.clone().normalize()
-        : nodes[nodes.length - 1].clone().sub(nodes[nodes.length - 2]).setZ(0).normalize();
-    const lastNodePt = nodes[nodes.length - 1].clone(); lastNodePt.z = zPos;
-    const lastNodePrevPt = nodes[nodes.length - 2].clone(); lastNodePrevPt.z = zPos;
+        : localNodes[localNodes.length - 1].clone().sub(localNodes[localNodes.length - 2]).normalize();
+    const lastNodePt = localNodes[localNodes.length - 1].clone();
+    const lastNodePrevPt = localNodes[localNodes.length - 2].clone();
     const lastSegTotalLen = Math.max(0.01, lastNodePrevPt.distanceTo(lastNodePt));
     const L_drive = Math.min(0.40, lastSegTotalLen * 0.45);
     const driveScale = L_drive > 0 ? (L_drive / 0.40) : 1.0;
     const pDriveStart = lastNodePt.clone().addScaledVector(lastDir, -L_drive);
 
-    for (let i = 0; i < nodes.length - 1; i++) {
-        let pStart = nodes[i].clone(); pStart.z = zPos;
-        let pEnd = nodes[i + 1].clone(); pEnd.z = zPos;
+    for (let i = 0; i < localNodes.length - 1; i++) {
+        let pStart = localNodes[i].clone();
+        let pEnd = localNodes[i + 1].clone();
 
         // Önceki düğüm bir bend bitişi ise başlangıcı oraya bağla
         if (bendDataMap.has(i)) {
@@ -259,9 +270,9 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
             const cosA = Math.cos(angle);
             const sinA = Math.sin(angle);
 
-            const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, zPos);
-            const currLeft = new THREE.Vector3(cArc.x + cosA * R_left, cArc.y + sinA * R_left, zPos);
-            const currRight = new THREE.Vector3(cArc.x + cosA * R_right, cArc.y + sinA * R_right, zPos);
+            const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, 0);
+            const currLeft = new THREE.Vector3(cArc.x + cosA * R_left, cArc.y + sinA * R_left, 0);
+            const currRight = new THREE.Vector3(cArc.x + cosA * R_right, cArc.y + sinA * R_right, 0);
 
             boundaryLinePts.push(prevLeft, currLeft);
             boundaryLinePts.push(prevRight, currRight);
@@ -325,7 +336,7 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     group.add(idlerLine);
 
     // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - AutoCAD DXF Dış Sınır Çizgileri
-    const lastNode = nodes[nodes.length - 1].clone(); lastNode.z = zPos;
+    const lastNode = localNodes[localNodes.length - 1].clone();
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
     const mSide = lastNorm.clone().negate(); // Sağ tarafa monteli motor (Resimdeki yeşil kısım ile birebir uyumlu)
 
@@ -398,26 +409,52 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         group.add(driveUnitMesh);
     }
 
-    // METİNLER TAMAMEN KALDIRILDI: Konveyör çizimi üzerinde hiçbir etiket/metin yer almaz.
+    // 7. Görünmez Raycast / Tıklama Seçim Gövdesi (Kullanıcı 3D sahnede konveyöre tıkladığında anında model olarak seçilsin)
+    const pickMat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.001,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const pickGroup = new THREE.Group();
+    pickGroup.name = 'Conveyor2DPickCorridor';
+    for (let i = 0; i < localNodes.length - 1; i++) {
+        const p1 = localNodes[i];
+        const p2 = localNodes[i + 1];
+        const vec = p2.clone().sub(p1);
+        const len = vec.length();
+        if (len < 0.01) continue;
+        const planeGeo = new THREE.PlaneGeometry(len, Math.max(widthM * 1.5, 0.25));
+        const mid = p1.clone().add(p2).multiplyScalar(0.5);
+        const angle = Math.atan2(vec.y, vec.x);
+        const pickMesh = new THREE.Mesh(planeGeo, pickMat);
+        pickMesh.position.set(mid.x, mid.y, 0);
+        pickMesh.rotation.set(0, 0, angle);
+        pickMesh.userData = { is2DConveyorPickHelper: true };
+        pickGroup.add(pickMesh);
+    }
+    group.add(pickGroup);
 
-    // 7. UserData & Ürün Ağacı Entegrasyonu
+    // 8. UserData & Ürün Ağacı Entegrasyonu
     group.userData = {
         type: 'xml-product',
         isParametric: true,
         parametricKind: 'conveyor-2d',
         is2DConveyorSketch: true,
+        is2DModel: true,
         assemblyName: assyName,
+        originPoint: origin.clone(),
         parametric: {
             width: widthM,
             pathData: pathData,
             assemblyName: assyName
         },
         product: {
-            name: `${assyName} (2D Taslak - ${pathData.totalLength.toFixed(1)}m)`,
-            type: 'conveyor-2d-sketch',
-            group: 'Conveyors',
-            assemblyName: assyName,
-            position: { x: startNode.x, y: startNode.y, z: zPos }
+            name: `${assyName} (2D Model - ${pathData.totalLength.toFixed(1)}m)`,
+            type: 'conveyor-2d',
+            group: '🛤️ 2D Konveyör Modelleri',
+            assemblyName: '🛤️ 2D Konveyör Modelleri',
+            position: { x: origin.x, y: origin.y, z: origin.z }
         }
     };
 }

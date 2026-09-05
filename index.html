@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.0.6 - 2D Idler 300mm Kutu Düzeltmesi</title>
+    <title>WEDO v1.0.7 - 2D Konveyör Ürün Ağacı & Gizmo Manipülasyonu</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="2D Idler 300mm Kutu & Çizim Düzeltmesi">v1.0.6 • 2D Idler 300mm Kutu</span>
+                    title="2D Konveyör Ürün Ağacı & Gizmo Manipülasyonu">v1.0.7 • 2D Konveyör Model & Gizmo</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -838,6 +838,7 @@
         let currentXmlFilename = '';
         let addedPanels = [], addedCables = [], addedSensors = [], addedMachines = [];
         let addedManualModels = [];
+        window.addedManualModels = addedManualModels;
         let pathCableLinks = [];
         let panelCounter = 0;
 
@@ -7864,9 +7865,26 @@
             }
 
             modelTreeEntries = xmlEntries;
+            window.addedManualModels = addedManualModels;
 
-            // 2. Sahnede ekli manuel & parametrik tüm modelleri (Duvar, Tavan Destek vb.) ekle
-            // 2. Sahnede ekli manuel & parametrik tüm modelleri (Duvar, Tavan Destek vb.) ekle
+            // Sahnede ekli tüm 2D konveyör modellerini addedManualModels içine senkronize et
+            if (scene) {
+                scene.traverse((obj) => {
+                    if ((obj.userData?.is2DConveyorSketch || obj.userData?.parametricKind === 'conveyor-2d') && obj.parent) {
+                        if (!addedManualModels.some(m => m.ref === obj)) {
+                            addedManualModels.push({
+                                path: 'parametric:conveyor-2d',
+                                label: obj.userData.product?.name || `${obj.userData.assemblyName || 'Conveyor'} (2D Model)`,
+                                point: obj.position.clone(),
+                                ref: obj,
+                                assemblyName: '🛤️ 2D Konveyör Modelleri'
+                            });
+                        }
+                    }
+                });
+            }
+
+            // 2. Sahnede ekli manuel & parametrik tüm modelleri (Duvar, Tavan Destek, 2D Konveyör vb.) ekle
             if (Array.isArray(addedManualModels)) {
                 addedManualModels.forEach((item, idx) => {
                     const groupObj = item.ref;
@@ -7899,8 +7917,8 @@
                             groupName = '⚡ Kablo Kanalları';
                             labelName = `Kablo Kanalı #${idx + 1} (${userData.parametric?.width || 200}mm)`;
                         } else if (kind === 'conveyor-2d' || userData.is2DConveyorSketch) {
-                            groupName = '🛤️ Konveyör Hatları (2D Taslak)';
-                            labelName = item.label || userData.product?.name || `${userData.assemblyName || 'Conveyor'} (2D Taslak)`;
+                            groupName = '🛤️ 2D Konveyör Modelleri';
+                            labelName = item.label || userData.product?.name || `${userData.assemblyName || 'Conveyor'} (2D Model)`;
                         } else {
                             groupName = '📦 Parametrik Modeller';
                             labelName = item.label || `Modül #${idx + 1}`;
@@ -8145,7 +8163,9 @@
             if (selectedMesh) {
                 getMeshChildren(selectedMesh).forEach((childMesh) => {
                     if (childMesh.material) {
-                        if (Array.isArray(childMesh.material)) {
+                        if ((childMesh.isLineSegments || childMesh.isLine) && childMesh.userData?.origColor !== undefined) {
+                            childMesh.material.color.setHex(childMesh.userData.origColor);
+                        } else if (Array.isArray(childMesh.material)) {
                             childMesh.material.forEach((m) => {
                                 m.emissive?.setHex(0x000000);
                                 if ('emissiveIntensity' in m) m.emissiveIntensity = 0.0;
@@ -8342,7 +8362,9 @@
             if (selectedMesh && selectedMesh !== mesh) {
                 getMeshChildren(selectedMesh).forEach((childMesh) => {
                     if (childMesh.material) {
-                        if (Array.isArray(childMesh.material)) {
+                        if ((childMesh.isLineSegments || childMesh.isLine) && childMesh.userData?.origColor !== undefined) {
+                            childMesh.material.color.setHex(childMesh.userData.origColor);
+                        } else if (Array.isArray(childMesh.material)) {
                             childMesh.material.forEach((m) => {
                                 m.emissive?.setHex(0x000000);
                                 if ('emissiveIntensity' in m) m.emissiveIntensity = 0.0;
@@ -8384,7 +8406,12 @@
 
             getMeshChildren(mesh).forEach((childMesh) => {
                 if (childMesh.material) {
-                    if (Array.isArray(childMesh.material)) {
+                    if (childMesh.isLineSegments || childMesh.isLine) {
+                        if (childMesh.userData.origColor === undefined) {
+                            childMesh.userData.origColor = childMesh.material.color.getHex();
+                        }
+                        childMesh.material.color.setHex(0x0284c7); // Canlı CAD mavi/cyan seçim vurgusu
+                    } else if (Array.isArray(childMesh.material)) {
                         childMesh.material.forEach((m) => {
                             m.emissive?.setHex(0x00674F);
                             if ('emissiveIntensity' in m) m.emissiveIntensity = 0.8;
@@ -8412,6 +8439,8 @@
                 switchToCameraView(mesh.userData.cameraId);
             }
         }
+        window.selectMesh = selectMesh;
+        window.clearSelection = clearSelection;
 
         function updateXmlDocPositionsFrom3DScene(xmlDoc) {
             if (!xmlDoc) return;
@@ -11576,20 +11605,26 @@ function finishConveyorPathDrawing() {
 
     if (conv2D && typeof scene !== 'undefined') {
         scene.add(conv2D);
-        if (Array.isArray(window.addedManualModels)) {
-            window.addedManualModels.push({
+        const manualList = window.addedManualModels || (typeof addedManualModels !== 'undefined' ? addedManualModels : null);
+        if (Array.isArray(manualList)) {
+            const label = conv2D.userData.product?.name || `${nextAssyName} (2D Model)`;
+            manualList.push({
                 path: 'parametric:conveyor-2d',
-                label: conv2D.userData.product?.name || nextAssyName,
+                label: label,
                 point: conv2D.position ? conv2D.position.clone() : new THREE.Vector3(),
                 ref: conv2D,
-                assemblyName: nextAssyName
+                assemblyName: '🛤️ 2D Konveyör Modelleri'
             });
         }
         if (typeof window.rebuildModelTreeFromScene === 'function') {
             window.rebuildModelTreeFromScene();
+        } else if (typeof rebuildModelTreeFromScene === 'function') {
+            rebuildModelTreeFromScene();
         }
         if (typeof window.selectMesh === 'function') {
             window.selectMesh(conv2D);
+        } else if (typeof selectMesh === 'function') {
+            selectMesh(conv2D);
         }
     } else {
         renderPersistentConveyorGuide(pathData);
@@ -12376,6 +12411,17 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     const halfW = widthM / 2;
     const zPos = (startNode.z || 0) + 0.05;
 
+    // 2D Model Anchor Konumu: Başlangıç noktası (startNode) grubun dünya pozisyonu (origin) olur.
+    // Bu sayede TransformControls (Gizmo) konveyörün başlangıcına yapışır ve World Position doğrudan konveyör konumunu verir.
+    const origin = startNode.clone(); origin.z = zPos;
+    if (!group.position || (group.position.x === 0 && group.position.y === 0 && group.position.z === 0)) {
+        group.position.copy(origin);
+        group.rotation.set(0, 0, 0);
+    }
+
+    // Tüm iç CAD geometri koordinatlarını başlangıç düğümüne (origin) göre LOKAL koordinatlara dönüştür:
+    const localNodes = nodes.map(n => new THREE.Vector3(n.x - origin.x, n.y - origin.y, 0));
+
     const lineMat = new THREE.LineBasicMaterial({
         color: 0x000000, // Saf siyah ince çizgi (DXF stili)
         linewidth: 1.5,
@@ -12398,10 +12444,10 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     // 2. Her bir viraj (Bend) için matematiksel eğri ve 200mm giriş/çıkış teğetlerini hesapla
     const bendDataMap = new Map(); // nodeIndex -> bend geometry info
 
-    for (let i = 0; i < nodes.length - 2; i++) {
-        const pPrev = nodes[i].clone(); pPrev.z = zPos;
-        const v = nodes[i + 1].clone(); v.z = zPos;
-        const pNext = nodes[i + 2].clone(); pNext.z = zPos;
+    for (let i = 0; i < localNodes.length - 2; i++) {
+        const pPrev = localNodes[i].clone();
+        const v = localNodes[i + 1].clone();
+        const pNext = localNodes[i + 2].clone();
 
         const u1 = v.clone().sub(pPrev).normalize();
         const u2 = pNext.clone().sub(v).normalize();
@@ -12462,29 +12508,29 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     // Idler (Avare Uç) Kutusu: 300 mm (0.30m)
     const firstDir = (pathData.segments && pathData.segments[0] && pathData.segments[0].direction)
         ? pathData.segments[0].direction.clone().normalize()
-        : nodes[1].clone().sub(nodes[0]).setZ(0).normalize();
+        : localNodes[1].clone().sub(localNodes[0]).normalize();
     const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
-    const firstNodePt = startNode.clone(); firstNodePt.z = zPos;
-    const firstNodeNextPt = nodes[1].clone(); firstNodeNextPt.z = zPos;
+    const firstNodePt = localNodes[0].clone();
+    const firstNodeNextPt = localNodes[1].clone();
     const firstSegTotalLen = Math.max(0.01, firstNodePt.distanceTo(firstNodeNextPt));
-    const maxAvailableFirst = (nodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
+    const maxAvailableFirst = (localNodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
     const L_idler = Math.min(0.30, maxAvailableFirst); // 300 mm (0.30m)
     const pIdlerEnd = firstNodePt.clone().addScaledVector(firstDir, L_idler);
 
-    const lastSegIdx = nodes.length - 2;
+    const lastSegIdx = localNodes.length - 2;
     const lastDir = (pathData.segments && pathData.segments.length > 0)
         ? pathData.segments[pathData.segments.length - 1].direction.clone().normalize()
-        : nodes[nodes.length - 1].clone().sub(nodes[nodes.length - 2]).setZ(0).normalize();
-    const lastNodePt = nodes[nodes.length - 1].clone(); lastNodePt.z = zPos;
-    const lastNodePrevPt = nodes[nodes.length - 2].clone(); lastNodePrevPt.z = zPos;
+        : localNodes[localNodes.length - 1].clone().sub(localNodes[localNodes.length - 2]).normalize();
+    const lastNodePt = localNodes[localNodes.length - 1].clone();
+    const lastNodePrevPt = localNodes[localNodes.length - 2].clone();
     const lastSegTotalLen = Math.max(0.01, lastNodePrevPt.distanceTo(lastNodePt));
     const L_drive = Math.min(0.40, lastSegTotalLen * 0.45);
     const driveScale = L_drive > 0 ? (L_drive / 0.40) : 1.0;
     const pDriveStart = lastNodePt.clone().addScaledVector(lastDir, -L_drive);
 
-    for (let i = 0; i < nodes.length - 1; i++) {
-        let pStart = nodes[i].clone(); pStart.z = zPos;
-        let pEnd = nodes[i + 1].clone(); pEnd.z = zPos;
+    for (let i = 0; i < localNodes.length - 1; i++) {
+        let pStart = localNodes[i].clone();
+        let pEnd = localNodes[i + 1].clone();
 
         // Önceki düğüm bir bend bitişi ise başlangıcı oraya bağla
         if (bendDataMap.has(i)) {
@@ -12569,9 +12615,9 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
             const cosA = Math.cos(angle);
             const sinA = Math.sin(angle);
 
-            const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, zPos);
-            const currLeft = new THREE.Vector3(cArc.x + cosA * R_left, cArc.y + sinA * R_left, zPos);
-            const currRight = new THREE.Vector3(cArc.x + cosA * R_right, cArc.y + sinA * R_right, zPos);
+            const currCenter = new THREE.Vector3(cArc.x + cosA * R, cArc.y + sinA * R, 0);
+            const currLeft = new THREE.Vector3(cArc.x + cosA * R_left, cArc.y + sinA * R_left, 0);
+            const currRight = new THREE.Vector3(cArc.x + cosA * R_right, cArc.y + sinA * R_right, 0);
 
             boundaryLinePts.push(prevLeft, currLeft);
             boundaryLinePts.push(prevRight, currRight);
@@ -12635,7 +12681,7 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
     group.add(idlerLine);
 
     // 6. Bitiş Sembolü: HER ZAMAN MOTORLU TAHRİK (Drive Unit) - AutoCAD DXF Dış Sınır Çizgileri
-    const lastNode = nodes[nodes.length - 1].clone(); lastNode.z = zPos;
+    const lastNode = localNodes[localNodes.length - 1].clone();
     const lastNorm = new THREE.Vector3(-lastDir.y, lastDir.x, 0).normalize();
     const mSide = lastNorm.clone().negate(); // Sağ tarafa monteli motor (Resimdeki yeşil kısım ile birebir uyumlu)
 
@@ -12708,26 +12754,52 @@ function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, assyName
         group.add(driveUnitMesh);
     }
 
-    // METİNLER TAMAMEN KALDIRILDI: Konveyör çizimi üzerinde hiçbir etiket/metin yer almaz.
+    // 7. Görünmez Raycast / Tıklama Seçim Gövdesi (Kullanıcı 3D sahnede konveyöre tıkladığında anında model olarak seçilsin)
+    const pickMat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.001,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const pickGroup = new THREE.Group();
+    pickGroup.name = 'Conveyor2DPickCorridor';
+    for (let i = 0; i < localNodes.length - 1; i++) {
+        const p1 = localNodes[i];
+        const p2 = localNodes[i + 1];
+        const vec = p2.clone().sub(p1);
+        const len = vec.length();
+        if (len < 0.01) continue;
+        const planeGeo = new THREE.PlaneGeometry(len, Math.max(widthM * 1.5, 0.25));
+        const mid = p1.clone().add(p2).multiplyScalar(0.5);
+        const angle = Math.atan2(vec.y, vec.x);
+        const pickMesh = new THREE.Mesh(planeGeo, pickMat);
+        pickMesh.position.set(mid.x, mid.y, 0);
+        pickMesh.rotation.set(0, 0, angle);
+        pickMesh.userData = { is2DConveyorPickHelper: true };
+        pickGroup.add(pickMesh);
+    }
+    group.add(pickGroup);
 
-    // 7. UserData & Ürün Ağacı Entegrasyonu
+    // 8. UserData & Ürün Ağacı Entegrasyonu
     group.userData = {
         type: 'xml-product',
         isParametric: true,
         parametricKind: 'conveyor-2d',
         is2DConveyorSketch: true,
+        is2DModel: true,
         assemblyName: assyName,
+        originPoint: origin.clone(),
         parametric: {
             width: widthM,
             pathData: pathData,
             assemblyName: assyName
         },
         product: {
-            name: `${assyName} (2D Taslak - ${pathData.totalLength.toFixed(1)}m)`,
-            type: 'conveyor-2d-sketch',
-            group: 'Conveyors',
-            assemblyName: assyName,
-            position: { x: startNode.x, y: startNode.y, z: zPos }
+            name: `${assyName} (2D Model - ${pathData.totalLength.toFixed(1)}m)`,
+            type: 'conveyor-2d',
+            group: '🛤️ 2D Konveyör Modelleri',
+            assemblyName: '🛤️ 2D Konveyör Modelleri',
+            position: { x: origin.x, y: origin.y, z: origin.z }
         }
     };
 }
