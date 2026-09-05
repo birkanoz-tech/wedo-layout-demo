@@ -148,6 +148,16 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
     }
 
     // 3. Düz Segmentleri (Straight Beams) Çiz
+    // Idler (Avare Uç) Kutusu: 300 mm (0.30m)
+    const firstDir = pathData.segments[0].direction.clone().normalize();
+    const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
+    const firstNodePt = nodes[0].clone(); firstNodePt.z = zPos;
+    const firstNodeNextPt = nodes[1].clone(); firstNodeNextPt.z = zPos;
+    const firstSegTotalLen = firstNodePt.distanceTo(firstNodeNextPt);
+    const maxAvailableFirst = (nodes.length === 2) ? firstSegTotalLen * 0.45 : firstSegTotalLen * 0.85;
+    const L_idler = Math.min(0.30, maxAvailableFirst); // 300 mm (0.30m)
+    const pIdlerEnd = firstNodePt.clone().addScaledVector(firstDir, L_idler);
+
     const lastSegIdx = nodes.length - 2;
     const lastDir = pathData.segments[pathData.segments.length - 1].direction.clone().normalize();
     const lastNodePt = nodes[nodes.length - 1].clone(); lastNodePt.z = zPos;
@@ -164,7 +174,11 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         // Önceki düğüm bir bend bitişi ise başlangıcı oraya bağla
         if (bendDataMap.has(i)) {
             pStart = bendDataMap.get(i).pBendEnd.clone();
+        } else if (i === 0) {
+            // İlk segment ise Idler (300mm) kutusunun bitişinden başla (içinde kesikli çizgi olmasın)
+            pStart = pIdlerEnd.clone();
         }
+
         // Sonraki düğüm bir bend başlangıcı ise bitişi oraya bağla
         if (bendDataMap.has(i + 1)) {
             pEnd = bendDataMap.get(i + 1).pBendStart.clone();
@@ -279,16 +293,25 @@ export function populate2DConveyorCADGeometry(group, pathData, widthM = 0.105, a
         group.add(axisLine);
     }
 
-    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - Tamamen Düz Sınır Çizgisi (Radius ve Daire Kaldırıldı)
-    const startNode = nodes[0];
-    const firstDir = pathData.segments[0].direction;
-    const firstNorm = new THREE.Vector3(-firstDir.y, firstDir.x, 0).normalize();
-    const idlerLeft = startNode.clone().addScaledVector(firstNorm, halfW);
-    const idlerRight = startNode.clone().addScaledVector(firstNorm, -halfW);
-    idlerLeft.z = zPos;
-    idlerRight.z = zPos;
+    // 5. Başlangıç Sembolü: HER ZAMAN AVARE UÇ (Idler End) - 300 mm Dikdörtgen Kutu
+    // İçinde kesikli çizgi bulunmaz, kesikli çizgi Idler kutusundan sonra başlar.
+    const idlerBackLeft = firstNodePt.clone().addScaledVector(firstNorm, halfW);
+    const idlerBackRight = firstNodePt.clone().addScaledVector(firstNorm, -halfW);
+    const idlerFrontLeft = pIdlerEnd.clone().addScaledVector(firstNorm, halfW);
+    const idlerFrontRight = pIdlerEnd.clone().addScaledVector(firstNorm, -halfW);
 
-    const idlerGeo = new THREE.BufferGeometry().setFromPoints([idlerLeft, idlerRight]);
+    const idlerPts = [
+        // 1. Arka Uç Sınır Çizgisi (Kapak)
+        idlerBackLeft, idlerBackRight,
+        // 2. Sol Yan Kenar Sacı
+        idlerBackLeft, idlerFrontLeft,
+        // 3. Sağ Yan Kenar Sacı
+        idlerBackRight, idlerFrontRight,
+        // 4. Ön Flanş / Gövde Birleşim Çizgisi (Idler ile gövde arasındaki ek yeri)
+        idlerFrontLeft, idlerFrontRight
+    ];
+
+    const idlerGeo = new THREE.BufferGeometry().setFromPoints(idlerPts);
     const idlerLine = new THREE.LineSegments(idlerGeo, lineMat);
     idlerLine.name = 'Conveyor2DIdlerEnd';
     group.add(idlerLine);
