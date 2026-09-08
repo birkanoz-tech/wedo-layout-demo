@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.2 - Street View (Nokta Düzenleme & Konum Kaydırma)</title>
+    <title>WEDO v1.1.3 - DXF Zemin Planı Duvar & Model Derinlik Düzeltmesi</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Street View Nokta Düzenleme & Konum Kaydırma">v1.1.2 • Street View Nokta Düzenleme & Konum Kaydırma</span>
+                    title="DXF Zemin Planı Duvar & Model Derinlik Düzeltmesi">v1.1.3 • DXF Zemin Planı Derinlik Düzeltmesi</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -468,6 +468,14 @@
                     <button onclick="triggerDXFFileImport()" type="button" title="AutoCAD DXF Dosyası İçe Aktar (Referans Modeli)"
                         class="bg-gradient-to-r from-purple-800 to-indigo-800 hover:from-purple-700 hover:to-indigo-700 text-purple-200 px-3 py-1.5 rounded text-xs font-bold border border-purple-400/50 transition cursor-pointer flex items-center gap-1.5 shadow">
                         <span>📐</span> DXF Çizimi İçe Aktar
+                    </button>
+                    <button onclick="toggleDXFVisibility()" type="button" id="btn-toggle-dxf-vis" title="DXF Zemin Planını Göster veya Gizle"
+                        class="bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2.5 py-1.5 rounded text-xs font-bold border border-purple-400/50 transition cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span id="label-toggle-dxf-vis">📐 DXF: Açık</span>
+                    </button>
+                    <button onclick="toggleDXFDepthMode()" type="button" id="btn-toggle-dxf-depth" title="DXF Çizimlerinin Duvarlar ve Modeller Tarafından Kapatılmasını veya Röntgen (X-Ray) Görünmesini Değiştirin"
+                        class="bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 px-2.5 py-1.5 rounded text-xs font-semibold border border-emerald-500/40 transition cursor-pointer flex items-center gap-1 shadow-sm">
+                        <span id="label-toggle-dxf-depth">🛡️ Duvarlar Kapatır</span>
                     </button>
                     <input type="file" id="dxf-file-input" accept=".dxf" class="hidden" onchange="handleDXFFileSelect(event)">
                     <button onclick="openBuildingLevelsModal()" type="button"
@@ -5555,18 +5563,24 @@
             lineGeo.setAttribute('color', new THREE.Float32BufferAttribute(rawLineColors, 3));
 
             const lineMat = new THREE.LineBasicMaterial({
-                color: 0x000000,
+                color: 0x1e293b,
                 transparent: true,
-                opacity: 0.95,
-                depthTest: false,
-                linewidth: 2
+                opacity: 0.85,
+                depthTest: !isDxfXRayMode,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -1.0,
+                polygonOffsetUnits: -4.0,
+                linewidth: 1.5
             });
 
             const linesMesh = new THREE.LineSegments(lineGeo, lineMat);
             linesMesh.name = `DXF_Lines_${cleanName}`;
-            linesMesh.position.z = 0.02;
-            linesMesh.renderOrder = 999;
+            linesMesh.position.z = 0.003;
+            linesMesh.renderOrder = isDxfXRayMode ? 999 : 1;
+            linesMesh.visible = isDxfVisible;
             dxfGroup.add(linesMesh);
+            dxfGroup.visible = isDxfVisible;
 
             dxfGroup.userData = {
                 type: 'xml-product',
@@ -5643,6 +5657,90 @@
             };
             reader.readAsText(file);
         }
+
+        // ==========================================
+        // 📐 DXF ZEMİN PLANI DERİNLİK & GÖRÜNÜRLÜK MOTORU
+        // ==========================================
+        let isDxfVisible = true;
+        let isDxfXRayMode = false; // Varsayılan: false (Gerçekçi Derinlik: Duvarlar ve 3D Modeller DXF'i Kapatır)
+
+        function applyProperDepthToDxfModels() {
+            if (typeof scene === 'undefined' || !scene) return;
+            scene.traverse((obj) => {
+                if (obj && (obj.userData?.isDXFModel || obj.userData?.parametricKind === 'dxf-drawing' || (obj.name && obj.name.startsWith('DXF_')))) {
+                    obj.visible = isDxfVisible;
+                    obj.traverse((child) => {
+                        if (child.isLine || child.isLineSegments) {
+                            child.visible = isDxfVisible;
+                            if (child.material) {
+                                child.material.depthTest = !isDxfXRayMode;
+                                child.material.depthWrite = false;
+                                child.material.polygonOffset = true;
+                                child.material.polygonOffsetFactor = -1.0;
+                                child.material.polygonOffsetUnits = -4.0;
+                                child.material.transparent = true;
+                                child.material.opacity = isDxfXRayMode ? 0.75 : 0.85;
+                                child.material.needsUpdate = true;
+                            }
+                            child.renderOrder = isDxfXRayMode ? 999 : 1;
+                            if (child.position.z > 0.01) {
+                                child.position.z = 0.003;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        window.applyProperDepthToDxfModels = applyProperDepthToDxfModels;
+
+        function toggleDXFVisibility(forceState = null) {
+            if (forceState !== null && typeof forceState === 'boolean') {
+                isDxfVisible = forceState;
+            } else {
+                isDxfVisible = !isDxfVisible;
+            }
+
+            applyProperDepthToDxfModels();
+
+            const btn = document.getElementById('btn-toggle-dxf-vis');
+            const lbl = document.getElementById('label-toggle-dxf-vis');
+            if (btn) {
+                if (isDxfVisible) {
+                    btn.className = 'bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2.5 py-1.5 rounded text-xs font-bold border border-purple-400/50 transition cursor-pointer flex items-center gap-1 shadow-sm';
+                    if (lbl) lbl.innerText = '📐 DXF: Açık';
+                } else {
+                    btn.className = 'bg-gray-800/80 hover:bg-gray-700 text-gray-400 px-2.5 py-1.5 rounded text-xs font-semibold border border-gray-600 transition cursor-pointer flex items-center gap-1 shadow-sm';
+                    if (lbl) lbl.innerText = '📐 DXF: Kapalı';
+                }
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice(isDxfVisible ? '📐 DXF Zemin Planı Gösteriliyor' : '🙈 DXF Zemin Planı Gizlendi');
+            }
+        }
+        window.toggleDXFVisibility = toggleDXFVisibility;
+
+        function toggleDXFDepthMode() {
+            isDxfXRayMode = !isDxfXRayMode;
+            applyProperDepthToDxfModels();
+
+            const btn = document.getElementById('btn-toggle-dxf-depth');
+            const lbl = document.getElementById('label-toggle-dxf-depth');
+            if (btn) {
+                if (!isDxfXRayMode) {
+                    btn.className = 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 px-2.5 py-1.5 rounded text-xs font-semibold border border-emerald-500/40 transition cursor-pointer flex items-center gap-1 shadow-sm';
+                    if (lbl) lbl.innerText = '🛡️ Duvarlar Kapatır';
+                } else {
+                    btn.className = 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 px-2.5 py-1.5 rounded text-xs font-semibold border border-amber-500/40 transition cursor-pointer flex items-center gap-1 shadow-sm';
+                    if (lbl) lbl.innerText = '👁️ Röntgen (X-Ray)';
+                }
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice(!isDxfXRayMode ? '🛡️ DXF Derinlik Modu: Duvarlar ve Modeller Çizimleri Kapatır (Doğal CAD)' : '👁️ DXF Röntgen Modu: Çizimler Her Şeyin Önünde Görünür');
+            }
+        }
+        window.toggleDXFDepthMode = toggleDXFDepthMode;
 
         window.triggerDXFFileImport = triggerDXFFileImport;
         window.handleDXFFileSelect = handleDXFFileSelect;
@@ -9070,6 +9168,9 @@
 
             renderModelTree();
             updateGLBModelCountBadge();
+            if (typeof applyProperDepthToDxfModels === 'function') {
+                applyProperDepthToDxfModels();
+            }
         }
         window.rebuildModelTreeFromScene = rebuildModelTreeFromScene;
 
@@ -14946,6 +15047,10 @@ if (typeof window !== 'undefined') {
                     setTimeout(() => {
                         enterStreetView(svTarget, false);
                     }, 400);
+                }
+
+                if (typeof applyProperDepthToDxfModels === 'function') {
+                    applyProperDepthToDxfModels();
                 }
             }, 250);
         };
