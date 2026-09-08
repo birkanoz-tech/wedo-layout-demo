@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.0.9 - Kat Kotları Sıfırlama & Token-Free Yerel Kayıt</title>
+    <title>WEDO v1.1.0 - Grid Aç/Kapat (View Tab) & Temiz Görünüm</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Kat Kotları Sıfırlama & Token-Free Yerel Kayıt">v1.0.9 • Kat Kotları Sıfırlama & Yerel Kayıt</span>
+                    title="Grid Aç/Kapat (View Tab) & Temiz Görünüm">v1.1.0 • Grid Aç/Kapat (View Tab)</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -369,6 +369,18 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 border-l border-[#3a3a3a] pl-3">
+                    <!-- Grid Aç/Kapat (Tick / Checkbox Buton) -->
+                    <label id="view-grid-toggle-btn"
+                        class="bg-[#1e293b] hover:bg-[#334155] border border-cyan-500/60 text-cyan-300 text-xs px-2.5 py-1.5 rounded shadow font-semibold transition flex items-center gap-2 cursor-pointer select-none border-dashed hover:border-cyan-400"
+                        title="Sahnedeki Zemin Izgarasını (Grid) Aç / Kapat">
+                        <input type="checkbox" id="view-grid-checkbox" checked onchange="toggleSceneGrid(this.checked)"
+                            class="w-4 h-4 text-cyan-500 bg-gray-950 border-gray-600 rounded focus:ring-cyan-400 focus:ring-1 cursor-pointer accent-cyan-400">
+                        <span class="flex items-center gap-1.5 text-[11px]">
+                            <span>🏁</span>
+                            <span id="view-grid-text">Grid (Izgara)</span>
+                        </span>
+                    </label>
+
                     <button id="toggle-camera-projection-btn" onclick="toggleCameraProjection()"
                         class="bg-indigo-700 hover:bg-indigo-600 active:bg-indigo-800 text-white text-xs px-3 py-1.5 rounded shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span id="camera-projection-icon">📐</span>
@@ -842,6 +854,50 @@
         window.addedManualModels = addedManualModels;
         let pathCableLinks = [];
         let panelCounter = 0;
+        let isSceneGridVisible = true;
+        let mainGridHelper = null;
+
+        function toggleSceneGrid(forceState = null) {
+            if (forceState !== null && typeof forceState === 'boolean') {
+                isSceneGridVisible = forceState;
+            } else {
+                isSceneGridVisible = !isSceneGridVisible;
+            }
+
+            // 1. Ana zemin GridHelper görünürlüğü
+            if (mainGridHelper) {
+                mainGridHelper.visible = isSceneGridVisible;
+            }
+
+            // 2. Sahnedeki bina katı ve diğer yardımcı ızgaralar
+            if (typeof scene !== 'undefined' && scene) {
+                scene.traverse((obj) => {
+                    if (obj && (obj.isGridHelper || obj.type === 'GridHelper')) {
+                        obj.visible = isSceneGridVisible;
+                    }
+                });
+            }
+
+            // 3. UI Checkbox & Buton görselini güncelle
+            const checkEl = document.getElementById('view-grid-checkbox');
+            if (checkEl && checkEl.checked !== isSceneGridVisible) {
+                checkEl.checked = isSceneGridVisible;
+            }
+
+            const btnEl = document.getElementById('view-grid-toggle-btn');
+            if (btnEl) {
+                if (isSceneGridVisible) {
+                    btnEl.className = 'bg-[#1e293b] hover:bg-[#334155] border border-cyan-500/60 text-cyan-300 text-xs px-2.5 py-1.5 rounded shadow font-semibold transition flex items-center gap-2 cursor-pointer select-none border-dashed hover:border-cyan-400';
+                } else {
+                    btnEl.className = 'bg-gray-800/80 hover:bg-gray-700/80 border border-gray-600 text-gray-400 text-xs px-2.5 py-1.5 rounded shadow font-semibold transition flex items-center gap-2 cursor-pointer select-none';
+                }
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice(isSceneGridVisible ? '📐 Zemin Izgarası (Grid) Açıldı' : '🙈 Zemin Izgarası (Grid) Gizlendi');
+            }
+        }
+        window.toggleSceneGrid = toggleSceneGrid;
 
         function create3DPanoLabelSprite(textStr) {
             const canvas = document.createElement('canvas');
@@ -2146,6 +2202,9 @@
             gridHelper.rotation.x = Math.PI / 2; // varsayılan X-Z düzlemini X-Y zeminine çevir
             gridHelper.position.z = -0.01;
             gridHelper.userData.persistent = true;
+            gridHelper.visible = isSceneGridVisible;
+            mainGridHelper = gridHelper;
+            window.mainGridHelper = gridHelper;
             scene.add(gridHelper);
 
             const groundGeo = new THREE.PlaneGeometry(400, 400);
@@ -3778,6 +3837,7 @@
                     gridHelper.material.opacity = 0.35;
                     gridHelper.material.depthWrite = false;
                 }
+                gridHelper.visible = isSceneGridVisible;
                 levelGroup.add(gridHelper);
 
                 levelGroup.visible = level.visible !== false;
