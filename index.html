@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.0 - Grid Aç/Kapat (View Tab) & Temiz Görünüm</title>
+    <title>WEDO v1.1.1 - Street View (Çoklu Sekme & 360 Gezinti)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Grid Aç/Kapat (View Tab) & Temiz Görünüm">v1.1.0 • Grid Aç/Kapat (View Tab)</span>
+                    title="Street View (Çoklu Sekme & 360 Gezinti)">v1.1.1 • Street View (Yeni Sekme & 360 Gezinti)</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -396,6 +396,30 @@
                         <span>⚙️</span>
                         <span>Sağ Panel (Özellikler & Konum) Göster/Gizle</span>
                     </button>
+
+                    <!-- Street View (360° Gezinti & Çoklu Sekme) -->
+                    <div class="flex items-center gap-1.5 bg-[#1e293b]/70 border border-amber-500/50 p-1 rounded-lg">
+                        <span class="text-amber-400 text-[10px] font-bold uppercase tracking-wider pl-1.5 flex items-center gap-1">
+                            <span>🚶</span> Street View:
+                        </span>
+                        <select id="ribbon-streetview-node-select"
+                            class="bg-[#0f172a] border border-amber-500/40 text-amber-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-400 shadow cursor-pointer min-w-[150px]">
+                            <option value="node_entrance">🏢 Fabrika Ana Girişi</option>
+                            <option value="node_conveyor_start">🔄 Konveyör Besleme</option>
+                            <option value="node_robot_cell">🤖 Robot Hücresi</option>
+                            <option value="node_plc_cabinet">⚡ PLC & Panolar</option>
+                        </select>
+                        <button onclick="enterStreetView(document.getElementById('ribbon-streetview-node-select').value)" type="button"
+                            class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs px-2.5 py-1 rounded shadow font-bold transition flex items-center gap-1 cursor-pointer border border-amber-400/30">
+                            <span>Gezin</span>
+                        </button>
+                        <button onclick="openStreetViewInNewTab(document.getElementById('ribbon-streetview-node-select').value)" type="button"
+                            class="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/40 text-xs px-2 py-1 rounded shadow font-semibold transition flex items-center gap-1 cursor-pointer"
+                            title="Bu bölgeyi yeni tarayıcı sekmesinde açarak sekmeler arası gezin">
+                            <span>↗️</span>
+                            <span class="text-[10px]">Yeni Sekme</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -831,6 +855,57 @@
         </div>
     </div>
 
+    <!-- STREET VIEW 360° HUD OVERLAY (Tam Ekran Gezinti Katmanı) -->
+    <div id="streetview-hud-overlay"
+        class="hidden fixed inset-0 pointer-events-none z-50 flex flex-col justify-between p-4 select-none">
+        <!-- Top HUD Bar -->
+        <div
+            class="pointer-events-auto mx-auto max-w-4xl w-full bg-black/85 backdrop-blur-md border border-amber-500/50 rounded-xl px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
+            <div class="flex items-center gap-2.5">
+                <span class="text-2xl">🚶</span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-amber-400">Street View 360°</span>
+                        <span class="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-mono font-bold">CANLI GEZİNTİ</span>
+                    </div>
+                    <div class="text-sm font-bold text-white flex items-center gap-1.5">
+                        <span id="streetview-hud-node-name">Fabrika Ana Girişi</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Quick Switcher -->
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] text-gray-400 font-medium">Bölgeye Işınlan:</span>
+                <select id="streetview-hud-node-select" onchange="enterStreetView(this.value)"
+                    class="bg-[#181818] border border-amber-500/40 text-amber-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 shadow cursor-pointer min-w-[170px]">
+                    <!-- Dynamically populated -->
+                </select>
+                <button onclick="openCurrentStreetViewInNewTab()" type="button"
+                    class="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/50 text-xs px-3 py-1.5 rounded-lg shadow font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                    title="Bu bölgeyi yeni bir tarayıcı sekmesinde açarak sekmeler arası karşılaştırma yapın">
+                    <span>↗️</span>
+                    <span>Yeni Sekmede Aç</span>
+                </button>
+            </div>
+
+            <!-- Exit Button -->
+            <button onclick="exitStreetView()" type="button"
+                class="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-xs px-3.5 py-1.5 rounded-lg shadow font-bold transition flex items-center gap-1.5 cursor-pointer border border-red-400/40">
+                <span>❌</span>
+                <span>Normal Görünüme Dön (ESC)</span>
+            </button>
+        </div>
+
+        <!-- Bottom Guidance Bar -->
+        <div
+            class="pointer-events-auto mx-auto bg-black/80 backdrop-blur-sm border border-amber-500/30 rounded-full px-5 py-2 shadow-2xl flex items-center gap-3 text-xs text-gray-200">
+            <span class="text-amber-400 font-bold">💡 İpucu:</span>
+            <span>Fareyi sürükleyerek <strong>360° etrafınıza bakın</strong>. Yerdeki parlayan halkalara tıklayarak diğer bölgelere ışınlanabilirsiniz.</span>
+            <span class="bg-gray-800 border border-gray-600 px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono">Shift + Tık = Yeni Sekme</span>
+        </div>
+    </div>
+
     <script>
         let scene, camera, renderer, controls;
         let perspectiveCamera = null;
@@ -898,6 +973,280 @@
             }
         }
         window.toggleSceneGrid = toggleSceneGrid;
+
+        // ==========================================
+        // STREET VIEW (BUBBLE-TO-BUBBLE) STATE & ENGINE
+        // ==========================================
+        let isStreetViewActive = false;
+        let streetViewCamera = null;
+        let streetViewControls = null;
+        let streetViewActiveNodeId = null;
+        let streetViewMarkerGroup = null;
+        let streetViewRaycaster = new THREE.Raycaster();
+        let streetViewPointer = new THREE.Vector2();
+
+        const defaultStreetViewNodes = [
+            { id: "node_entrance", name: "🏢 Fabrika Ana Girişi", position: { x: 0, y: -10, z: 1.6 } },
+            { id: "node_conveyor_start", name: "🔄 Konveyör Besleme", position: { x: 4, y: 0, z: 1.6 } },
+            { id: "node_robot_cell", name: "🤖 Robot Paletleme Hücresi", position: { x: 12, y: 6, z: 1.6 } },
+            { id: "node_plc_cabinet", name: "⚡ PLC & Elektrik Panoları", position: { x: -6, y: 6, z: 1.6 } }
+        ];
+
+        function getStreetViewNodes() {
+            const nodes = [...defaultStreetViewNodes];
+
+            // Sahnedeki panoları ekle
+            if (Array.isArray(addedPanels) && addedPanels.length > 0) {
+                addedPanels.forEach((p, idx) => {
+                    if (p && p.mesh && p.mesh.position) {
+                        nodes.push({
+                            id: 'panel_' + (p.id || idx),
+                            name: '⚡ ' + (p.name || `Pano ${idx + 1}`),
+                            position: {
+                                x: p.mesh.position.x,
+                                y: p.mesh.position.y - 1.2,
+                                z: (p.mesh.position.z || 0) + 1.6
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Sahnedeki konveyör hatlarını ekle
+            if (typeof conveyors !== 'undefined' && Array.isArray(conveyors) && conveyors.length > 0) {
+                conveyors.forEach((c, idx) => {
+                    if (c && c.nodes && c.nodes.length > 0) {
+                        const firstNode = c.nodes[0];
+                        nodes.push({
+                            id: 'conveyor_' + (c.id || idx),
+                            name: '📦 ' + (c.name || `Hat ${idx + 1}`),
+                            position: {
+                                x: firstNode.x || 0,
+                                y: (firstNode.y || 0) - 1.2,
+                                z: (firstNode.z || 0) + 1.6
+                            }
+                        });
+                    }
+                });
+            }
+
+            return nodes;
+        }
+        window.getStreetViewNodes = getStreetViewNodes;
+
+        function createStreetViewMarkerSprite(textStr) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 70;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(8, 8, 304, 54, 14);
+            } else {
+                ctx.rect(8, 8, 304, 54);
+            }
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fde68a';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(textStr, 160, 35);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(2.0, 0.44, 1);
+            sprite.renderOrder = 999;
+            return sprite;
+        }
+
+        function initStreetViewControls() {
+            if (streetViewCamera && streetViewControls) return;
+
+            const aspect = (window.innerWidth && window.innerHeight) ? (window.innerWidth / window.innerHeight) : (16 / 9);
+            streetViewCamera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+            streetViewCamera.up.set(0, 0, 1); // Z-Up koordinat sistemi
+
+            streetViewControls = new THREE.OrbitControls(streetViewCamera, renderer.domElement);
+            streetViewControls.enableZoom = false; // Sabit nokta
+            streetViewControls.enablePan = false;
+            streetViewControls.enableDamping = true;
+            streetViewControls.dampingFactor = 0.08;
+            streetViewControls.rotateSpeed = -0.45; // Akıcı 360 dönüş
+        }
+
+        function updateStreetViewMarkers(currentNodeId) {
+            if (streetViewMarkerGroup && scene) {
+                scene.remove(streetViewMarkerGroup);
+            }
+            streetViewMarkerGroup = new THREE.Group();
+            streetViewMarkerGroup.name = 'streetViewMarkerGroup';
+
+            const allNodes = getStreetViewNodes();
+
+            allNodes.forEach(node => {
+                if (node.id === currentNodeId) return; // Kendi bastığı yere halka koyma
+
+                const markerSubGroup = new THREE.Group();
+                markerSubGroup.userData = { isStreetViewMarker: true, targetNodeId: node.id, targetNodeName: node.name };
+
+                // Dış Halka (Ring)
+                const ringGeo = new THREE.RingGeometry(0.7, 0.95, 32);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.userData = { isStreetViewMarker: true, targetNodeId: node.id };
+                markerSubGroup.add(ringMesh);
+
+                // İç Şeffaf Daire (Disc)
+                const discGeo = new THREE.CircleGeometry(0.68, 32);
+                const discMat = new THREE.MeshBasicMaterial({ color: 0xd97706, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+                const discMesh = new THREE.Mesh(discGeo, discMat);
+                discMesh.userData = { isStreetViewMarker: true, targetNodeId: node.id };
+                markerSubGroup.add(discMesh);
+
+                // Üzerindeki Yüzen Başlık Sprite'ı
+                const labelSprite = createStreetViewMarkerSprite(node.name);
+                labelSprite.position.set(0, 0, 0.85); // Zemin kotunun 0.85m yukarısında
+                labelSprite.userData = { isStreetViewMarker: true, targetNodeId: node.id };
+                markerSubGroup.add(labelSprite);
+
+                // Zemin kotuna yerleştir (Z = node.position.z - 1.58m)
+                markerSubGroup.position.set(node.position.x, node.position.y, (node.position.z - 1.58));
+                streetViewMarkerGroup.add(markerSubGroup);
+            });
+
+            scene.add(streetViewMarkerGroup);
+        }
+
+        function enterStreetView(nodeId, pushHistory = true) {
+            initStreetViewControls();
+
+            const allNodes = getStreetViewNodes();
+            let node = allNodes.find(n => n.id === nodeId);
+            if (!node) node = allNodes[0];
+            if (!node) return;
+
+            streetViewActiveNodeId = node.id;
+            isStreetViewActive = true;
+
+            // 1. Ana kontrolleri devre dışı bırak
+            if (controls) controls.enabled = false;
+            if (transformControls) transformControls.detach();
+
+            // 2. Street View kamerasını tam konuma koy
+            const aspect = (window.innerWidth && window.innerHeight) ? (window.innerWidth / window.innerHeight) : (16 / 9);
+            streetViewCamera.aspect = aspect;
+            streetViewCamera.updateProjectionMatrix();
+            streetViewCamera.position.set(node.position.x, node.position.y, node.position.z);
+
+            // 3. Hedefi kameranın hemen önüne koy (merkezden dönme)
+            streetViewControls.target.set(node.position.x + 0.1, node.position.y, node.position.z);
+            streetViewControls.update();
+
+            // 4. Diğer odaların zemin halkalarını çiz
+            updateStreetViewMarkers(node.id);
+
+            // 5. HUD'ı aç ve güncelle
+            showStreetViewUI(node);
+
+            // 6. URL parametresini güncelle (sayfayı yenilemeden)
+            if (pushHistory && window.history && window.history.replaceState) {
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('streetview', node.id);
+                    window.history.replaceState(null, '', url.toString());
+                } catch (e) {}
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice(`🚶 Street View: ${node.name}`);
+            }
+        }
+        window.enterStreetView = enterStreetView;
+
+        function exitStreetView() {
+            isStreetViewActive = false;
+            if (controls) controls.enabled = true;
+
+            hideStreetViewUI();
+
+            if (streetViewMarkerGroup && scene) {
+                scene.remove(streetViewMarkerGroup);
+                streetViewMarkerGroup = null;
+            }
+
+            if (window.history && window.history.replaceState) {
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('streetview');
+                    window.history.replaceState(null, '', url.toString());
+                } catch (e) {}
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice('📐 3D CAD Çalışma Moduna Geri Dönüldü');
+            }
+        }
+        window.exitStreetView = exitStreetView;
+
+        function openStreetViewInNewTab(nodeId) {
+            const targetNodeId = nodeId || streetViewActiveNodeId || 'node_entrance';
+            const url = new URL(window.location.href);
+            if (currentXmlFilename && !currentXmlFilename.startsWith('Boş Sahne')) {
+                url.searchParams.set('project', currentXmlFilename);
+            }
+            url.searchParams.set('streetview', targetNodeId);
+            window.open(url.toString(), '_blank');
+        }
+        window.openStreetViewInNewTab = openStreetViewInNewTab;
+
+        function openCurrentStreetViewInNewTab() {
+            openStreetViewInNewTab(streetViewActiveNodeId);
+        }
+        window.openCurrentStreetViewInNewTab = openCurrentStreetViewInNewTab;
+
+        function showStreetViewUI(activeNode) {
+            const hud = document.getElementById('streetview-hud-overlay');
+            if (hud) hud.classList.remove('hidden');
+
+            const nameEl = document.getElementById('streetview-hud-node-name');
+            if (nameEl) nameEl.innerText = activeNode.name;
+
+            syncStreetViewDropdowns(activeNode.id);
+        }
+
+        function hideStreetViewUI() {
+            const hud = document.getElementById('streetview-hud-overlay');
+            if (hud) hud.classList.add('hidden');
+        }
+
+        function syncStreetViewDropdowns(activeNodeId) {
+            const allNodes = getStreetViewNodes();
+            const targetId = activeNodeId || streetViewActiveNodeId || (allNodes[0] ? allNodes[0].id : '');
+
+            // Ribbon dropdown
+            const ribbonSelect = document.getElementById('ribbon-streetview-node-select');
+            if (ribbonSelect) {
+                ribbonSelect.innerHTML = allNodes.map(n => 
+                    `<option value="${n.id}" ${n.id === targetId ? 'selected' : ''}>${n.name}</option>`
+                ).join('');
+            }
+
+            // HUD dropdown
+            const hudSelect = document.getElementById('streetview-hud-node-select');
+            if (hudSelect) {
+                hudSelect.innerHTML = allNodes.map(n => 
+                    `<option value="${n.id}" ${n.id === targetId ? 'selected' : ''}>${n.name}</option>`
+                ).join('');
+            }
+        }
+        window.syncStreetViewDropdowns = syncStreetViewDropdowns;
 
         function create3DPanoLabelSprite(textStr) {
             const canvas = document.createElement('canvas');
@@ -2426,6 +2775,36 @@
                     return;
                 }
 
+                if (isStreetViewActive) {
+                    const dx = event.clientX - pointerDown.x;
+                    const dy = event.clientY - pointerDown.y;
+                    if (dx * dx + dy * dy > 30 * 30) return; // Fare sürüklendiyse (360 bakış) tıklama sayma
+
+                    if (streetViewMarkerGroup && streetViewCamera) {
+                        const rect = renderer.domElement.getBoundingClientRect();
+                        streetViewPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                        streetViewPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                        streetViewRaycaster.setFromCamera(streetViewPointer, streetViewCamera);
+                        const hits = streetViewRaycaster.intersectObjects(streetViewMarkerGroup.children, true);
+                        if (hits.length > 0) {
+                            let hitObj = hits[0].object;
+                            while (hitObj && !hitObj.userData.targetNodeId && hitObj.parent && hitObj.parent !== streetViewMarkerGroup) {
+                                hitObj = hitObj.parent;
+                            }
+                            if (hitObj && hitObj.userData && hitObj.userData.targetNodeId) {
+                                const targetId = hitObj.userData.targetNodeId;
+                                if (event.shiftKey) {
+                                    openStreetViewInNewTab(targetId);
+                                } else {
+                                    enterStreetView(targetId);
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    return;
+                }
+
                 const camRotDiff = Math.abs(camera.rotation.x - cameraStartRotation.x) +
                     Math.abs(camera.rotation.y - cameraStartRotation.y) +
                     Math.abs(camera.rotation.z - cameraStartRotation.z);
@@ -2546,6 +2925,11 @@
                 }
 
                 if (event.key === 'Escape') {
+                    if (isStreetViewActive) {
+                        event.preventDefault();
+                        exitStreetView();
+                        return;
+                    }
                     event.preventDefault();
                     cancelActiveMode('Yerleştirme modu ESC ile kapatıldı.');
                     return;
@@ -10869,6 +11253,10 @@
                 camera.aspect = aspect;
                 camera.updateProjectionMatrix();
             }
+            if (streetViewCamera) {
+                streetViewCamera.aspect = aspect;
+                streetViewCamera.updateProjectionMatrix();
+            }
             if (renderer) {
                 renderer.setSize(w, h);
             }
@@ -10887,11 +11275,22 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            renderer.render(scene, camera);
 
-            if (axisGizmoRenderer && axisGizmoScene && axisGizmoCamera && axisGizmoRoot) {
-                axisGizmoRoot.quaternion.copy(camera.quaternion).invert();
-                axisGizmoRenderer.render(axisGizmoScene, axisGizmoCamera);
+            if (isStreetViewActive && streetViewCamera) {
+                if (streetViewControls) streetViewControls.update();
+                renderer.render(scene, streetViewCamera);
+
+                if (axisGizmoRenderer && axisGizmoScene && axisGizmoCamera && axisGizmoRoot) {
+                    axisGizmoRoot.quaternion.copy(streetViewCamera.quaternion).invert();
+                    axisGizmoRenderer.render(axisGizmoScene, axisGizmoCamera);
+                }
+            } else {
+                renderer.render(scene, camera);
+
+                if (axisGizmoRenderer && axisGizmoScene && axisGizmoCamera && axisGizmoRoot) {
+                    axisGizmoRoot.quaternion.copy(camera.quaternion).invert();
+                    axisGizmoRenderer.render(axisGizmoScene, axisGizmoCamera);
+                }
             }
         }
 
@@ -13958,6 +14357,16 @@ if (typeof window !== 'undefined') {
                 setViewportView('iso');
                 if (typeof generateAllConveyorPathways === 'function' && restored) {
                     generateAllConveyorPathways();
+                }
+
+                // Street View Dropdown senkronizasyonu ve URL'den doğrudan başlatma
+                syncStreetViewDropdowns();
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('streetview')) {
+                    const svTarget = urlParams.get('streetview');
+                    setTimeout(() => {
+                        enterStreetView(svTarget, false);
+                    }, 400);
                 }
             }, 250);
         };
