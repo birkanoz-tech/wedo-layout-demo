@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.1 - Orbit Shift+Mouse Wheel & Sol Tık Seçim Koruması</title>
+    <title>WEDO v1.2.2 - Seçili Model Merkezli Orbit (Shift+Mouse Wheel)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Sol Tık Orbiti İptal (Seçim Koruması) • Orbit: Shift + Fare Tekerleği (Middle Drag) • Pan: Tekerlek / Sağ Tık">v1.2.1 • Orbit: Shift+Tekerlek</span>
+                    title="Model Merkezli Orbit (Shift + Mouse Wheel) • Seçilen model otomatik olarak dönüş ekseni yapılır">v1.2.2 • Model Merkezli Orbit</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -3001,6 +3001,12 @@
                     onCadStreetViewPinMoved(transformControls.object);
                     return;
                 }
+                if (controls && selectedMesh) {
+                    const meshCenter = (typeof getSelectedObjectCenter === 'function' ? getSelectedObjectCenter(selectedMesh) : null);
+                    if (meshCenter) {
+                        controls.target.copy(meshCenter);
+                    }
+                }
                 syncSelectedProductDataFromMesh();
                 updateSelectionInfoPanel();
                 updateWorldPositionEditorForSelection();
@@ -3329,6 +3335,18 @@
             };
 
             renderer.domElement.addEventListener('pointerdown', (event) => {
+                // Eğer Shift + Orta Tuş (veya Sağ Tuş) ile Orbit başlatılıyorsa ve bir model seçiliyse:
+                // Orbit dönüş merkezini kesinlikle seçili modelin geometrik merkezine ayarla
+                if (event.shiftKey && (event.button === 1 || event.button === 2)) {
+                    if (controls && selectedMesh) {
+                        const meshCenter = (typeof getSelectedObjectCenter === 'function' ? getSelectedObjectCenter(selectedMesh) : null);
+                        if (meshCenter) {
+                            controls.target.copy(meshCenter);
+                            controls.update();
+                        }
+                    }
+                    return;
+                }
                 if (event.button !== 0) return; // Yalnızca sol tık seçim ve koordinat takibi yapar
                 pointerDown.x = event.clientX;
                 pointerDown.y = event.clientY;
@@ -9574,6 +9592,32 @@
             if (leftInfo) leftInfo.innerHTML = leftHtml;
         }
 
+        function getSelectedObjectCenter(mesh) {
+            if (!mesh) return null;
+            const targetObj = (typeof getCableTrayAssemblyRoot === 'function' ? getCableTrayAssemblyRoot(mesh) : null) || mesh;
+            const box = new THREE.Box3();
+            try {
+                box.setFromObject(targetObj);
+            } catch (e) {
+                console.warn('getSelectedObjectCenter box error:', e);
+            }
+            const center = new THREE.Vector3();
+            if (!box.isEmpty()) {
+                box.getCenter(center);
+                if (isFinite(center.x) && isFinite(center.y) && isFinite(center.z)) {
+                    return center;
+                }
+            }
+            try {
+                targetObj.getWorldPosition(center);
+                if (isFinite(center.x) && isFinite(center.y) && isFinite(center.z)) {
+                    return center;
+                }
+            } catch (e) {}
+            return null;
+        }
+        window.getSelectedObjectCenter = getSelectedObjectCenter;
+
         function selectMesh(mesh) {
             if (selectedMesh && selectedMesh !== mesh) {
                 getMeshChildren(selectedMesh).forEach((childMesh) => {
@@ -9650,6 +9694,15 @@
             syncSelectedProductDataFromMesh();
             updateParametricEditorForSelection();
             updateWorldPositionEditorForSelection();
+
+            // Seçili modeli Orbit ve Kamera pivot merkezi yap:
+            if (controls && mesh && (!mesh.userData?.isBlenderCamera)) {
+                const meshCenter = getSelectedObjectCenter(mesh);
+                if (meshCenter) {
+                    controls.target.copy(meshCenter);
+                    controls.update();
+                }
+            }
 
             if (mesh.userData?.isBlenderCamera && mesh.userData?.cameraId) {
                 switchToCameraView(mesh.userData.cameraId);
