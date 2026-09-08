@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.4 - Doğrudan Buluta Kaydetme (GitHub Cloud Sync)</title>
+    <title>WEDO v1.1.5 - Revizyon Korumalı Bulut Kayıt (Üzerine Yazma Engeli)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Doğrudan Buluta Kaydetme (GitHub Cloud Sync)">v1.1.4 • Doğrudan Buluta Kaydetme</span>
+                    title="Revizyon Korumalı Bulut Kayıt (Üzerine Yazma Engeli)">v1.1.5 • Revizyon Korumalı Bulut Kayıt</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -10452,64 +10452,131 @@
         }
         window.saveActiveProjectToCloud = saveActiveProjectToCloud;
 
-        function openSaveAsNewProjectModal() {
-            let modal = document.getElementById('modal-save-as-project');
-            const urlParams = new URLSearchParams(window.location.search);
-            const activeProj = urlParams.get('project') || urlParams.get('json') || urlParams.get('xml') || 'OPP-0106989-1-R1.json';
-            
-            let suggestedName = activeProj.trim();
+        function calculateNextAvailableRevisionName(activeProjName) {
+            let suggestedName = (activeProjName || 'OPP-0106989-1-R1.json').trim();
             if (!suggestedName.toLowerCase().endsWith('.json') && !suggestedName.toLowerCase().endsWith('.xml')) {
                 suggestedName += '.json';
             }
+            const isXml = suggestedName.toLowerCase().endsWith('.xml');
+            const ext = isXml ? '.xml' : '.json';
             const baseName = suggestedName.replace(/\.(json|xml)$/i, '');
-            
-            if (baseName.includes('-R')) {
-                const parts = baseName.split('-R');
-                const revNum = parseInt(parts[1], 10) || 1;
-                suggestedName = `${parts[0]}-R${revNum + 1}.json`;
-            } else if (/_v\d+$/i.test(baseName)) {
-                suggestedName = baseName.replace(/_v(\d+)$/i, (m, p1) => `_v${parseInt(p1, 10) + 1}`) + '.json';
-            } else {
-                suggestedName = `${baseName}_v2.json`;
+
+            // Proje listesindeki tüm isimleri tara (en yüksek revizyonu bulmak için)
+            let existingFileNames = [];
+            const dropdown = document.getElementById('customer-projects-dropdown');
+            if (dropdown && dropdown.options) {
+                for (let i = 0; i < dropdown.options.length; i++) {
+                    const val = dropdown.options[i].value;
+                    if (val && val !== '__empty__' && val !== 'empty') {
+                        existingFileNames.push(val.trim());
+                    }
+                }
             }
 
+            if (baseName.includes('-R')) {
+                const parts = baseName.split('-R');
+                const prefix = parts[0];
+                let maxRev = parseInt(parts[1], 10) || 1;
+
+                const pattern = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-R(\\d+)', 'i');
+                existingFileNames.forEach(fn => {
+                    const m = fn.match(pattern);
+                    if (m && m[1]) {
+                        const r = parseInt(m[1], 10);
+                        if (r > maxRev) maxRev = r;
+                    }
+                });
+
+                return `${prefix}-R${maxRev + 1}${ext}`;
+            } else if (/_v\d+$/i.test(baseName)) {
+                const prefix = baseName.replace(/_v\d+$/i, '');
+                let maxV = 1;
+                const mBase = baseName.match(/_v(\d+)$/i);
+                if (mBase) maxV = parseInt(mBase[1], 10) || 1;
+
+                const pattern = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '_v(\\d+)', 'i');
+                existingFileNames.forEach(fn => {
+                    const m = fn.match(pattern);
+                    if (m && m[1]) {
+                        const v = parseInt(m[1], 10);
+                        if (v > maxV) maxV = v;
+                    }
+                });
+
+                return `${prefix}_v${maxV + 1}${ext}`;
+            } else {
+                return `${baseName}_v2${ext}`;
+            }
+        }
+        window.calculateNextAvailableRevisionName = calculateNextAvailableRevisionName;
+
+        function openSaveAsNewProjectModal() {
+            let modal = document.getElementById('modal-save-as-project');
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeProj = urlParams.get('project') || urlParams.get('json') || urlParams.get('xml') || currentXmlFilename || 'OPP-0106989-1-R1.json';
+            
+            const suggestedName = calculateNextAvailableRevisionName(activeProj);
             const savedToken = localStorage.getItem('GITHUB_ACCESS_TOKEN') || '';
+            const hasToken = savedToken.trim().length > 0;
 
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modal-save-as-project';
                 modal.className = 'fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
                 modal.innerHTML = `
-                    <div style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 20px; width: 90%; max-width: 480px; margin: auto;" class="space-y-4 text-xs">
-                        <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+                    <div style="background-color: #0f172a; color: #f8fafc; border: 2px solid #06b6d4; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.95); padding: 22px; width: 92%; max-width: 490px; margin: auto;" class="space-y-4 text-xs">
+                        <div class="flex items-center justify-between border-b border-gray-800 pb-2.5">
                             <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
-                                <span>☁️</span> Projeyi Buluta Kaydet (GitHub Cloud)
+                                <span>☁️</span> Yeni Versiyon Olarak Buluta Kaydet
                             </h3>
                             <button onclick="closeSaveAsNewProjectModal()" class="text-gray-400 hover:text-white text-base font-bold cursor-pointer">✕</button>
                         </div>
+
+                        <!-- Revizyon Koruma Bilgi Kartı -->
+                        <div class="bg-blue-950/60 border border-cyan-500/40 rounded-lg p-3 space-y-1">
+                            <div class="flex items-center gap-1.5 text-cyan-300 font-bold text-[11px]">
+                                <span>🛡️</span> Revizyon Koruması Aktif
+                            </div>
+                            <p class="text-[10px] text-gray-300 leading-relaxed">
+                                Eski revizyonların üzerine yazma güvenlik amacıyla kilitlenmiştir. Çalışmanız otomatik olarak sıradaki yeni versiyon olarak arşivlenecektir.
+                            </p>
+                        </div>
+
                         <div class="space-y-3">
                             <div>
                                 <label class="block text-gray-300 text-[11px] font-semibold mb-1">
-                                    Proje Dosya / Versiyon Adı (.json):
+                                    Yeni Revizyon / Dosya Adı (.json):
                                 </label>
-                                <input id="save-as-project-name-input" type="text" value="${suggestedName}" class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-3 py-2 text-gray-100 text-xs outline-none font-mono" />
+                                <input id="save-as-project-name-input" type="text" value="${suggestedName}" class="w-full bg-gray-950 border border-cyan-500/60 focus:border-cyan-400 rounded px-3 py-2 text-cyan-200 text-xs outline-none font-mono font-bold shadow-inner" />
                             </div>
-                            <div>
-                                <label class="block text-gray-300 text-[11px] font-semibold mb-1 flex items-center justify-between">
-                                    <span>GitHub Access Token (PAT):</span>
-                                    <span class="text-[10px] text-gray-400 font-normal">Tarayıcıda güvenle saklanır</span>
-                                </label>
-                                <input id="save-as-github-token-input" type="password" placeholder="ghp_xxxxxxxxxxxx" value="${savedToken}" class="w-full bg-gray-950 border border-gray-700 focus:border-cyan-400 rounded px-3 py-2 text-gray-100 text-xs outline-none font-mono" />
-                                <div class="flex items-center justify-between mt-1">
-                                    <p class="text-[10px] text-cyan-400">☁️ Projeniz doğrudan GitHub <code>projects/</code> klasörüne kaydedilir.</p>
-                                    <button type="button" onclick="const f = document.getElementById('save-as-github-token-input'); f.type = f.type === 'password' ? 'text' : 'password';" class="text-[10px] text-gray-400 hover:text-white underline cursor-pointer">Göster/Gizle</button>
+
+                            <!-- Token Ayar Bölümü (Token varsa gizli, tek tıkla açılabilir) -->
+                            <div id="token-accordion-wrap" class="border-t border-gray-800 pt-2">
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <span id="token-status-indicator" class="${hasToken ? 'text-emerald-400' : 'text-amber-400'} font-medium flex items-center gap-1">
+                                        ${hasToken ? '🟢 GitHub Bağlantısı: Aktif' : '⚠️ GitHub Token Gerekli'}
+                                    </span>
+                                    <button type="button" onclick="const s = document.getElementById('save-as-token-field-group'); s.classList.toggle('hidden');" class="text-gray-400 hover:text-white text-[10px] underline cursor-pointer">
+                                        ${hasToken ? 'Token Ayarını Değiştir' : 'Token Gir'}
+                                    </button>
+                                </div>
+                                <div id="save-as-token-field-group" class="${hasToken ? 'hidden' : ''} mt-2 space-y-1 bg-gray-950/80 p-2.5 rounded border border-gray-800">
+                                    <label class="block text-gray-400 text-[10px]">
+                                        GitHub Personal Access Token (PAT):
+                                    </label>
+                                    <div class="flex items-center gap-1.5">
+                                        <input id="save-as-github-token-input" type="password" placeholder="ghp_xxxxxxxxxxxx" value="${savedToken}" class="flex-1 bg-gray-900 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-200 text-xs outline-none font-mono" />
+                                        <button type="button" onclick="const f = document.getElementById('save-as-github-token-input'); f.type = f.type === 'password' ? 'text' : 'password';" class="px-2 py-1.5 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 rounded cursor-pointer">👁️</button>
+                                    </div>
+                                    <p class="text-[9px] text-gray-400">Token tarayıcınızda kalıcı olarak saklanır; aylar sonra dahi bir daha sorulmaz.</p>
                                 </div>
                             </div>
                         </div>
+
                         <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
                             <button onclick="closeSaveAsNewProjectModal()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition cursor-pointer">İptal</button>
-                            <button id="btn-confirm-cloud-save" onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-1.5 shadow cursor-pointer">
-                                <span>☁️</span> Buluta Kaydet
+                            <button id="btn-confirm-cloud-save" onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer">
+                                <span>☁️</span> Yeni Versiyonu Kaydet
                             </button>
                         </div>
                     </div>
@@ -10520,6 +10587,16 @@
                 if (inputEl) inputEl.value = suggestedName;
                 const tokenInput = document.getElementById('save-as-github-token-input');
                 if (tokenInput && savedToken) tokenInput.value = savedToken;
+                const tokenGroup = document.getElementById('save-as-token-field-group');
+                if (tokenGroup) {
+                    if (hasToken) tokenGroup.classList.add('hidden');
+                    else tokenGroup.classList.remove('hidden');
+                }
+                const statusInd = document.getElementById('token-status-indicator');
+                if (statusInd) {
+                    statusInd.className = `${hasToken ? 'text-emerald-400' : 'text-amber-400'} font-medium flex items-center gap-1`;
+                    statusInd.innerHTML = hasToken ? '🟢 GitHub Bağlantısı: Aktif' : '⚠️ GitHub Token Gerekli';
+                }
             }
             
             document.body.appendChild(modal);
@@ -10565,11 +10642,10 @@
             const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
             if (typeof showNotice === 'function') {
-                showNotice(`⏳ "${cleanFilename}" GitHub bulutuna kaydediliyor...`);
+                showNotice(`⏳ "${cleanFilename}" bulut revizyon kontrolü yapılıyor...`);
             }
 
-            // 1. Existing SHA Check
-            let sha = null;
+            // 1. REVİZYON KORUMASI VE ÜZERİNE YAZMA KESİN ENGELİ (EXISTENCE CHECK)
             try {
                 const getRes = await fetch(url, {
                     headers: {
@@ -10578,23 +10654,26 @@
                     }
                 });
                 if (getRes.ok) {
-                    const getData = await getRes.json();
-                    sha = getData.sha;
+                    // Dosya zaten GitHub bulutunda mevcut! Üzerine yazılması kesinlikle yasaktır.
+                    alert(`🛡️ REVİZYON KORUMA UYARISI:\n\n"${cleanFilename}" adlı dosya GitHub bulutunda zaten mevcut!\n\nGüvenlik nedeniyle eski revizyonların üzerine yazma kalıcı olarak engellenmiştir.\nLütfen bir sonraki revizyon numarasını belirterek yeni versiyon olarak kaydedin.`);
+                    if (typeof showNotice === 'function') {
+                        showNotice(`❌ "${cleanFilename}" zaten mevcut, üzerine yazılamaz!`);
+                    }
+                    return false;
                 }
             } catch (e) {
-                console.warn('GitHub SHA kontrol uyarısı:', e);
+                console.warn('Revizyon kontrolü uyarısı:', e);
             }
 
             // 2. Base64 Encode UTF-8 String
             const base64Content = btoa(unescape(encodeURIComponent(content)));
 
-            // 3. PUT request to GitHub REST API
+            // 3. PUT request to GitHub REST API (sha GÖNDERİLMEZ -> GitHub da üzerine yazılmasına asla izin vermez!)
             const bodyData = {
-                message: `Cloud Save: ${path} via ProposalApp Web UI`,
+                message: `Create new revision: ${path} via ProposalApp Web UI`,
                 content: base64Content,
                 branch: 'main'
             };
-            if (sha) bodyData.sha = sha;
 
             try {
                 const putRes = await fetch(url, {
@@ -10609,14 +10688,16 @@
 
                 if (putRes.ok) {
                     if (typeof showNotice === 'function') {
-                        showNotice(`☁️ "${cleanFilename}" Başarıyla GitHub Bulutuna Kaydedildi!`);
+                        showNotice(`☁️ "${cleanFilename}" Yeni Revizyon Olarak Başarıyla Buluta Kaydedildi!`);
                     }
                     return true;
                 } else {
                     const errData = await putRes.json().catch(() => ({}));
                     if (putRes.status === 401) {
                         localStorage.removeItem('GITHUB_ACCESS_TOKEN');
-                        alert('GitHub Token geçersiz veya yetkisiz (401). Lütfen doğru token ile tekrar deneyin.');
+                        alert('GitHub Token geçersiz veya yetkisiz (401). Lütfen token ayarınızı yenileyin.');
+                    } else if (putRes.status === 422) {
+                        alert(`🛡️ GitHub Revizyon Koruması: "${cleanFilename}" zaten mevcut olduğu için üzerine yazılamaz!`);
                     } else {
                         alert(`GitHub Bulut Kayıt Hatası (${putRes.status}): ${errData.message || putRes.statusText}`);
                     }
