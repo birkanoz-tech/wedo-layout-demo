@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.1 - Street View (Çoklu Sekme & 360 Gezinti)</title>
+    <title>WEDO v1.1.2 - Street View (Nokta Düzenleme & Konum Kaydırma)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Street View (Çoklu Sekme & 360 Gezinti)">v1.1.1 • Street View (Yeni Sekme & 360 Gezinti)</span>
+                    title="Street View Nokta Düzenleme & Konum Kaydırma">v1.1.2 • Street View Nokta Düzenleme & Konum Kaydırma</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -397,7 +397,7 @@
                         <span>Sağ Panel (Özellikler & Konum) Göster/Gizle</span>
                     </button>
 
-                    <!-- Street View (360° Gezinti & Çoklu Sekme) -->
+                    <!-- Street View (360° Gezinti, Nokta Düzenleme & Çoklu Sekme) -->
                     <div class="flex items-center gap-1.5 bg-[#1e293b]/70 border border-amber-500/50 p-1 rounded-lg">
                         <span class="text-amber-400 text-[10px] font-bold uppercase tracking-wider pl-1.5 flex items-center gap-1">
                             <span>🚶</span> Street View:
@@ -410,7 +410,8 @@
                             <option value="node_plc_cabinet">⚡ PLC & Panolar</option>
                         </select>
                         <button onclick="enterStreetView(document.getElementById('ribbon-streetview-node-select').value)" type="button"
-                            class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs px-2.5 py-1 rounded shadow font-bold transition flex items-center gap-1 cursor-pointer border border-amber-400/30">
+                            class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs px-2.5 py-1 rounded shadow font-bold transition flex items-center gap-1 cursor-pointer border border-amber-400/30"
+                            title="Seçili noktada 360° panoramik gezintiye başla">
                             <span>Gezin</span>
                         </button>
                         <button onclick="openStreetViewInNewTab(document.getElementById('ribbon-streetview-node-select').value)" type="button"
@@ -418,6 +419,19 @@
                             title="Bu bölgeyi yeni tarayıcı sekmesinde açarak sekmeler arası gezin">
                             <span>↗️</span>
                             <span class="text-[10px]">Yeni Sekme</span>
+                        </button>
+                        <div class="h-4 w-px bg-amber-500/30 mx-0.5"></div>
+                        <button id="btn-toggle-cad-streetview-pins" onclick="toggleCadStreetViewPins()" type="button"
+                            class="bg-amber-950/60 hover:bg-amber-900/80 text-amber-200 border border-amber-500/40 text-xs px-2 py-1 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer"
+                            title="3D CAD sahnesinde Street View bakış noktalarını pin olarak gösterir; pinleri seçip Gizmo ile istediğiniz yere sürükleyerek taşıyabilirsiniz">
+                            <span>📍</span>
+                            <span class="text-[11px]" id="label-toggle-cad-streetview-pins">Noktaları Göster / Taşı</span>
+                        </button>
+                        <button onclick="promptAddNewStreetViewNode()" type="button"
+                            class="bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-200 border border-emerald-500/40 text-xs px-2 py-1 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer"
+                            title="Geçerli kamera bakış noktasını yeni bir Street View gezi durağı olarak kaydeder">
+                            <span>➕</span>
+                            <span class="text-[11px]">Yeni Nokta</span>
                         </button>
                     </div>
                 </div>
@@ -860,7 +874,7 @@
         class="hidden fixed inset-0 pointer-events-none z-50 flex flex-col justify-between p-4 select-none">
         <!-- Top HUD Bar -->
         <div
-            class="pointer-events-auto mx-auto max-w-4xl w-full bg-black/85 backdrop-blur-md border border-amber-500/50 rounded-xl px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
+            class="pointer-events-auto mx-auto max-w-5xl w-full bg-black/85 backdrop-blur-md border border-amber-500/50 rounded-xl px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
             <div class="flex items-center gap-2.5">
                 <span class="text-2xl">🚶</span>
                 <div>
@@ -874,18 +888,24 @@
                 </div>
             </div>
 
-            <!-- Middle Quick Switcher -->
+            <!-- Middle Quick Switcher & Nudge Toggle -->
             <div class="flex items-center gap-2">
-                <span class="text-[11px] text-gray-400 font-medium">Bölgeye Işınlan:</span>
+                <span class="text-[11px] text-gray-400 font-medium">Işınlan:</span>
                 <select id="streetview-hud-node-select" onchange="enterStreetView(this.value)"
-                    class="bg-[#181818] border border-amber-500/40 text-amber-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 shadow cursor-pointer min-w-[170px]">
+                    class="bg-[#181818] border border-amber-500/40 text-amber-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 shadow cursor-pointer min-w-[150px]">
                     <!-- Dynamically populated -->
                 </select>
+                <button onclick="toggleStreetViewNudgePanel()" type="button" id="btn-toggle-sv-nudge"
+                    class="bg-amber-600/80 hover:bg-amber-500 text-white border border-amber-400/50 text-xs px-2.5 py-1.5 rounded-lg shadow font-semibold transition flex items-center gap-1 cursor-pointer"
+                    title="Bu bakış noktasının X, Y, Z konumunu kaydırın veya ince ayar yapın">
+                    <span>🎯</span>
+                    <span>Konumu Kaydır</span>
+                </button>
                 <button onclick="openCurrentStreetViewInNewTab()" type="button"
-                    class="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/50 text-xs px-3 py-1.5 rounded-lg shadow font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                    class="bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/50 text-xs px-2.5 py-1.5 rounded-lg shadow font-semibold transition flex items-center gap-1 cursor-pointer"
                     title="Bu bölgeyi yeni bir tarayıcı sekmesinde açarak sekmeler arası karşılaştırma yapın">
                     <span>↗️</span>
-                    <span>Yeni Sekmede Aç</span>
+                    <span>Yeni Sekme</span>
                 </button>
             </div>
 
@@ -897,11 +917,95 @@
             </button>
         </div>
 
+        <!-- Floating Fine-Tuning & Nudge Tool Panel (Right side) -->
+        <div id="streetview-nudge-panel"
+            class="pointer-events-auto absolute top-20 right-4 bg-black/90 backdrop-blur-md border border-amber-500/60 rounded-xl p-4 shadow-2xl w-80 text-white flex flex-col gap-3 transition-all duration-200">
+            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                    <span>🎯</span>
+                    <span>Bakış Noktası Hassas Kaydırma</span>
+                </div>
+                <button onclick="toggleStreetViewNudgePanel(false)" class="text-gray-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer">✕</button>
+            </div>
+
+            <!-- Coordinate inputs -->
+            <div class="space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 font-mono w-16">X (Sağ/Sol):</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="nudgeStreetViewAxis('x', -0.2)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">-</button>
+                        <input id="sv-coord-x" type="number" step="0.1" class="w-20 bg-[#111] border border-gray-600 rounded px-1.5 py-0.5 text-center font-mono text-amber-200 focus:border-amber-400 focus:outline-none" onchange="setStreetViewCameraCoord('x', this.value)">
+                        <button onclick="nudgeStreetViewAxis('x', 0.2)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">+</button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 font-mono w-16">Y (İleri/Geri):</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="nudgeStreetViewAxis('y', -0.2)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">-</button>
+                        <input id="sv-coord-y" type="number" step="0.1" class="w-20 bg-[#111] border border-gray-600 rounded px-1.5 py-0.5 text-center font-mono text-amber-200 focus:border-amber-400 focus:outline-none" onchange="setStreetViewCameraCoord('y', this.value)">
+                        <button onclick="nudgeStreetViewAxis('y', 0.2)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">+</button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 font-mono w-16">Z (Yükseklik):</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="nudgeStreetViewAxis('z', -0.1)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">-</button>
+                        <input id="sv-coord-z" type="number" step="0.05" class="w-20 bg-[#111] border border-gray-600 rounded px-1.5 py-0.5 text-center font-mono text-amber-200 focus:border-amber-400 focus:outline-none" onchange="setStreetViewCameraCoord('z', this.value)">
+                        <button onclick="nudgeStreetViewAxis('z', 0.1)" class="bg-gray-800 hover:bg-gray-700 text-amber-300 px-1.5 py-0.5 rounded border border-gray-600 font-bold">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Directional walking pad -->
+            <div class="bg-[#151515] p-2.5 rounded-lg border border-gray-800 flex flex-col items-center gap-1.5">
+                <span class="text-[10px] text-gray-400 font-medium">Yönsel Yürüme / Kaydırma:</span>
+                <button onclick="nudgeStreetViewCamera('forward', 0.3)" class="bg-gray-800 hover:bg-amber-600 text-white text-xs px-3 py-1 rounded border border-gray-700 font-semibold transition">▲ İleri (W)</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="nudgeStreetViewCamera('left', 0.3)" class="bg-gray-800 hover:bg-amber-600 text-white text-xs px-3 py-1 rounded border border-gray-700 font-semibold transition">◀ Sol (A)</button>
+                    <button onclick="nudgeStreetViewCamera('backward', 0.3)" class="bg-gray-800 hover:bg-amber-600 text-white text-xs px-3 py-1 rounded border border-gray-700 font-semibold transition">▼ Geri (S)</button>
+                    <button onclick="nudgeStreetViewCamera('right', 0.3)" class="bg-gray-800 hover:bg-amber-600 text-white text-xs px-3 py-1 rounded border border-gray-700 font-semibold transition">Sağ (D) ▶</button>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                    <button onclick="nudgeStreetViewCamera('up', 0.15)" class="bg-gray-800 hover:bg-amber-600 text-amber-300 text-[11px] px-2 py-0.5 rounded border border-gray-700 transition">⏫ Yüksel (E)</button>
+                    <button onclick="nudgeStreetViewCamera('down', 0.15)" class="bg-gray-800 hover:bg-amber-600 text-amber-300 text-[11px] px-2 py-0.5 rounded border border-gray-700 transition">⏬ Alçal (Q)</button>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col gap-1.5 pt-1">
+                <button onclick="saveCurrentStreetViewNodePosition()" type="button"
+                    class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs py-1.5 rounded-lg shadow font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-400/40">
+                    <span>💾</span>
+                    <span>Bu Konumu Kaydet</span>
+                </button>
+                <button onclick="promptAddNewStreetViewNodeFromCurrent()" type="button"
+                    class="bg-gray-800 hover:bg-gray-700 text-emerald-300 text-xs py-1.5 rounded-lg shadow font-medium transition flex items-center justify-center gap-1.5 cursor-pointer border border-gray-700">
+                    <span>➕</span>
+                    <span>Bu Konumu Yeni Nokta Olarak Ekle</span>
+                </button>
+                <div class="flex items-center gap-1.5 pt-1">
+                    <button onclick="resetActiveStreetViewNodePosition()" type="button"
+                        class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] py-1 rounded border border-gray-700 transition cursor-pointer"
+                        title="Bu noktanın orijinal fabrika koordinatlarına geri dön">
+                        🔄 Sıfırla
+                    </button>
+                    <button id="btn-delete-sv-node" onclick="deleteActiveStreetViewNode()" type="button"
+                        class="hidden bg-red-950/60 hover:bg-red-900 text-red-300 text-[11px] py-1 px-2.5 rounded border border-red-800/60 transition cursor-pointer"
+                        title="Bu özel bakış noktasını sil">
+                        🗑️ Sil
+                    </button>
+                </div>
+            </div>
+            <div class="text-[10px] text-gray-400 italic text-center">
+                İpucu: Klavyede <strong>W/A/S/D</strong> ile yürüyebilir, <strong>Shift</strong> ile hızlanabilirsiniz.
+            </div>
+        </div>
+
         <!-- Bottom Guidance Bar -->
         <div
             class="pointer-events-auto mx-auto bg-black/80 backdrop-blur-sm border border-amber-500/30 rounded-full px-5 py-2 shadow-2xl flex items-center gap-3 text-xs text-gray-200">
             <span class="text-amber-400 font-bold">💡 İpucu:</span>
-            <span>Fareyi sürükleyerek <strong>360° etrafınıza bakın</strong>. Yerdeki parlayan halkalara tıklayarak diğer bölgelere ışınlanabilirsiniz.</span>
+            <span>Fareyi sürükleyerek <strong>360° etrafınıza bakın</strong>. Klavyeden <strong>W, A, S, D</strong> ile yürüyerek açınızı kaydırabilirsiniz.</span>
             <span class="bg-gray-800 border border-gray-600 px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono">Shift + Tık = Yeni Sekme</span>
         </div>
     </div>
@@ -985,6 +1089,11 @@
         let streetViewRaycaster = new THREE.Raycaster();
         let streetViewPointer = new THREE.Vector2();
 
+        // 3D CAD görünümünde pin düzenleme
+        let isCadStreetViewPinsVisible = false;
+        let cadStreetViewPinsGroup = null;
+        let selectedCadStreetViewPin = null;
+
         const defaultStreetViewNodes = [
             { id: "node_entrance", name: "🏢 Fabrika Ana Girişi", position: { x: 0, y: -10, z: 1.6 } },
             { id: "node_conveyor_start", name: "🔄 Konveyör Besleme", position: { x: 4, y: 0, z: 1.6 } },
@@ -992,39 +1101,85 @@
             { id: "node_plc_cabinet", name: "⚡ PLC & Elektrik Panoları", position: { x: -6, y: 6, z: 1.6 } }
         ];
 
-        function getStreetViewNodes() {
-            const nodes = [...defaultStreetViewNodes];
+        function getCustomStreetViewData() {
+            try {
+                const raw = localStorage.getItem('WEDO_STREETVIEW_CUSTOM_DATA_v1');
+                if (raw) return JSON.parse(raw);
+            } catch (e) { }
+            return { overrides: {}, customNodes: [] };
+        }
 
-            // Sahnedeki panoları ekle
+        function saveCustomStreetViewData(data) {
+            try {
+                localStorage.setItem('WEDO_STREETVIEW_CUSTOM_DATA_v1', JSON.stringify(data));
+            } catch (e) { }
+        }
+
+        function getStreetViewNodes() {
+            const customData = getCustomStreetViewData();
+            const overrides = customData.overrides || {};
+
+            // 1. Varsayılan noktalar (varsa override edilmiş koordinatları ile)
+            const nodes = defaultStreetViewNodes.map(n => {
+                const copy = { ...n, position: { ...n.position } };
+                if (overrides[n.id]) {
+                    copy.position = { ...overrides[n.id] };
+                }
+                return copy;
+            });
+
+            // 2. Kullanıcının eklediği özel noktalar
+            if (Array.isArray(customData.customNodes) && customData.customNodes.length > 0) {
+                customData.customNodes.forEach(cn => {
+                    nodes.push({
+                        id: cn.id,
+                        name: cn.name,
+                        position: { ...cn.position },
+                        isCustom: true
+                    });
+                });
+            }
+
+            // 3. Sahnedeki panoları ekle
             if (Array.isArray(addedPanels) && addedPanels.length > 0) {
                 addedPanels.forEach((p, idx) => {
                     if (p && p.mesh && p.mesh.position) {
+                        const pid = 'panel_' + (p.id || idx);
+                        let pos = {
+                            x: p.mesh.position.x,
+                            y: p.mesh.position.y - 1.2,
+                            z: (p.mesh.position.z || 0) + 1.6
+                        };
+                        if (overrides[pid]) {
+                            pos = { ...overrides[pid] };
+                        }
                         nodes.push({
-                            id: 'panel_' + (p.id || idx),
+                            id: pid,
                             name: '⚡ ' + (p.name || `Pano ${idx + 1}`),
-                            position: {
-                                x: p.mesh.position.x,
-                                y: p.mesh.position.y - 1.2,
-                                z: (p.mesh.position.z || 0) + 1.6
-                            }
+                            position: pos
                         });
                     }
                 });
             }
 
-            // Sahnedeki konveyör hatlarını ekle
+            // 4. Sahnedeki konveyör hatlarını ekle
             if (typeof conveyors !== 'undefined' && Array.isArray(conveyors) && conveyors.length > 0) {
                 conveyors.forEach((c, idx) => {
                     if (c && c.nodes && c.nodes.length > 0) {
+                        const cid = 'conveyor_' + (c.id || idx);
                         const firstNode = c.nodes[0];
+                        let pos = {
+                            x: firstNode.x || 0,
+                            y: (firstNode.y || 0) - 1.2,
+                            z: (firstNode.z || 0) + 1.6
+                        };
+                        if (overrides[cid]) {
+                            pos = { ...overrides[cid] };
+                        }
                         nodes.push({
-                            id: 'conveyor_' + (c.id || idx),
+                            id: cid,
                             name: '📦 ' + (c.name || `Hat ${idx + 1}`),
-                            position: {
-                                x: firstNode.x || 0,
-                                y: (firstNode.y || 0) - 1.2,
-                                z: (firstNode.z || 0) + 1.6
-                            }
+                            position: pos
                         });
                     }
                 });
@@ -1161,7 +1316,7 @@
                     const url = new URL(window.location.href);
                     url.searchParams.set('streetview', node.id);
                     window.history.replaceState(null, '', url.toString());
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (typeof showNotice === 'function') {
@@ -1186,7 +1341,12 @@
                     const url = new URL(window.location.href);
                     url.searchParams.delete('streetview');
                     window.history.replaceState(null, '', url.toString());
-                } catch (e) {}
+                } catch (e) { }
+            }
+
+            // CAD pinleri açıksa güncelle
+            if (isCadStreetViewPinsVisible) {
+                updateCadStreetViewPins();
             }
 
             if (typeof showNotice === 'function') {
@@ -1219,6 +1379,7 @@
             if (nameEl) nameEl.innerText = activeNode.name;
 
             syncStreetViewDropdowns(activeNode.id);
+            updateStreetViewNudgeUIValues();
         }
 
         function hideStreetViewUI() {
@@ -1233,7 +1394,7 @@
             // Ribbon dropdown
             const ribbonSelect = document.getElementById('ribbon-streetview-node-select');
             if (ribbonSelect) {
-                ribbonSelect.innerHTML = allNodes.map(n => 
+                ribbonSelect.innerHTML = allNodes.map(n =>
                     `<option value="${n.id}" ${n.id === targetId ? 'selected' : ''}>${n.name}</option>`
                 ).join('');
             }
@@ -1241,12 +1402,365 @@
             // HUD dropdown
             const hudSelect = document.getElementById('streetview-hud-node-select');
             if (hudSelect) {
-                hudSelect.innerHTML = allNodes.map(n => 
+                hudSelect.innerHTML = allNodes.map(n =>
                     `<option value="${n.id}" ${n.id === targetId ? 'selected' : ''}>${n.name}</option>`
                 ).join('');
             }
         }
         window.syncStreetViewDropdowns = syncStreetViewDropdowns;
+
+        // ==========================================
+        // STREET VIEW KONUM KAYDIRMA & DÜZENLEME FONKSİYONLARI
+        // ==========================================
+        function nudgeStreetViewCamera(direction, step = 0.25) {
+            if (!isStreetViewActive || !streetViewCamera) return;
+            const forward = new THREE.Vector3();
+            streetViewCamera.getWorldDirection(forward);
+            forward.z = 0; // zemin düzleminde yatay hareket
+            if (forward.lengthSq() < 0.001) forward.set(0, 1, 0);
+            forward.normalize();
+
+            const right = new THREE.Vector3(-forward.y, forward.x, 0).normalize();
+            const moveVec = new THREE.Vector3();
+
+            if (direction === 'forward') moveVec.addScaledVector(forward, step);
+            else if (direction === 'backward') moveVec.addScaledVector(forward, -step);
+            else if (direction === 'left') moveVec.addScaledVector(right, -step);
+            else if (direction === 'right') moveVec.addScaledVector(right, step);
+            else if (direction === 'up') moveVec.z += step;
+            else if (direction === 'down') moveVec.z -= step;
+
+            streetViewCamera.position.add(moveVec);
+            if (streetViewCamera.position.z < 0.2) streetViewCamera.position.z = 0.2; // zeminin altına batmasın
+            if (streetViewControls && streetViewControls.target) {
+                streetViewControls.target.add(moveVec);
+                streetViewControls.update();
+            }
+
+            updateStreetViewNudgeUIValues();
+            updateStreetViewMarkers(streetViewActiveNodeId);
+        }
+        window.nudgeStreetViewCamera = nudgeStreetViewCamera;
+
+        function nudgeStreetViewAxis(axis, delta) {
+            if (!isStreetViewActive || !streetViewCamera) return;
+            streetViewCamera.position[axis] += delta;
+            if (axis === 'z' && streetViewCamera.position.z < 0.2) streetViewCamera.position.z = 0.2;
+            if (streetViewControls && streetViewControls.target) {
+                streetViewControls.target[axis] += delta;
+                streetViewControls.update();
+            }
+            updateStreetViewNudgeUIValues();
+            updateStreetViewMarkers(streetViewActiveNodeId);
+        }
+        window.nudgeStreetViewAxis = nudgeStreetViewAxis;
+
+        function setStreetViewCameraCoord(axis, valStr) {
+            if (!isStreetViewActive || !streetViewCamera) return;
+            const val = parseFloat(valStr);
+            if (isNaN(val)) return;
+            const delta = val - streetViewCamera.position[axis];
+            streetViewCamera.position[axis] = val;
+            if (axis === 'z' && streetViewCamera.position.z < 0.2) streetViewCamera.position.z = 0.2;
+            if (streetViewControls && streetViewControls.target) {
+                streetViewControls.target[axis] += delta;
+                streetViewControls.update();
+            }
+            updateStreetViewNudgeUIValues();
+            updateStreetViewMarkers(streetViewActiveNodeId);
+        }
+        window.setStreetViewCameraCoord = setStreetViewCameraCoord;
+
+        function updateStreetViewNudgeUIValues() {
+            if (!streetViewCamera) return;
+            const xEl = document.getElementById('sv-coord-x');
+            const yEl = document.getElementById('sv-coord-y');
+            const zEl = document.getElementById('sv-coord-z');
+            if (xEl) xEl.value = (streetViewCamera.position.x).toFixed(2);
+            if (yEl) yEl.value = (streetViewCamera.position.y).toFixed(2);
+            if (zEl) zEl.value = (streetViewCamera.position.z).toFixed(2);
+
+            const delBtn = document.getElementById('btn-delete-sv-node');
+            if (delBtn) {
+                const customData = getCustomStreetViewData();
+                const isCustom = (customData.customNodes || []).some(n => n.id === streetViewActiveNodeId);
+                if (isCustom) delBtn.classList.remove('hidden');
+                else delBtn.classList.add('hidden');
+            }
+        }
+        window.updateStreetViewNudgeUIValues = updateStreetViewNudgeUIValues;
+
+        function toggleStreetViewNudgePanel(forceState = null) {
+            const panel = document.getElementById('streetview-nudge-panel');
+            if (!panel) return;
+            if (forceState !== null && typeof forceState === 'boolean') {
+                if (forceState) panel.classList.remove('hidden');
+                else panel.classList.add('hidden');
+            } else {
+                panel.classList.toggle('hidden');
+            }
+            if (!panel.classList.contains('hidden')) {
+                updateStreetViewNudgeUIValues();
+            }
+        }
+        window.toggleStreetViewNudgePanel = toggleStreetViewNudgePanel;
+
+        function saveCurrentStreetViewNodePosition() {
+            if (!streetViewActiveNodeId || !streetViewCamera) return;
+            const customData = getCustomStreetViewData();
+            const newPos = {
+                x: Math.round(streetViewCamera.position.x * 100) / 100,
+                y: Math.round(streetViewCamera.position.y * 100) / 100,
+                z: Math.round(streetViewCamera.position.z * 100) / 100
+            };
+
+            const cNode = (customData.customNodes || []).find(n => n.id === streetViewActiveNodeId);
+            if (cNode) {
+                cNode.position = newPos;
+            } else {
+                customData.overrides = customData.overrides || {};
+                customData.overrides[streetViewActiveNodeId] = newPos;
+            }
+            saveCustomStreetViewData(customData);
+            syncStreetViewDropdowns(streetViewActiveNodeId);
+            updateCadStreetViewPins();
+            if (typeof showNotice === 'function') {
+                showNotice(`💾 Bakış Noktası Kaydedildi: X: ${newPos.x}m, Y: ${newPos.y}m, Z: ${newPos.z}m`);
+            }
+        }
+        window.saveCurrentStreetViewNodePosition = saveCurrentStreetViewNodePosition;
+
+        function promptAddNewStreetViewNodeFromCurrent() {
+            if (!streetViewCamera) return;
+            const name = prompt('Yeni Street View Bakış Noktası İsmi:', '📍 Özel Bakış Noktası');
+            if (!name) return;
+            const newId = 'custom_node_' + Date.now();
+            const customData = getCustomStreetViewData();
+            customData.customNodes = customData.customNodes || [];
+            const newPos = {
+                x: Math.round(streetViewCamera.position.x * 100) / 100,
+                y: Math.round(streetViewCamera.position.y * 100) / 100,
+                z: Math.round(streetViewCamera.position.z * 100) / 100
+            };
+            customData.customNodes.push({
+                id: newId,
+                name: name.trim(),
+                position: newPos,
+                isCustom: true
+            });
+            saveCustomStreetViewData(customData);
+            syncStreetViewDropdowns(newId);
+            streetViewActiveNodeId = newId;
+            const nameEl = document.getElementById('streetview-hud-node-name');
+            if (nameEl) nameEl.innerText = name;
+            updateStreetViewMarkers(newId);
+            updateCadStreetViewPins();
+            if (typeof showNotice === 'function') {
+                showNotice(`➕ Yeni Bakış Noktası Eklendi: ${name}`);
+            }
+        }
+        window.promptAddNewStreetViewNodeFromCurrent = promptAddNewStreetViewNodeFromCurrent;
+
+        function promptAddNewStreetViewNode() {
+            const targetPoint = (controls && controls.target) ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
+            const name = prompt('Yeni Street View Bakış Noktası İsmi:', '📍 Yeni Bakış Noktası');
+            if (!name) return;
+            const newId = 'custom_node_' + Date.now();
+            const customData = getCustomStreetViewData();
+            customData.customNodes = customData.customNodes || [];
+            const newPos = {
+                x: Math.round(targetPoint.x * 100) / 100,
+                y: Math.round(targetPoint.y * 100) / 100,
+                z: Math.round((targetPoint.z + 1.6) * 100) / 100
+            };
+            customData.customNodes.push({
+                id: newId,
+                name: name.trim(),
+                position: newPos,
+                isCustom: true
+            });
+            saveCustomStreetViewData(customData);
+            syncStreetViewDropdowns(newId);
+            if (!isCadStreetViewPinsVisible) {
+                toggleCadStreetViewPins(true);
+            } else {
+                updateCadStreetViewPins();
+            }
+            if (typeof showNotice === 'function') {
+                showNotice(`➕ Yeni Bakış Noktası Eklendi: ${name}. 3D Pin'i gizmo ile istediğiniz konuma sürükleyebilirsiniz.`);
+            }
+        }
+        window.promptAddNewStreetViewNode = promptAddNewStreetViewNode;
+
+        function resetActiveStreetViewNodePosition() {
+            if (!streetViewActiveNodeId) return;
+            const customData = getCustomStreetViewData();
+            if (customData.overrides && customData.overrides[streetViewActiveNodeId]) {
+                delete customData.overrides[streetViewActiveNodeId];
+            }
+            saveCustomStreetViewData(customData);
+            enterStreetView(streetViewActiveNodeId);
+            updateCadStreetViewPins();
+            if (typeof showNotice === 'function') {
+                showNotice('🔄 Bakış noktası varsayılan koordinatlarına sıfırlandı.');
+            }
+        }
+        window.resetActiveStreetViewNodePosition = resetActiveStreetViewNodePosition;
+
+        function deleteActiveStreetViewNode() {
+            if (!streetViewActiveNodeId) return;
+            const customData = getCustomStreetViewData();
+            if (customData.customNodes) {
+                const idx = customData.customNodes.findIndex(n => n.id === streetViewActiveNodeId);
+                if (idx !== -1) {
+                    if (!confirm('Bu bakış noktasını silmek istediğinize emin misiniz?')) return;
+                    customData.customNodes.splice(idx, 1);
+                    saveCustomStreetViewData(customData);
+                    const all = getStreetViewNodes();
+                    enterStreetView(all[0].id);
+                    updateCadStreetViewPins();
+                    if (typeof showNotice === 'function') {
+                        showNotice('🗑️ Bakış noktası silindi.');
+                    }
+                }
+            }
+        }
+        window.deleteActiveStreetViewNode = deleteActiveStreetViewNode;
+
+        // ==========================================
+        // 3D CAD GÖRÜNÜMÜNDE PIN GÖSTERME & GIZMO İLE TAŞIMA
+        // ==========================================
+        function toggleCadStreetViewPins(forceState = null) {
+            if (forceState !== null && typeof forceState === 'boolean') {
+                isCadStreetViewPinsVisible = forceState;
+            } else {
+                isCadStreetViewPinsVisible = !isCadStreetViewPinsVisible;
+            }
+
+            const btn = document.getElementById('btn-toggle-cad-streetview-pins');
+            const lbl = document.getElementById('label-toggle-cad-streetview-pins');
+            if (btn) {
+                if (isCadStreetViewPinsVisible) {
+                    btn.className = 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-300 text-xs px-2 py-1 rounded shadow font-bold transition flex items-center gap-1 cursor-pointer';
+                    if (lbl) lbl.innerText = '📍 Noktaları Gizle';
+                } else {
+                    btn.className = 'bg-amber-950/60 hover:bg-amber-900/80 text-amber-200 border border-amber-500/40 text-xs px-2 py-1 rounded shadow font-medium transition flex items-center gap-1 cursor-pointer';
+                    if (lbl) lbl.innerText = 'Noktaları Göster / Taşı';
+                }
+            }
+
+            updateCadStreetViewPins();
+
+            if (typeof showNotice === 'function') {
+                showNotice(isCadStreetViewPinsVisible ? '📍 Street View Noktaları 3D Sahneye Eklendi (Gizmo ile taşıyabilirsiniz)' : '🙈 Street View Noktaları Gizlendi');
+            }
+        }
+        window.toggleCadStreetViewPins = toggleCadStreetViewPins;
+
+        function updateCadStreetViewPins() {
+            if (!scene) return;
+            if (!isCadStreetViewPinsVisible) {
+                if (cadStreetViewPinsGroup) {
+                    scene.remove(cadStreetViewPinsGroup);
+                    cadStreetViewPinsGroup = null;
+                }
+                if (transformControls && selectedCadStreetViewPin) {
+                    transformControls.detach();
+                    selectedCadStreetViewPin = null;
+                }
+                return;
+            }
+
+            if (!cadStreetViewPinsGroup) {
+                cadStreetViewPinsGroup = new THREE.Group();
+                cadStreetViewPinsGroup.name = "CAD_STREETVIEW_PINS_GROUP";
+                scene.add(cadStreetViewPinsGroup);
+            } else {
+                while (cadStreetViewPinsGroup.children.length > 0) {
+                    cadStreetViewPinsGroup.remove(cadStreetViewPinsGroup.children[0]);
+                }
+            }
+
+            const allNodes = getStreetViewNodes();
+            allNodes.forEach(node => {
+                const pinMesh = createCadPinMesh(node);
+                cadStreetViewPinsGroup.add(pinMesh);
+            });
+        }
+        window.updateCadStreetViewPins = updateCadStreetViewPins;
+
+        function createCadPinMesh(node) {
+            const group = new THREE.Group();
+            group.userData = { isCadStreetViewPin: true, nodeId: node.id, nodeName: node.name };
+
+            // İğne küresi
+            const sphereGeom = new THREE.SphereGeometry(0.35, 16, 16);
+            const sphereMat = new THREE.MeshStandardMaterial({
+                color: 0xf59e0b,
+                emissive: 0x78350f,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+            sphere.position.set(0, 0, 0);
+            sphere.userData = { isCadStreetViewPin: true, nodeId: node.id };
+            group.add(sphere);
+
+            // Zemin ayağı (koni)
+            const coneGeom = new THREE.ConeGeometry(0.2, 0.6, 16);
+            const coneMat = new THREE.MeshStandardMaterial({
+                color: 0xd97706,
+                emissive: 0x451a03
+            });
+            const cone = new THREE.Mesh(coneGeom, coneMat);
+            cone.rotation.x = Math.PI;
+            cone.position.set(0, 0, -0.4);
+            cone.userData = { isCadStreetViewPin: true, nodeId: node.id };
+            group.add(cone);
+
+            // Üzerine etiket
+            const sprite = createStreetViewMarkerSprite(node.name);
+            sprite.scale.set(2.4, 0.52, 1);
+            sprite.position.set(0, 0, 0.75);
+            sprite.userData = { isCadStreetViewPin: true, nodeId: node.id };
+            group.add(sprite);
+
+            group.position.set(node.position.x, node.position.y, node.position.z);
+            return group;
+        }
+
+        function selectCadStreetViewPin(pinGroup) {
+            selectedCadStreetViewPin = pinGroup;
+            if (transformControls) {
+                transformControls.setMode('translate');
+                transformControls.attach(pinGroup);
+            }
+            if (typeof showNotice === 'function') {
+                showNotice(`🎯 Bakış Noktası Seçildi: ${pinGroup.userData.nodeName || ''}. Gizmo ile istediğiniz yere sürükleyin.`);
+            }
+        }
+        window.selectCadStreetViewPin = selectCadStreetViewPin;
+
+        function onCadStreetViewPinMoved(pinGroup) {
+            if (!pinGroup || !pinGroup.userData || !pinGroup.userData.nodeId) return;
+            const nodeId = pinGroup.userData.nodeId;
+            const customData = getCustomStreetViewData();
+            const newPos = {
+                x: Math.round(pinGroup.position.x * 100) / 100,
+                y: Math.round(pinGroup.position.y * 100) / 100,
+                z: Math.round(pinGroup.position.z * 100) / 100
+            };
+            const cNode = (customData.customNodes || []).find(n => n.id === nodeId);
+            if (cNode) {
+                cNode.position = newPos;
+            } else {
+                customData.overrides = customData.overrides || {};
+                customData.overrides[nodeId] = newPos;
+            }
+            saveCustomStreetViewData(customData);
+            syncStreetViewDropdowns(nodeId);
+        }
+        window.onCadStreetViewPinMoved = onCadStreetViewPinMoved;
 
         function create3DPanoLabelSprite(textStr) {
             const canvas = document.createElement('canvas');
@@ -2449,6 +2963,10 @@
                 controls.enabled = !event.value;
             });
             transformControls.addEventListener('objectChange', () => {
+                if (transformControls.object && transformControls.object.userData && transformControls.object.userData.isCadStreetViewPin) {
+                    onCadStreetViewPinMoved(transformControls.object);
+                    return;
+                }
                 syncSelectedProductDataFromMesh();
                 updateSelectionInfoPanel();
                 updateWorldPositionEditorForSelection();
@@ -2840,6 +3358,21 @@
                     return;
                 }
 
+                // CAD Street View Pin Seçimi Kontrolü
+                if (isCadStreetViewPinsVisible && cadStreetViewPinsGroup) {
+                    const pinIntersects = raycaster.intersectObjects(cadStreetViewPinsGroup.children, true);
+                    if (pinIntersects.length > 0) {
+                        let hit = pinIntersects[0].object;
+                        while (hit && !hit.userData.isCadStreetViewPin && hit.parent && hit.parent !== cadStreetViewPinsGroup) {
+                            hit = hit.parent;
+                        }
+                        if (hit && hit.userData && hit.userData.isCadStreetViewPin) {
+                            selectCadStreetViewPin(hit);
+                            return;
+                        }
+                    }
+                }
+
                 const pickedMesh = pickProductAtCursor(event.clientX, event.clientY);
 
                 if (pickedMesh) {
@@ -2871,6 +3404,21 @@
             });
 
             renderer.domElement.addEventListener('dblclick', (event) => {
+                // CAD Pin Çift Tıklama ➔ Doğrudan O Noktada Street View Aç
+                if (isCadStreetViewPinsVisible && cadStreetViewPinsGroup) {
+                    const pinIntersects = raycaster.intersectObjects(cadStreetViewPinsGroup.children, true);
+                    if (pinIntersects.length > 0) {
+                        let hit = pinIntersects[0].object;
+                        while (hit && !hit.userData.isCadStreetViewPin && hit.parent && hit.parent !== cadStreetViewPinsGroup) {
+                            hit = hit.parent;
+                        }
+                        if (hit && hit.userData && hit.userData.nodeId) {
+                            enterStreetView(hit.userData.nodeId);
+                            return;
+                        }
+                    }
+                }
+
                 const pickedMesh = pickProductAtCursor(event.clientX, event.clientY);
                 if (pickedMesh) {
                     focusOnMesh(pickedMesh);
@@ -2933,6 +3481,37 @@
                     event.preventDefault();
                     cancelActiveMode('Yerleştirme modu ESC ile kapatıldı.');
                     return;
+                }
+
+                // Street View aktifken W, A, S, D, Ok tuşları, Q, E ile yürüme & kaydırma
+                if (isStreetViewActive) {
+                    const step = event.shiftKey ? 0.75 : 0.25;
+                    const key = event.key.toLowerCase();
+                    if (key === 'w' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('forward', step);
+                        return;
+                    } else if (key === 's' || event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('backward', step);
+                        return;
+                    } else if (key === 'a' || event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('left', step);
+                        return;
+                    } else if (key === 'd' || event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('right', step);
+                        return;
+                    } else if (key === 'e') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('up', step * 0.5);
+                        return;
+                    } else if (key === 'q') {
+                        event.preventDefault();
+                        nudgeStreetViewCamera('down', step * 0.5);
+                        return;
+                    }
                 }
 
                 if (event.key === 'f' || event.key === 'F') {
