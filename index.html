@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.9 - Sahne Hover Etiketleri Kaldırıldı (Temiz Navigasyon & Seçim)</title>
+    <title>WEDO v1.2.0 - DXF Sahne Tıklama Koruması (Yalnızca Ürün Ağacından Seçim)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Sahne Hover Etiketleri Kaldırıldı (Temiz Seçim)">v1.1.9 • Sahne Hover Kaldırıldı</span>
+                    title="DXF'ler Sahne Tıklamalarından Muaf Tutuldu (Sadece Ürün Ağacından Seçilebilir)">v1.2.0 • DXF Sahne Koruması</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -3189,6 +3189,23 @@
                 controls.enabled = !event.value;
             });
 
+            const isDxfObject = (node) => {
+                if (!node) return false;
+                let cur = node;
+                while (cur) {
+                    if (
+                        cur.userData?.isDXFModel ||
+                        cur.userData?.parametricKind === 'dxf-drawing' ||
+                        cur.userData?.type === 'dxf-drawing' ||
+                        (typeof cur.name === 'string' && (cur.name.startsWith('DXF_') || cur.name.includes('DXF Model') || cur.name.includes('DXF Referans')))
+                    ) {
+                        return true;
+                    }
+                    cur = cur.parent;
+                }
+                return false;
+            };
+
             const pickMeshFromIntersections = (intersects) => {
                 for (const hit of intersects) {
                     let node = hit.object;
@@ -3207,12 +3224,12 @@
                         node = node.parent;
                     }
 
-                    if (isGizmoOrHelper) {
+                    if (isGizmoOrHelper || isDxfObject(hit.object)) {
                         continue;
                     }
 
                     const mesh = findRootMesh(hit.object);
-                    if (mesh) {
+                    if (mesh && !isDxfObject(mesh)) {
                         return mesh;
                     }
                 }
@@ -3230,7 +3247,7 @@
                 const center = new THREE.Vector3();
 
                 importedProjectRoot.traverse((node) => {
-                    if (node.userData?.type !== 'xml-product') {
+                    if (node.userData?.type !== 'xml-product' || isDxfObject(node)) {
                         return;
                     }
 
@@ -3270,7 +3287,7 @@
 
                 const intersects = raycaster.intersectObjects(scene.children, true);
                 const directMesh = pickMeshFromIntersections(intersects);
-                if (directMesh) {
+                if (directMesh && !isDxfObject(directMesh)) {
                     return directMesh;
                 }
 
@@ -3279,7 +3296,7 @@
                     let closestBoxDist = Infinity;
 
                     importedProjectRoot.traverse((node) => {
-                        if (node.userData?.type === 'xml-product') {
+                        if (node.userData?.type === 'xml-product' && !isDxfObject(node)) {
                             const box = new THREE.Box3().setFromObject(node);
                             if (!box.isEmpty()) {
                                 const intersectionPoint = new THREE.Vector3();
@@ -3294,12 +3311,13 @@
                         }
                     });
 
-                    if (closestBoxHitMesh) {
+                    if (closestBoxHitMesh && !isDxfObject(closestBoxHitMesh)) {
                         return closestBoxHitMesh;
                     }
                 }
 
-                return pickClosestMeshByScreenDistance(clientX, clientY, 55);
+                const closest = pickClosestMeshByScreenDistance(clientX, clientY, 55);
+                return isDxfObject(closest) ? null : closest;
             };
 
             renderer.domElement.addEventListener('pointerdown', (event) => {
@@ -5580,8 +5598,13 @@
             linesMesh.position.z = 0.003;
             linesMesh.renderOrder = isDxfXRayMode ? 999 : 1;
             linesMesh.visible = isDxfVisible;
+            linesMesh.raycast = () => {}; // Sahneden doğrudan fareyle seçilmeyi engeller
             dxfGroup.add(linesMesh);
             dxfGroup.visible = isDxfVisible;
+            dxfGroup.raycast = () => {}; // Sadece ürün ağacından seçilebilir
+            dxfGroup.traverse((child) => {
+                child.raycast = () => {};
+            });
 
             dxfGroup.userData = {
                 type: 'xml-product',
@@ -5747,6 +5770,24 @@
         window.handleDXFFileSelect = handleDXFFileSelect;
         window.parseASCII_DXF = parseASCII_DXF;
         window.renderDXFToThreeGroup = renderDXFToThreeGroup;
+
+        function disableDxfSceneRaycasting() {
+            if (typeof scene === 'undefined' || !scene) return;
+            scene.traverse((obj) => {
+                if (
+                    obj.userData?.isDXFModel ||
+                    obj.userData?.parametricKind === 'dxf-drawing' ||
+                    obj.userData?.type === 'dxf-drawing' ||
+                    (typeof obj.name === 'string' && (obj.name.startsWith('DXF_') || obj.name.includes('DXF Model') || obj.name.includes('DXF Referans')))
+                ) {
+                    obj.raycast = () => {};
+                    obj.traverse((child) => {
+                        child.raycast = () => {};
+                    });
+                }
+            });
+        }
+        window.disableDxfSceneRaycasting = disableDxfSceneRaycasting;
 
         // ==========================================
         // 📐 SVG + 3D OSNAP + CAMERA PASS-THROUGH + ORTHO ENGINE
@@ -10272,6 +10313,9 @@
                     } catch (err) {
                         console.warn('DXF çizim modeli geri yükleme hatası:', dxf, err);
                     }
+                }
+                if (typeof disableDxfSceneRaycasting === 'function') {
+                    disableDxfSceneRaycasting();
                 }
             }
 
