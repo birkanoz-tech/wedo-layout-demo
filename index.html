@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.7 - 3D Kütüphane ve Sahne Motoru Onarıldı</title>
+    <title>WEDO v1.1.8 - Git Data API ile Sınırsız Boyutta Bulut Kayıt</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="3D Kütüphane ve Sahne Motoru Onarıldı">v1.1.7 • 3D Kütüphane ve Sahne Onarıldı</span>
+                    title="Git Data API ile Sınırsız Boyutta Bulut Kayıt">v1.1.8 • Sınırsız Bulut Kayıt Motoru</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -10737,24 +10737,23 @@
             const repo = 'wedo-layout-demo';
             const cleanFilename = filename.startsWith('projects/') ? filename.replace('projects/', '') : filename;
             const path = `projects/${cleanFilename}`;
-            const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+            const checkUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
             console.log(`[CloudSave] Başlatılıyor: ${path}`);
             if (typeof showNotice === 'function') {
-                showNotice(`⏳ "${cleanFilename}" bulut revizyon kontrolü yapılıyor...`);
+                showNotice(`⏳ "${cleanFilename}" bulut kontrolü yapılıyor...`);
             }
 
-            // 1. REVİZYON KORUMASI VE ÜZERİNE YAZMA KESİN ENGELİ (EXISTENCE CHECK)
+            // 1. GERÇEK REVİZYON KORUMASI (DOSYA VAR MI KONTROLÜ)
             try {
-                const getRes = await fetch(url, {
+                const getRes = await fetch(checkUrl, {
                     headers: {
                         'Authorization': headerValue,
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
                 if (getRes.status === 200) {
-                    // Dosya zaten GitHub bulutunda mevcut! Üzerine yazılması kesinlikle yasaktır.
-                    alert(`🛡️ REVİZYON KORUMA UYARISI:\n\n"${cleanFilename}" adlı dosya GitHub bulutunda zaten mevcut!\n\nGüvenlik nedeniyle eski revizyonların üzerine yazma kalıcı olarak engellenmiştir.\nLütfen bir sonraki revizyon numarasını belirterek yeni versiyon olarak kaydedin.`);
+                    alert(`🛡️ REVİZYON KORUMA UYARISI:\n\n"${cleanFilename}" adlı dosya GitHub bulutunda zaten mevcut!\n\nEski revizyonların üzerine yazma güvenlik amacıyla kalıcı olarak engellenmiştir.\nLütfen sıradaki revizyon numarasını belirterek yeni versiyon olarak kaydedin.`);
                     if (typeof showNotice === 'function') {
                         showNotice(`❌ "${cleanFilename}" zaten mevcut, üzerine yazılamaz!`);
                     }
@@ -10764,73 +10763,151 @@
                 console.warn('Revizyon kontrolü uyarısı:', e);
             }
 
-            // 2. Güvenli Asenkron Base64 Kodlama (Büyük Dosyalar İçin Hatasız FileReader)
+            // 2. Güvenli Asenkron Base64 Kodlama (Büyük Dosyalar İçin FileReader)
             if (typeof showNotice === 'function') {
-                showNotice(`⏳ "${cleanFilename}" bulut paketi hazırlanıyor...`);
+                showNotice(`⏳ "${cleanFilename}" veri paketi hazırlanıyor...`);
             }
             let base64Content = '';
             try {
                 base64Content = await stringToBase64Async(content);
-                console.log(`[CloudSave] Base64 kodlandı. Karakter uzunluğu: ${base64Content.length}`);
+                console.log(`[CloudSave] Base64 kodlandı. Boyut: ${(base64Content.length / 1024 / 1024).toFixed(2)} MB`);
             } catch (b64Err) {
                 console.error('[CloudSave] Base64 hatası:', b64Err);
                 alert(`Base64 Paketleme Hatası: ${b64Err.message}`);
                 return false;
             }
 
-            // 3. PUT isteği ile doğrudan GitHub REST API'ye kaydetme
-            const bodyData = {
-                message: `Create new revision: ${path} via ProposalApp Web UI`,
-                content: base64Content,
-                branch: 'main'
-            };
-
-            if (typeof showNotice === 'function') {
-                showNotice(`☁️ "${cleanFilename}" GitHub bulutuna yükleniyor...`);
-            }
-
+            // 3. GİT DATA API İLE BULUTA YÜKLEME (1MB SINIRI YOKTUR, 100MB'A KADAR TAM DESTEK)
             try {
-                const putRes = await fetch(url, {
-                    method: 'PUT',
+                // Adım 1: Git Blob Oluştur
+                if (typeof showNotice === 'function') {
+                    showNotice(`⏳ "${cleanFilename}" 1/4 Veri Bloğu Buluta İletiliyor...`);
+                }
+                const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
+                    method: 'POST',
                     headers: {
                         'Authorization': headerValue,
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.github.v3+json'
                     },
-                    body: JSON.stringify(bodyData)
+                    body: JSON.stringify({
+                        content: base64Content,
+                        encoding: 'base64'
+                    })
                 });
 
-                console.log(`[CloudSave] GitHub yanıt kodu: ${putRes.status}`);
-
-                if (putRes.status === 200 || putRes.status === 201) {
-                    if (typeof showNotice === 'function') {
-                        showNotice(`☁️ "${cleanFilename}" Yeni Revizyon Olarak Başarıyla Buluta Kaydedildi!`);
-                    }
-                    return true;
-                } else {
-                    const errData = await putRes.json().catch(() => ({}));
-                    console.error('[CloudSave] GitHub hata verisi:', errData);
-                    let errMsgDetail = errData.message || putRes.statusText;
-                    if (errData.errors && Array.isArray(errData.errors)) {
-                        errMsgDetail += '\n• ' + errData.errors.map(e => e.message || JSON.stringify(e)).join('\n• ');
-                    }
-
-                    if (putRes.status === 401) {
-                        alert(`❌ GitHub Yetkilendirme Hatası (401):\n${errMsgDetail}\n\nToken geçersiz veya süresi dolmuş. Lütfen token alanını güncelleyin.`);
-                    } else if (putRes.status === 403) {
-                        alert(`❌ GitHub Yazma Yetkisi Hatası (403 Forbidden):\n${errMsgDetail}\n\nToken'ınızın bu repoya yazma izni bulunmuyor. Token oluştururken "repo" yetkisini işaretlediğinizden emin olun.`);
-                    } else if (putRes.status === 404) {
-                        alert(`❌ GitHub Repo Bulunamadı (404 Not Found):\n${errMsgDetail}\n\nBu token 'birkanoz-tech/wedo-layout-demo' reposunu göremiyor.`);
-                    } else if (putRes.status === 422) {
-                        alert(`🛡️ GitHub Revizyon Koruması (422):\n"${cleanFilename}" zaten mevcut olduğu için GitHub üzerine yazmayı engelledi.`);
+                if (!blobRes.ok) {
+                    const errData = await blobRes.json().catch(() => ({}));
+                    console.error('[CloudSave] Blob hatası:', errData);
+                    let errDetail = errData.message || blobRes.statusText;
+                    if (blobRes.status === 401) {
+                        alert(`❌ GitHub Yetkilendirme Hatası (401):\n${errDetail}\n\nToken geçersiz veya süresi dolmuş.`);
+                    } else if (blobRes.status === 403) {
+                        alert(`❌ GitHub Yazma Yetkisi Hatası (403 Forbidden):\n${errDetail}\n\nToken'ın repoya yazma izni bulunmuyor. "repo" yetkisini kontrol edin.`);
                     } else {
-                        alert(`❌ GitHub Bulut Kayıt Hatası (${putRes.status}):\n${errMsgDetail}`);
+                        alert(`❌ GitHub Veri Bloğu Hatası (${blobRes.status}):\n${errDetail}`);
                     }
                     return false;
                 }
+                const blobData = await blobRes.json();
+                const blobSha = blobData.sha;
+
+                // Adım 2: Ana Dal (main) Güncel Referansını Al
+                if (typeof showNotice === 'function') {
+                    showNotice(`⏳ "${cleanFilename}" 2/4 Ana Dal Referansı Alınıyor...`);
+                }
+                const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/main`, {
+                    headers: {
+                        'Authorization': headerValue,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!refRes.ok) {
+                    const errData = await refRes.json().catch(() => ({}));
+                    throw new Error(`Referans alma hatası (${refRes.status}): ${errData.message || refRes.statusText}`);
+                }
+                const refData = await refRes.json();
+                const latestCommitSha = refData.object.sha;
+
+                // Adım 3: Dosya Ağacını (Git Tree) Oluştur
+                if (typeof showNotice === 'function') {
+                    showNotice(`⏳ "${cleanFilename}" 3/4 Dosya Ağacı Oluşturuluyor...`);
+                }
+                const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': headerValue,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        base_tree: latestCommitSha,
+                        tree: [
+                            {
+                                path: path,
+                                mode: '100644',
+                                type: 'blob',
+                                sha: blobSha
+                            }
+                        ]
+                    })
+                });
+                if (!treeRes.ok) {
+                    const errData = await treeRes.json().catch(() => ({}));
+                    throw new Error(`Ağaç oluşturma hatası (${treeRes.status}): ${errData.message || treeRes.statusText}`);
+                }
+                const treeData = await treeRes.json();
+                const newTreeSha = treeData.sha;
+
+                // Adım 4: Commit Oluştur ve Dalı Güncelle
+                if (typeof showNotice === 'function') {
+                    showNotice(`⏳ "${cleanFilename}" 4/4 Yeni Versiyon İmzalanıyor...`);
+                }
+                const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': headerValue,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: `Create revision: ${path} via ProposalApp Web UI`,
+                        tree: newTreeSha,
+                        parents: [latestCommitSha]
+                    })
+                });
+                if (!commitRes.ok) {
+                    const errData = await commitRes.json().catch(() => ({}));
+                    throw new Error(`Commit oluşturma hatası (${commitRes.status}): ${errData.message || commitRes.statusText}`);
+                }
+                const commitData = await commitRes.json();
+                const newCommitSha = commitData.sha;
+
+                // Adım 5: main Dalını Yeni Commite Güncelle
+                const updateRefRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/main`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': headerValue,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        sha: newCommitSha
+                    })
+                });
+                if (!updateRefRes.ok) {
+                    const errData = await updateRefRes.json().catch(() => ({}));
+                    throw new Error(`Dal güncelleme hatası (${updateRefRes.status}): ${errData.message || updateRefRes.statusText}`);
+                }
+
+                console.log(`[CloudSave] Başarıyla GitHub bulutuna kaydedildi: ${path} (Commit: ${newCommitSha})`);
+                if (typeof showNotice === 'function') {
+                    showNotice(`☁️ "${cleanFilename}" Yeni Revizyon Olarak Başarıyla Buluta Kaydedildi!`);
+                }
+                return true;
             } catch (err) {
-                console.error('[CloudSave] Ağ/İletişim Hatası:', err);
-                alert(`GitHub Bağlantı Hatası: ${err.message}`);
+                console.error('[CloudSave] Git Data API Hatası:', err);
+                alert(`GitHub Bulut Kayıt Hatası:\n${err.message}`);
                 return false;
             }
         }

@@ -115,15 +115,15 @@ export async function saveProjectDirectlyToGitHubRepo(filename, fileContent) {
     const repo = 'wedo-layout-demo';
     const cleanFilename = filename.startsWith('projects/') ? filename.replace('projects/', '') : filename;
     const path = `projects/${cleanFilename}`;
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const checkUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
     if (typeof showNotice === 'function') {
         showNotice(`⏳ "${cleanFilename}" bulut revizyon kontrolü yapılıyor...`);
     }
 
-    // 1. Revision Protection (Check if already exists)
+    // 1. Revision Protection (True Existence Check)
     try {
-        const getRes = await fetch(url, {
+        const getRes = await fetch(checkUrl, {
             headers: {
                 'Authorization': headerValue,
                 'Accept': 'application/vnd.github.v3+json'
@@ -144,40 +144,81 @@ export async function saveProjectDirectlyToGitHubRepo(filename, fileContent) {
         return false;
     }
 
-    // 3. PUT request to GitHub API
-    const bodyData = {
-        message: `Create new revision: ${path} via ProposalApp Web UI`,
-        content: base64Content,
-        branch: 'main'
-    };
-
+    // 3. Git Data API (Supports up to 100MB without 1MB Contents API limit)
     try {
-        const putRes = await fetch(url, {
-            method: 'PUT',
+        const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
+            method: 'POST',
             headers: {
                 'Authorization': headerValue,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
-            body: JSON.stringify(bodyData)
+            body: JSON.stringify({
+                content: base64Content,
+                encoding: 'base64'
+            })
         });
-
-        if (putRes.status === 200 || putRes.status === 201) {
-            if (typeof showNotice === 'function') {
-                showNotice(`☁️ "${cleanFilename}" Başarıyla GitHub Bulutuna Kaydedildi!`);
-            }
-            return true;
-        } else {
-            const errData = await putRes.json().catch(() => ({}));
-            let errMsgDetail = errData.message || putRes.statusText;
-            if (errData.errors && Array.isArray(errData.errors)) {
-                errMsgDetail += '\n• ' + errData.errors.map(e => e.message || JSON.stringify(e)).join('\n• ');
-            }
-            alert(`❌ GitHub Kayıt Hatası (${putRes.status}):\n${errMsgDetail}`);
-            return false;
+        if (!blobRes.ok) {
+            const errData = await blobRes.json().catch(() => ({}));
+            throw new Error(`Blob hatası (${blobRes.status}): ${errData.message || blobRes.statusText}`);
         }
+        const blobData = await blobRes.json();
+
+        const refRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/main`, {
+            headers: { 'Authorization': headerValue, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!refRes.ok) {
+            const errData = await refRes.json().catch(() => ({}));
+            throw new Error(`Ref hatası (${refRes.status}): ${errData.message || refRes.statusText}`);
+        }
+        const refData = await refRes.json();
+        const latestCommitSha = refData.object.sha;
+
+        const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
+            method: 'POST',
+            headers: { 'Authorization': headerValue, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+            body: JSON.stringify({
+                base_tree: latestCommitSha,
+                tree: [{ path: path, mode: '100644', type: 'blob', sha: blobData.sha }]
+            })
+        });
+        if (!treeRes.ok) {
+            const errData = await treeRes.json().catch(() => ({}));
+            throw new Error(`Tree hatası (${treeRes.status}): ${errData.message || treeRes.statusText}`);
+        }
+        const treeData = await treeRes.json();
+
+        const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
+            method: 'POST',
+            headers: { 'Authorization': headerValue, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+            body: JSON.stringify({
+                message: `Create revision: ${path} via ProposalApp Web UI`,
+                tree: treeData.sha,
+                parents: [latestCommitSha]
+            })
+        });
+        if (!commitRes.ok) {
+            const errData = await commitRes.json().catch(() => ({}));
+            throw new Error(`Commit hatası (${commitRes.status}): ${errData.message || commitRes.statusText}`);
+        }
+        const commitData = await commitRes.json();
+
+        const updateRefRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/main`, {
+            method: 'PATCH',
+            headers: { 'Authorization': headerValue, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+            body: JSON.stringify({ sha: commitData.sha })
+        });
+        if (!updateRefRes.ok) {
+            const errData = await updateRefRes.json().catch(() => ({}));
+            throw new Error(`Dal güncelleme hatası (${updateRefRes.status}): ${errData.message || updateRefRes.statusText}`);
+        }
+
+        if (typeof showNotice === 'function') {
+            showNotice(`☁️ "${cleanFilename}" Başarıyla GitHub Bulutuna Kaydedildi!`);
+        }
+        return true;
     } catch(err) {
-        alert(`GitHub Bağlantı Hatası: ${err.message}`);
+        alert(`GitHub Bulut Kayıt Hatası: ${err.message}`);
         return false;
     }
 }
