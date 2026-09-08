@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.8 - Git Data API ile Sınırsız Boyutta Bulut Kayıt</title>
+    <title>WEDO v1.1.9 - Sahne Hover Etiketleri Kaldırıldı (Temiz Navigasyon & Seçim)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Git Data API ile Sınırsız Boyutta Bulut Kayıt">v1.1.8 • Sınırsız Bulut Kayıt Motoru</span>
+                    title="Sahne Hover Etiketleri Kaldırıldı (Temiz Seçim)">v1.1.9 • Sahne Hover Kaldırıldı</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -544,7 +544,7 @@
             </div>
 
             <div id="hover-assembly-label"
-                class="absolute hidden pointer-events-none z-20 bg-blue-600/90 border border-blue-400/70 text-white text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                class="hidden pointer-events-none" style="display: none !important;">
             </div>
 
 
@@ -3170,11 +3170,8 @@
             };
 
             const showAssemblyHoverLabel = (assemblyName, x, y) => {
-                if (!hoverAssemblyLabel) return;
-                hoverAssemblyLabel.innerText = assemblyName;
-                hoverAssemblyLabel.style.left = `${x + 12}px`;
-                hoverAssemblyLabel.style.top = `${y + 12}px`;
-                hoverAssemblyLabel.classList.remove('hidden');
+                // Sahnede gezinirken hover etiketleri kullanıcı isteğiyle tamamen devre dışı bırakıldı
+                if (hoverAssemblyLabel) hoverAssemblyLabel.classList.add('hidden');
             };
 
             const updateMouseCoordinates = (event) => {
@@ -3460,22 +3457,8 @@
                 }
 
                 updateManualPlacementPreviewFromEvent(event);
-
-                const rect = updateMouseCoordinates(event);
-
-                const hoveredMesh = pickProductAtCursor(event.clientX, event.clientY);
-                if (hoveredMesh) {
-                    renderer.domElement.style.cursor = 'pointer';
-                    const assemblyName = getAssemblyNameFromObject(hoveredMesh) || hoveredMesh.userData?.product?.name || '';
-                    if (assemblyName && activeMode !== 'manual-library') {
-                        showAssemblyHoverLabel(assemblyName, event.clientX - rect.left, event.clientY - rect.top);
-                    } else {
-                        hideAssemblyHoverLabel();
-                    }
-                } else {
-                    renderer.domElement.style.cursor = activeMode ? 'crosshair' : 'default';
-                    hideAssemblyHoverLabel();
-                }
+                updateMouseCoordinates(event);
+                renderer.domElement.style.cursor = activeMode ? 'crosshair' : 'default';
             });
 
             renderer.domElement.addEventListener('mouseleave', () => {
