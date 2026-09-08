@@ -4,38 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.6 - Güçlendirilmiş Bulut Kayıt Motoru (Base64 & PAT Desteği)</title>
+    <title>WEDO v1.1.7 - 3D Kütüphane ve Sahne Motoru Onarıldı</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        dark: '#1e1e24',
-                        darker: '#141417',
-                        accent: '#ff007f',
-                        subtle: '#2a2b36'
-                    }
-                }
-            }
-        }
-    </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    <!-- Three.js (r128) -->
+    <!-- Three.js ve OrbitControls / GLTFExporter CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- TransformControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
-    <!-- FontLoader & TextGeometry for 3D Pin / Annotation Labels -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    <!-- Gömülü 3D Kütüphane Modelleri ve XML Yedeği -->
+    <script src="library_assets.js"></script>
 
-    <!-- Fusion 360 Dark Mode & Ribbon Stylesheet -->
-    <link rel="stylesheet" href="css/fusion360_theme.css">
+    <!-- EmailJS SDK Real SMTP Email Dispatch -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function () {
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init("wWtwSg39RWUdSe_gH");
+            }
+        })();
+    </script>
 
     <style>
         /* Additional Micro-styling for Fusion Top Ribbon Toolbar */
@@ -92,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Güçlendirilmiş Bulut Kayıt Motoru (Base64 & PAT Desteği)">v1.1.6 • Güçlendirilmiş Bulut Kayıt</span>
+                    title="3D Kütüphane ve Sahne Motoru Onarıldı">v1.1.7 • 3D Kütüphane ve Sahne Onarıldı</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
