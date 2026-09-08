@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.0 - DXF Sahne Tıklama Koruması (Yalnızca Ürün Ağacından Seçim)</title>
+    <title>WEDO v1.2.1 - Orbit Shift+Mouse Wheel & Sol Tık Seçim Koruması</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="DXF'ler Sahne Tıklamalarından Muaf Tutuldu (Sadece Ürün Ağacından Seçilebilir)">v1.2.0 • DXF Sahne Koruması</span>
+                    title="Sol Tık Orbiti İptal (Seçim Koruması) • Orbit: Shift + Fare Tekerleği (Middle Drag) • Pan: Tekerlek / Sağ Tık">v1.2.1 • Orbit: Shift+Tekerlek</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -2977,6 +2977,14 @@
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.target.set(65, 10, 0);
+            // Sol tık ile Orbit iptal edildi (Seçim ile çakışmayı önler)
+            // Orbit: Shift + Mouse Wheel (Orta tuş / tekerleğe basılı tutarak sürükleme)
+            // Pan: Mouse Wheel (Orta tuş / tekerlek) veya Sağ tık
+            controls.mouseButtons = {
+                LEFT: -1, // Sol tık devre dışı (Sadece nesne seçimi, gizmo ve CAD çizim)
+                MIDDLE: THREE.MOUSE.PAN, // Tekerleğe basma: Pan. Shift + Tekerlek (Mouse Wheel drag): Orbit (Rotate)
+                RIGHT: THREE.MOUSE.PAN // Sağ tık: Pan. Shift + Sağ tık: Orbit
+            };
             controls.update();
 
             transformControls = new THREE.TransformControls(camera, renderer.domElement);
@@ -3321,6 +3329,7 @@
             };
 
             renderer.domElement.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0) return; // Yalnızca sol tık seçim ve koordinat takibi yapar
                 pointerDown.x = event.clientX;
                 pointerDown.y = event.clientY;
                 pointerMovedSinceDown = false;
@@ -3330,6 +3339,9 @@
             });
 
             renderer.domElement.addEventListener('pointerup', async (event) => {
+                if (event.button !== 0) {
+                    return; // Yalnızca sol tık seçim yapar; orta tuş (Orbit/Pan) veya sağ tık seçimi bozmaz
+                }
                 if (isTransformGizmoDragging) {
                     return;
                 }
