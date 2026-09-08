@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.0.7 - 2D Konveyör Ürün Ağacı & Gizmo Manipülasyonu</title>
+    <title>WEDO v1.0.8 - Boş Sahne (Empty Scene) & Sıfırdan Tasarım</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="2D Konveyör Ürün Ağacı & Gizmo Manipülasyonu">v1.0.7 • 2D Konveyör Model & Gizmo</span>
+                    title="Boş Sahne (Empty Scene) & Sıfırdan Tasarım">v1.0.8 • Boş Sahne (Empty Scene)</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -149,6 +149,7 @@
                     </span>
                     <select id="customer-projects-dropdown" onchange="loadCustomerProjectFromDropdown(this.value)"
                         class="bg-gray-900 border border-emerald-600/60 text-emerald-200 text-xs font-semibold rounded px-2.5 py-1 focus:outline-none focus:border-emerald-400 shadow-sm cursor-pointer min-w-[200px]">
+                        <option value="__empty__">✨ Boş Sahne (Empty Scene)</option>
                         <option value="">-- Proje Seçin --</option>
                     </select>
                     <button onclick="saveActiveProjectToCloud()" type="button"
@@ -9514,10 +9515,12 @@
 
             const currentUrlParams = new URLSearchParams(window.location.search);
             const activeProj = currentUrlParams.get('project') || currentUrlParams.get('xml') || 'OPP-0106989-1-R1.xml';
+            const isEmptyActive = (activeProj === 'empty' || activeProj === '__empty__');
 
-            let html = '';
+            let html = `<option value="__empty__" ${isEmptyActive ? 'selected' : ''}>✨ Boş Sahne (Empty Scene)</option>`;
+            html += `<option value="" disabled>──────────────</option>`;
             availableProjects.forEach(proj => {
-                const isSelected = (proj.id === activeProj || proj.id.replace(/\.(json|xml)$/i,'') === activeProj.replace(/\.(json|xml)$/i,'')) ? 'selected' : '';
+                const isSelected = (!isEmptyActive && (proj.id === activeProj || proj.id.replace(/\.(json|xml)$/i,'') === activeProj.replace(/\.(json|xml)$/i,''))) ? 'selected' : '';
                 html += `<option value="${proj.id}" ${isSelected}>${proj.name}</option>`;
             });
 
@@ -9525,8 +9528,69 @@
         }
         window.syncCustomerProjectsList = syncCustomerProjectsList;
 
+        async function loadEmptyScene(updateUrl = true) {
+            if (typeof resetSceneContent === 'function') {
+                resetSceneContent();
+            }
+            currentRawXmlText = '';
+            currentXmlFilename = 'Boş Sahne (Yeni Proje)';
+            xmlDoc = null;
+            if (Array.isArray(window.modelTreeEntries)) {
+                window.modelTreeEntries = [];
+            }
+            if (typeof renderModelTree === 'function') {
+                renderModelTree();
+            }
+
+            try {
+                localStorage.removeItem('PROPOSAL_APP_SCENE_STATE');
+                localStorage.removeItem('PROPOSAL_APP_AUTOSAVE');
+                sessionStorage.removeItem('CACHED_PROJECT_empty');
+            } catch (e) {}
+
+            const docTitleEl = document.getElementById('fusion-doc-title');
+            if (docTitleEl) docTitleEl.innerText = '✨ Boş Sahne (Yeni Proje)';
+
+            const statusEl = document.getElementById('import-status');
+            if (statusEl) {
+                statusEl.innerText = '✨ Boş Sahne Hazır. Sıfırdan tasarım yapabilirsiniz.';
+            }
+
+            const treeEl = document.getElementById('model-tree');
+            if (treeEl) {
+                treeEl.innerHTML = '<div class="text-xs text-gray-400 italic p-3 text-center">✨ Boş Sahne Hazır.<br><span class="text-[10px] text-gray-500">Üst menüden Konveyör Çizimi veya Ekipman ekleyerek sıfırdan tasarlayabilirsiniz.</span></div>';
+            }
+
+            const dropdown = document.getElementById('customer-projects-dropdown');
+            if (dropdown) {
+                dropdown.value = '__empty__';
+            }
+
+            if (typeof camera !== 'undefined' && typeof controls !== 'undefined' && controls) {
+                controls.target.set(0, 0, 0);
+                camera.position.set(0, -6, 10);
+                camera.lookAt(0, 0, 0);
+                controls.update();
+            }
+
+            if (updateUrl) {
+                const currentUrlParams = new URLSearchParams(window.location.search);
+                currentUrlParams.set('project', 'empty');
+                window.history.pushState({}, '', '?' + currentUrlParams.toString());
+            }
+
+            if (typeof showNotice === 'function') {
+                showNotice('✨ Boş Sahne açıldı. Sıfırdan tasarım yapabilirsiniz.');
+            }
+        }
+        window.loadEmptyScene = loadEmptyScene;
+
         function loadCustomerProjectFromDropdown(projectId) {
             if (!projectId) return;
+            if (projectId === '__empty__' || projectId === 'empty') {
+                loadEmptyScene(true);
+                return;
+            }
             if (typeof showNotice === 'function') {
                 showNotice(`⏳ "${projectId}" GitHub bulutundan yükleniyor...`);
             }
@@ -13678,7 +13742,12 @@ if (typeof window !== 'undefined') {
             else {
                 const urlParams = new URLSearchParams(window.location.search);
                 const explicitProject = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
-                let projectQuery = explicitProject || 'OPP-0106989-1-R1.xml';
+
+                if (explicitProject === 'empty' || explicitProject === '__empty__' || explicitProject === 'empty-scene') {
+                    await loadEmptyScene(false);
+                    restored = true;
+                } else {
+                    let projectQuery = explicitProject || 'OPP-0106989-1-R1.xml';
 
                 if (projectQuery) {
                     projectQuery = projectQuery.trim();
@@ -13756,6 +13825,7 @@ if (typeof window !== 'undefined') {
                     if (!restored && statusEl) {
                         statusEl.innerText = `❌ "${projectQuery}" bulunamadı. Lütfen "projects/" klasörünü kontrol edin.`;
                     }
+                }
                 }
             }
 
@@ -14224,15 +14294,30 @@ if (typeof window !== 'undefined') {
 
             let filteredProjects = [];
             if (profile && profile.role === 'admin') {
-                selectEl.innerHTML = '<option value="">-- Tüm Sistem & GitHub Projeleri --</option>';
                 filteredProjects = userProjects;
             } else if (profile) {
-                selectEl.innerHTML = '<option value="">-- Yetkili Projeleriniz --</option>';
                 filteredProjects = userProjects.filter(p => isUserAuthorizedForProject(profile, p.id));
             } else {
-                selectEl.innerHTML = '<option value="">-- Demolar & GitHub Projeleri --</option>';
                 filteredProjects = userProjects;
             }
+
+            const currentUrlParams = new URLSearchParams(window.location.search);
+            const activeProjId = currentUrlParams.get('project');
+            const activeProjClean = activeProjId ? activeProjId.replace('.xml','') : '';
+            const isEmptyActive = (activeProjId === 'empty' || activeProjId === '__empty__');
+
+            selectEl.innerHTML = '';
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '__empty__';
+            emptyOpt.textContent = '✨ Boş Sahne (Empty Scene)';
+            if (isEmptyActive) emptyOpt.selected = true;
+            selectEl.appendChild(emptyOpt);
+
+            const sepOpt = document.createElement('option');
+            sepOpt.value = '';
+            sepOpt.textContent = '──────────────';
+            sepOpt.disabled = true;
+            selectEl.appendChild(sepOpt);
 
             if (filteredProjects.length === 0) {
                 const opt = document.createElement('option');
@@ -14242,15 +14327,11 @@ if (typeof window !== 'undefined') {
                 return;
             }
 
-            const currentUrlParams = new URLSearchParams(window.location.search);
-            const activeProjId = currentUrlParams.get('project');
-            const activeProjClean = activeProjId ? activeProjId.replace('.xml','') : '';
-
             filteredProjects.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
                 opt.textContent = p.name.includes('(') ? p.name : `${p.name} (${p.id})`;
-                if (p.id === activeProjId || p.id.replace('.xml','') === activeProjClean) {
+                if (!isEmptyActive && (p.id === activeProjId || p.id.replace('.xml','') === activeProjClean)) {
                     opt.selected = true;
                 }
                 selectEl.appendChild(opt);
