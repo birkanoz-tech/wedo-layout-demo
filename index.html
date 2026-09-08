@@ -4,55 +4,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.1.5 - Revizyon Korumalı Bulut Kayıt (Üzerine Yazma Engeli)</title>
+    <title>WEDO v1.1.6 - Güçlendirilmiş Bulut Kayıt Motoru (Base64 & PAT Desteği)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Three.js ve OrbitControls / GLTFExporter CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
-    <!-- Gömülü 3D Kütüphane Modelleri ve XML Yedeği -->
-    <script src="library_assets.js"></script>
-
-    <!-- EmailJS SDK Real SMTP Email Dispatch -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script type="text/javascript">
-        (function () {
-            if (typeof emailjs !== 'undefined') {
-                emailjs.init("wWtwSg39RWUdSe_gH");
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#1e1e24',
+                        darker: '#141417',
+                        accent: '#ff007f',
+                        subtle: '#2a2b36'
+                    }
+                }
             }
-        })();
+        }
     </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Three.js (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- TransformControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <!-- FontLoader & TextGeometry for 3D Pin / Annotation Labels -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+
+    <!-- Fusion 360 Dark Mode & Ribbon Stylesheet -->
+    <link rel="stylesheet" href="css/fusion360_theme.css">
+
     <style>
-        /* Custom Slim Scrollbars to prevent content clipping & blocking */
-        ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+        /* Additional Micro-styling for Fusion Top Ribbon Toolbar */
+        .ribbon-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #d4d4d4;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: 1px solid transparent;
+            user-select: none;
+            min-width: 48px;
         }
 
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.7);
-            border-radius: 3px;
+        .ribbon-btn:hover {
+            background-color: #383838;
+            color: #ffffff;
+            border-color: #4a4a4a;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: rgba(56, 189, 248, 0.4);
-            border-radius: 3px;
+        .ribbon-btn.active {
+            background-color: #0e639c;
+            color: #ffffff;
+            border-color: #1177bb;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(56, 189, 248, 0.7);
+        .ribbon-btn svg,
+        .ribbon-btn span.icon {
+            font-size: 16px;
+            margin-bottom: 1px;
         }
 
-        /* High-Density Compact Form Controls */
-        input,
-        select,
-        textarea {
-            font-size: 11px !important;
+        .ribbon-divider {
+            width: 1px;
+            height: 32px;
+            background-color: #3e3e42;
+            margin: 0 4px;
+            align-self: center;
         }
     </style>
 </head>
@@ -65,7 +92,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Revizyon Korumalı Bulut Kayıt (Üzerine Yazma Engeli)">v1.1.5 • Revizyon Korumalı Bulut Kayıt</span>
+                    title="Güçlendirilmiş Bulut Kayıt Motoru (Base64 & PAT Desteği)">v1.1.6 • Güçlendirilmiş Bulut Kayıt</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -10560,14 +10587,16 @@
                                         ${hasToken ? 'Token Ayarını Değiştir' : 'Token Gir'}
                                     </button>
                                 </div>
-                                <div id="save-as-token-field-group" class="${hasToken ? 'hidden' : ''} mt-2 space-y-1 bg-gray-950/80 p-2.5 rounded border border-gray-800">
+                                <div id="save-as-token-field-group" class="${hasToken ? 'hidden' : ''} mt-2 space-y-1.5 bg-gray-950/80 p-2.5 rounded border border-gray-800">
                                     <label class="block text-gray-400 text-[10px]">
                                         GitHub Personal Access Token (PAT):
                                     </label>
                                     <div class="flex items-center gap-1.5">
                                         <input id="save-as-github-token-input" type="password" placeholder="ghp_xxxxxxxxxxxx" value="${savedToken}" class="flex-1 bg-gray-900 border border-gray-700 focus:border-cyan-400 rounded px-2.5 py-1.5 text-gray-200 text-xs outline-none font-mono" />
-                                        <button type="button" onclick="const f = document.getElementById('save-as-github-token-input'); f.type = f.type === 'password' ? 'text' : 'password';" class="px-2 py-1.5 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 rounded cursor-pointer">👁️</button>
+                                        <button type="button" onclick="const f = document.getElementById('save-as-github-token-input'); f.type = f.type === 'password' ? 'text' : 'password';" class="px-2 py-1.5 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 rounded cursor-pointer" title="Göster/Gizle">👁️</button>
+                                        <button type="button" onclick="testTokenFromModal()" class="px-2.5 py-1.5 text-[10px] bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded cursor-pointer transition">Test Et</button>
                                     </div>
+                                    <div id="token-test-result" class="text-[10px]"></div>
                                     <p class="text-[9px] text-gray-400">Token tarayıcınızda kalıcı olarak saklanır; aylar sonra dahi bir daha sorulmaz.</p>
                                 </div>
                             </div>
@@ -10607,6 +10636,83 @@
         }
         window.openSaveAsNewProjectModal = openSaveAsNewProjectModal;
 
+        async function stringToBase64Async(str) {
+            return new Promise((resolve, reject) => {
+                const blob = new Blob([str], { type: 'application/json;charset=utf-8' });
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+                    resolve(base64);
+                };
+                reader.onerror = (e) => reject(new Error('Base64 kodlama hatası: ' + e));
+                reader.readAsDataURL(blob);
+            });
+        }
+        window.stringToBase64Async = stringToBase64Async;
+
+        function getCleanAuthHeader(rawToken) {
+            let token = (rawToken || '').trim();
+            token = token.replace(/^(bearer|token)\s+/i, '').trim();
+            return {
+                cleanToken: token,
+                headerValue: `Bearer ${token}`
+            };
+        }
+
+        async function verifyGitHubTokenPermissions(rawToken) {
+            const { cleanToken, headerValue } = getCleanAuthHeader(rawToken);
+            if (!cleanToken) return { valid: false, error: 'Token alanı boş.' };
+            try {
+                const res = await fetch('https://api.github.com/repos/birkanoz-tech/wedo-layout-demo', {
+                    headers: {
+                        'Authorization': headerValue,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (res.status === 401) {
+                    return { valid: false, error: '401 Yetkisiz (Token geçersiz veya süresi dolmuş).' };
+                }
+                if (res.status === 404) {
+                    return { valid: false, error: '404 Bulunamadı (Token repoyu göremiyor).' };
+                }
+                const data = await res.json().catch(() => ({}));
+                const permissions = data.permissions || {};
+                if (permissions.push === false) {
+                    return { valid: false, error: '403 Yazma İzni Yok (Token oluştururken "repo" kutucuğunu işaretleyin).' };
+                }
+                return { valid: true, repo: data.full_name };
+            } catch (e) {
+                return { valid: false, error: 'Ağ/Bağlantı hatası: ' + e.message };
+            }
+        }
+        window.verifyGitHubTokenPermissions = verifyGitHubTokenPermissions;
+
+        async function testTokenFromModal() {
+            const input = document.getElementById('save-as-github-token-input');
+            const resultEl = document.getElementById('token-test-result');
+            if (!input || !resultEl) return;
+            const tokenVal = input.value.trim();
+            if (!tokenVal) {
+                resultEl.innerHTML = '<span class="text-amber-400">⚠️ Lütfen önce bir token girin.</span>';
+                return;
+            }
+            resultEl.innerHTML = '<span class="text-cyan-400">⏳ Token yetkileri test ediliyor...</span>';
+            const check = await verifyGitHubTokenPermissions(tokenVal);
+            if (check.valid) {
+                localStorage.setItem('GITHUB_ACCESS_TOKEN', tokenVal);
+                resultEl.innerHTML = `<span class="text-emerald-400 font-bold">✅ Token Doğrulandı! Repoya yazma yetkisi aktif.</span>`;
+                const statusInd = document.getElementById('token-status-indicator');
+                if (statusInd) {
+                    statusInd.className = 'text-emerald-400 font-medium flex items-center gap-1';
+                    statusInd.innerHTML = '🟢 GitHub Bağlantısı: Aktif & Doğrulandı';
+                }
+            } else {
+                resultEl.innerHTML = `<span class="text-rose-400 font-semibold">❌ ${check.error}</span>`;
+            }
+        }
+        window.testTokenFromModal = testTokenFromModal;
+
         function closeSaveAsNewProjectModal() {
             const modal = document.getElementById('modal-save-as-project');
             if (modal) {
@@ -10635,12 +10741,14 @@
                 }
             }
 
+            const { cleanToken, headerValue } = getCleanAuthHeader(token);
             const owner = 'birkanoz-tech';
             const repo = 'wedo-layout-demo';
             const cleanFilename = filename.startsWith('projects/') ? filename.replace('projects/', '') : filename;
             const path = `projects/${cleanFilename}`;
             const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
+            console.log(`[CloudSave] Başlatılıyor: ${path}`);
             if (typeof showNotice === 'function') {
                 showNotice(`⏳ "${cleanFilename}" bulut revizyon kontrolü yapılıyor...`);
             }
@@ -10649,11 +10757,11 @@
             try {
                 const getRes = await fetch(url, {
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': headerValue,
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
-                if (getRes.ok) {
+                if (getRes.status === 200) {
                     // Dosya zaten GitHub bulutunda mevcut! Üzerine yazılması kesinlikle yasaktır.
                     alert(`🛡️ REVİZYON KORUMA UYARISI:\n\n"${cleanFilename}" adlı dosya GitHub bulutunda zaten mevcut!\n\nGüvenlik nedeniyle eski revizyonların üzerine yazma kalıcı olarak engellenmiştir.\nLütfen bir sonraki revizyon numarasını belirterek yeni versiyon olarak kaydedin.`);
                     if (typeof showNotice === 'function') {
@@ -10665,45 +10773,72 @@
                 console.warn('Revizyon kontrolü uyarısı:', e);
             }
 
-            // 2. Base64 Encode UTF-8 String
-            const base64Content = btoa(unescape(encodeURIComponent(content)));
+            // 2. Güvenli Asenkron Base64 Kodlama (Büyük Dosyalar İçin Hatasız FileReader)
+            if (typeof showNotice === 'function') {
+                showNotice(`⏳ "${cleanFilename}" bulut paketi hazırlanıyor...`);
+            }
+            let base64Content = '';
+            try {
+                base64Content = await stringToBase64Async(content);
+                console.log(`[CloudSave] Base64 kodlandı. Karakter uzunluğu: ${base64Content.length}`);
+            } catch (b64Err) {
+                console.error('[CloudSave] Base64 hatası:', b64Err);
+                alert(`Base64 Paketleme Hatası: ${b64Err.message}`);
+                return false;
+            }
 
-            // 3. PUT request to GitHub REST API (sha GÖNDERİLMEZ -> GitHub da üzerine yazılmasına asla izin vermez!)
+            // 3. PUT isteği ile doğrudan GitHub REST API'ye kaydetme
             const bodyData = {
                 message: `Create new revision: ${path} via ProposalApp Web UI`,
                 content: base64Content,
                 branch: 'main'
             };
 
+            if (typeof showNotice === 'function') {
+                showNotice(`☁️ "${cleanFilename}" GitHub bulutuna yükleniyor...`);
+            }
+
             try {
                 const putRes = await fetch(url, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': headerValue,
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.github.v3+json'
                     },
                     body: JSON.stringify(bodyData)
                 });
 
-                if (putRes.ok) {
+                console.log(`[CloudSave] GitHub yanıt kodu: ${putRes.status}`);
+
+                if (putRes.status === 200 || putRes.status === 201) {
                     if (typeof showNotice === 'function') {
                         showNotice(`☁️ "${cleanFilename}" Yeni Revizyon Olarak Başarıyla Buluta Kaydedildi!`);
                     }
                     return true;
                 } else {
                     const errData = await putRes.json().catch(() => ({}));
+                    console.error('[CloudSave] GitHub hata verisi:', errData);
+                    let errMsgDetail = errData.message || putRes.statusText;
+                    if (errData.errors && Array.isArray(errData.errors)) {
+                        errMsgDetail += '\n• ' + errData.errors.map(e => e.message || JSON.stringify(e)).join('\n• ');
+                    }
+
                     if (putRes.status === 401) {
-                        localStorage.removeItem('GITHUB_ACCESS_TOKEN');
-                        alert('GitHub Token geçersiz veya yetkisiz (401). Lütfen token ayarınızı yenileyin.');
+                        alert(`❌ GitHub Yetkilendirme Hatası (401):\n${errMsgDetail}\n\nToken geçersiz veya süresi dolmuş. Lütfen token alanını güncelleyin.`);
+                    } else if (putRes.status === 403) {
+                        alert(`❌ GitHub Yazma Yetkisi Hatası (403 Forbidden):\n${errMsgDetail}\n\nToken'ınızın bu repoya yazma izni bulunmuyor. Token oluştururken "repo" yetkisini işaretlediğinizden emin olun.`);
+                    } else if (putRes.status === 404) {
+                        alert(`❌ GitHub Repo Bulunamadı (404 Not Found):\n${errMsgDetail}\n\nBu token 'birkanoz-tech/wedo-layout-demo' reposunu göremiyor.`);
                     } else if (putRes.status === 422) {
-                        alert(`🛡️ GitHub Revizyon Koruması: "${cleanFilename}" zaten mevcut olduğu için üzerine yazılamaz!`);
+                        alert(`🛡️ GitHub Revizyon Koruması (422):\n"${cleanFilename}" zaten mevcut olduğu için GitHub üzerine yazmayı engelledi.`);
                     } else {
-                        alert(`GitHub Bulut Kayıt Hatası (${putRes.status}): ${errData.message || putRes.statusText}`);
+                        alert(`❌ GitHub Bulut Kayıt Hatası (${putRes.status}):\n${errMsgDetail}`);
                     }
                     return false;
                 }
             } catch (err) {
+                console.error('[CloudSave] Ağ/İletişim Hatası:', err);
                 alert(`GitHub Bağlantı Hatası: ${err.message}`);
                 return false;
             }
@@ -10725,24 +10860,38 @@
                 localStorage.setItem('GITHUB_ACCESS_TOKEN', tokenInput.value.trim());
             }
 
-            let fileContent = '';
-            const isJson = newName.toLowerCase().endsWith('.json');
-            if (isJson) {
-                const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
-                fileContent = JSON.stringify(stateData, null, 2);
-            } else {
-                if (typeof generateXmlProjectContent === 'function') {
-                    fileContent = generateXmlProjectContent();
-                } else {
-                    const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
-                    fileContent = `<?xml version="1.0" encoding="utf-8"?>\n<flexport version="3.6">\n<state>${JSON.stringify(stateData)}</state>\n</flexport>`;
-                }
-            }
-
             const saveBtn = document.getElementById('btn-confirm-cloud-save');
             if (saveBtn) {
                 saveBtn.disabled = true;
-                saveBtn.innerHTML = '<span>⏳</span> Buluta Kaydediliyor...';
+                saveBtn.innerHTML = '<span>⏳</span> 1/3 Veri Hazırlanıyor...';
+            }
+
+            let fileContent = '';
+            try {
+                const isJson = newName.toLowerCase().endsWith('.json');
+                if (isJson) {
+                    const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
+                    fileContent = JSON.stringify(stateData, null, 2);
+                } else {
+                    if (typeof generateXmlProjectContent === 'function') {
+                        fileContent = generateXmlProjectContent();
+                    } else {
+                        const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
+                        fileContent = `<?xml version="1.0" encoding="utf-8"?>\n<flexport version="3.6">\n<state>${JSON.stringify(stateData)}</state>\n</flexport>`;
+                    }
+                }
+            } catch (serializeErr) {
+                console.error('Veri serileştirme hatası:', serializeErr);
+                alert('Proje verisi hazırlanırken hata oluştu: ' + serializeErr.message);
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<span>☁️</span> Yeni Versiyonu Kaydet';
+                }
+                return;
+            }
+
+            if (saveBtn) {
+                saveBtn.innerHTML = '<span>⏳</span> 2/3 Buluta Yükleniyor...';
             }
 
             try {
@@ -10750,6 +10899,10 @@
                 const success = await saveProjectDirectlyToGitHubRepo(newName, fileContent);
 
                 if (success) {
+                    if (saveBtn) {
+                        saveBtn.innerHTML = '<span>✅</span> Kayıt Başarılı!';
+                    }
+
                     // Hızlı açılış için yerel önbelleği güncelle
                     try {
                         const rawRegistry = localStorage.getItem('LOCAL_SAVED_PROJECTS_REGISTRY');
@@ -10792,7 +10945,7 @@
             } finally {
                 if (saveBtn) {
                     saveBtn.disabled = false;
-                    saveBtn.innerHTML = '<span>☁️</span> Buluta Kaydet';
+                    saveBtn.innerHTML = '<span>☁️</span> Yeni Versiyonu Kaydet';
                 }
             }
         }

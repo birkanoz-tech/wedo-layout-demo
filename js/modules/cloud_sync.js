@@ -81,6 +81,20 @@ export function closeSaveAsNewProjectModal() {
     }
 }
 
+export async function stringToBase64Async(str) {
+    return new Promise((resolve, reject) => {
+        const blob = new Blob([str], { type: 'application/json;charset=utf-8' });
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+            resolve(base64);
+        };
+        reader.onerror = (e) => reject(new Error('Base64 kodlama hatası: ' + e));
+        reader.readAsDataURL(blob);
+    });
+}
+
 export async function saveProjectDirectlyToGitHubRepo(filename, fileContent) {
     let token = localStorage.getItem('GITHUB_ACCESS_TOKEN');
     if (!token) {
@@ -94,6 +108,9 @@ export async function saveProjectDirectlyToGitHubRepo(filename, fileContent) {
         }
     }
 
+    const cleanToken = token.trim().replace(/^(bearer|token)\s+/i, '');
+    const headerValue = `Bearer ${cleanToken}`;
+
     const owner = 'birkanoz-tech';
     const repo = 'wedo-layout-demo';
     const cleanFilename = filename.startsWith('projects/') ? filename.replace('projects/', '') : filename;
@@ -101,59 +118,62 @@ export async function saveProjectDirectlyToGitHubRepo(filename, fileContent) {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
     if (typeof showNotice === 'function') {
-        showNotice(`⏳ "${cleanFilename}" GitHub bulutuna kaydediliyor...`);
+        showNotice(`⏳ "${cleanFilename}" bulut revizyon kontrolü yapılıyor...`);
     }
 
-    // 1. Existing SHA Check
-    let sha = null;
+    // 1. Revision Protection (Check if already exists)
     try {
         const getRes = await fetch(url, {
             headers: {
-                'Authorization': `token ${token}`,
+                'Authorization': headerValue,
                 'Accept': 'application/vnd.github.v3+json'
             }
         });
-        if (getRes.ok) {
-            const getData = await getRes.json();
-            sha = getData.sha;
+        if (getRes.status === 200) {
+            alert(`🛡️ REVİZYON KORUMASI:\n\n"${cleanFilename}" adlı dosya GitHub bulutunda zaten mevcut!\nÜzerine yazma engellenmiştir. Lütfen bir sonraki revizyon adını kullanın.`);
+            return false;
         }
     } catch(e) {}
 
-    // 2. Base64 Encode UTF-8 String Content
-    const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
+    // 2. Safe async Base64 Encode
+    let base64Content = '';
+    try {
+        base64Content = await stringToBase64Async(fileContent);
+    } catch (b64Err) {
+        alert('Base64 Paketleme Hatası: ' + b64Err.message);
+        return false;
+    }
 
     // 3. PUT request to GitHub API
     const bodyData = {
-        message: `Update ${path} via ProposalApp Web UI`,
+        message: `Create new revision: ${path} via ProposalApp Web UI`,
         content: base64Content,
         branch: 'main'
     };
-    if (sha) bodyData.sha = sha;
 
     try {
         const putRes = await fetch(url, {
             method: 'PUT',
             headers: {
-                'Authorization': `token ${token}`,
+                'Authorization': headerValue,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
             body: JSON.stringify(bodyData)
         });
 
-        if (putRes.ok) {
+        if (putRes.status === 200 || putRes.status === 201) {
             if (typeof showNotice === 'function') {
                 showNotice(`☁️ "${cleanFilename}" Başarıyla GitHub Bulutuna Kaydedildi!`);
             }
             return true;
         } else {
-            const errData = await putRes.json();
-            if (putRes.status === 401) {
-                localStorage.removeItem('GITHUB_ACCESS_TOKEN');
-                alert('GitHub Token geçersiz veya yetkisiz. Lütfen doğru token ile tekrar deneyin.');
-            } else {
-                alert(`GitHub Kayıt Hatası: ${errData.message || putRes.statusText}`);
+            const errData = await putRes.json().catch(() => ({}));
+            let errMsgDetail = errData.message || putRes.statusText;
+            if (errData.errors && Array.isArray(errData.errors)) {
+                errMsgDetail += '\n• ' + errData.errors.map(e => e.message || JSON.stringify(e)).join('\n• ');
             }
+            alert(`❌ GitHub Kayıt Hatası (${putRes.status}):\n${errMsgDetail}`);
             return false;
         }
     } catch(err) {
