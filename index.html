@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.5 - Akıllı Proje Kayıt & 422 JSON İndirme Güvencesi</title>
+    <title>WEDO v1.3.6 - Kutu Seçim İptal Edildi & Temiz 3D Seçim</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Akıllı Proje Kayıt & 422 Koruması • Hem Buluta Kayıt hem de doğrudan bilgisayara JSON indirme; GitHub 422 sınırında otomatik yerel dosya güvencesi">v1.3.5 • Akıllı JSON Kayıt & 422 Koruması</span>
+                    title="3D Çoklu Seçim (CTRL/Shift) & Akıllı JSON Kayıt (Kutu Seçim İptal Edildi)">v1.3.6 • Kutu Seçim İptal Edildi & Temiz 3D Seçim</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -422,16 +422,6 @@
                         <span>Sağ Panel (Özellikler & Konum) Göster/Gizle</span>
                     </button>
 
-                    <!-- Çoklu / Kutu Seçim (Box / Marquee Select) -->
-                    <div class="flex items-center gap-1.5 bg-[#1e293b]/70 border border-cyan-500/50 p-1 rounded-lg">
-                        <button id="btn-toggle-box-select" onclick="toggleBoxSelectMode()" type="button"
-                            class="bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border border-cyan-500/50 text-xs px-2.5 py-1 rounded shadow font-bold transition flex items-center gap-1.5 cursor-pointer"
-                            title="Fare sol tık ile sürükleyerek çerçeve (kutu) içine aldığınız tüm modelleri aynı anda seçer (Kısayol: B veya Shift + Sürükle)">
-                            <span class="text-sm">⛶</span>
-                            <span id="label-toggle-box-select">Kutu Seçim: Kapalı (Shift+Drag)</span>
-                        </button>
-                    </div>
-
                     <!-- Street View (360° Gezinti, Nokta Düzenleme & Çoklu Sekme) -->
                     <div class="flex items-center gap-1.5 bg-[#1e293b]/70 border border-amber-500/50 p-1 rounded-lg">
                         <span class="text-amber-400 text-[10px] font-bold uppercase tracking-wider pl-1.5 flex items-center gap-1">
@@ -618,15 +608,6 @@
                 <span id="build-path-hud-axis"
                     class="text-emerald-300 text-[10px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800/80 font-bold">X
                     Eksen</span>
-            </div>
-
-            <!-- 3D Canvas Marquee Selection Box Overlay -->
-            <div id="selection-box-marquee"
-                class="hidden fixed pointer-events-none z-50 border-2 border-dashed border-cyan-400 bg-cyan-500/15 backdrop-blur-[0.5px] rounded-sm transition-none shadow-[0_0_15px_rgba(6,182,212,0.35)]">
-                <div id="selection-box-marquee-badge"
-                    class="absolute -top-6 left-0 bg-[#0f172a]/95 text-cyan-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-cyan-500/60 shadow whitespace-nowrap">
-                    ⛶ Kutu Seçim
-                </div>
             </div>
 
             <!-- SVG Sketch Polyline Overlay (Fusion 360 Style Vector Sketching) -->
@@ -3499,208 +3480,7 @@
                     }
                     return;
                 }
-        // --- 3D KUTU SEÇİM (BOX / MARQUEE SELECT) MOTORU ---
-        let isBoxSelectModeActive = false;
-        let isBoxSelecting = false;
-        let boxSelectStart = { x: 0, y: 0 };
-
-        function toggleBoxSelectMode(forceVal) {
-            if (typeof forceVal === 'boolean') {
-                isBoxSelectModeActive = forceVal;
-            } else {
-                isBoxSelectModeActive = !isBoxSelectModeActive;
-            }
-
-            const btn = document.getElementById('btn-toggle-box-select');
-            const lbl = document.getElementById('label-toggle-box-select');
-            if (btn && lbl) {
-                if (isBoxSelectModeActive) {
-                    btn.classList.remove('bg-cyan-950/80', 'text-cyan-200', 'border-cyan-500/50');
-                    btn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-300', 'shadow-[0_0_10px_rgba(6,182,212,0.6)]');
-                    lbl.innerText = '⛶ Kutu Seçim: AÇIK';
-                } else {
-                    btn.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-300', 'shadow-[0_0_10px_rgba(6,182,212,0.6)]');
-                    btn.classList.add('bg-cyan-950/80', 'text-cyan-200', 'border-cyan-500/50');
-                    lbl.innerText = 'Kutu Seçim: Kapalı (Shift+Drag)';
-                }
-            }
-
-            if (typeof showNotice === 'function') {
-                if (isBoxSelectModeActive) {
-                    showNotice('⛶ Kutu Seçim Modu AÇIK: Sol tık ile sürükleyerek çerçeve çizin (Orta tuş ile kamerayı döndürebilirsiniz).', 'info');
-                } else {
-                    showNotice('Kutu Seçim Modu Kapalı. (Shift + Sol Tık Drag kısayolu her zaman aktiftir).', 'info');
-                }
-            }
-        }
-        window.toggleBoxSelectMode = toggleBoxSelectMode;
-
-        function executeBoxSelection(minX, minY, maxX, maxY, event) {
-            if (!renderer || !renderer.domElement || !camera) return;
-            const rect = renderer.domElement.getBoundingClientRect();
-            const candidateMeshes = [];
-            const visitedRoots = new Set();
-
-            // 1. modelTreeEntries'den gelen 3D kök modeller
-            if (Array.isArray(modelTreeEntries)) {
-                modelTreeEntries.forEach(entry => {
-                    if (entry.mesh) {
-                        const root = (typeof findRootMesh === 'function' ? findRootMesh(entry.mesh) : null) || entry.mesh;
-                        if (!visitedRoots.has(root)) {
-                            visitedRoots.add(root);
-                            candidateMeshes.push(root);
-                        }
-                    }
-                });
-            }
-
-            // 2. importedProjectRoot grubundaki modeller
-            if (typeof importedProjectRoot !== 'undefined' && importedProjectRoot) {
-                importedProjectRoot.traverse(child => {
-                    if (child.userData?.product || child.userData?.type === 'product' || child.userData?.isCadObject) {
-                        const root = (typeof findRootMesh === 'function' ? findRootMesh(child) : null) || child;
-                        if (!visitedRoots.has(root)) {
-                            visitedRoots.add(root);
-                            candidateMeshes.push(root);
-                        }
-                    }
-                });
-            }
-
-            // 3. Sahnedeki diğer konveyör / ekipman kök modelleri
-            if (typeof scene !== 'undefined' && scene) {
-                scene.traverse(child => {
-                    if (child.userData?.isConveyor || child.userData?.isPanel || child.userData?.isCadObject || child.userData?.product) {
-                        const root = (typeof findRootMesh === 'function' ? findRootMesh(child) : null) || child;
-                        if (!visitedRoots.has(root)) {
-                            visitedRoots.add(root);
-                            candidateMeshes.push(root);
-                        }
-                    }
-                });
-            }
-
-            const newlySelected = [];
-            const tempVec = new THREE.Vector3();
-            const tempBox = new THREE.Box3();
-
-            candidateMeshes.forEach(mesh => {
-                if (!mesh || !mesh.visible) return;
-
-                tempBox.setFromObject(mesh);
-                if (tempBox.isEmpty()) return;
-
-                // Model merkezini ekrana izdüşür
-                const center = tempBox.getCenter(tempVec);
-                center.project(camera);
-
-                // Kamera arkasındaki objeleri filtrele
-                if (center.z > 1) return;
-
-                // NDC (-1 to +1) -> Screen Pixel Koordinatları
-                const cx = ((center.x + 1) / 2) * rect.width + rect.left;
-                const cy = ((-center.y + 1) / 2) * rect.height + rect.top;
-
-                let isInside = (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY);
-
-                // Merkez dışarıda kalsa bile kutunun içine giren 8 köşe var mı kontrol et
-                if (!isInside) {
-                    const corners = [
-                        new THREE.Vector3(tempBox.min.x, tempBox.min.y, tempBox.min.z),
-                        new THREE.Vector3(tempBox.max.x, tempBox.min.y, tempBox.min.z),
-                        new THREE.Vector3(tempBox.min.x, tempBox.max.y, tempBox.min.z),
-                        new THREE.Vector3(tempBox.max.x, tempBox.max.y, tempBox.min.z),
-                        new THREE.Vector3(tempBox.min.x, tempBox.min.y, tempBox.max.z),
-                        new THREE.Vector3(tempBox.max.x, tempBox.min.y, tempBox.max.z),
-                        new THREE.Vector3(tempBox.min.x, tempBox.max.y, tempBox.max.z),
-                        new THREE.Vector3(tempBox.max.x, tempBox.max.y, tempBox.max.z),
-                    ];
-
-                    for (const corner of corners) {
-                        corner.project(camera);
-                        if (corner.z <= 1) {
-                            const sx = ((corner.x + 1) / 2) * rect.width + rect.left;
-                            const sy = ((-corner.y + 1) / 2) * rect.height + rect.top;
-                            if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) {
-                                isInside = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (isInside) {
-                    newlySelected.push(mesh);
-                }
-            });
-
-            if (newlySelected.length === 0) {
-                if (!event.ctrlKey && !event.metaKey) {
-                    clearSelection();
-                }
-                return;
-            }
-
-            // CTRL / Meta basılı değilse önceki seçimi temizle, basılıysa üstüne ekle
-            if (!event.ctrlKey && !event.metaKey) {
-                if (Array.isArray(selectedMeshes)) {
-                    selectedMeshes.forEach(m => applyMeshSelectionHighlight(m, false));
-                }
-                selectedMeshes = [];
-            }
-
-            newlySelected.forEach(m => {
-                if (!selectedMeshes.includes(m)) {
-                    selectedMeshes.push(m);
-                    applyMeshSelectionHighlight(m, true);
-                }
-            });
-
-            if (selectedMeshes.length > 0) {
-                selectedMesh = selectedMeshes[selectedMeshes.length - 1];
-                const targetTransformMesh = (typeof getCableTrayAssemblyRoot === 'function' ? getCableTrayAssemblyRoot(selectedMesh) : null) || selectedMesh;
-                if (transformControls) transformControls.attach(targetTransformMesh);
-                if (typeof attachSelectionLocalAxesGuide === 'function') attachSelectionLocalAxesGuide(targetTransformMesh);
-            }
-
-            if (typeof showNotice === 'function') {
-                showNotice(`⛶ ${newlySelected.length} model kutu seçimiyle eklendi (Toplam: ${selectedMeshes.length}). Sağ tık ile "Montaj Oluştur" yapabilirsiniz.`, 'info');
-            }
-
-            renderModelTree();
-            updateWorldPositionEditorForSelection();
-            updateModelMeasurementOverlay();
-        }
-        window.executeBoxSelection = executeBoxSelection;
-
-        // Kısayol: 'B' tuşu ile Kutu Seçim Modunu Aç/Kapat
-        window.addEventListener('keydown', (e) => {
-            const activeEl = document.activeElement;
-            const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable);
-            if (!isInput && (e.key === 'b' || e.key === 'B')) {
-                toggleBoxSelectMode();
-            }
-        });
-
                 if (event.button !== 0) return; // Yalnızca sol tık seçim ve koordinat takibi yapar
-
-                // Kutu Seçim (Shift + Sol Tık Drag veya Kutu Seçim Modu)
-                if (event.shiftKey || isBoxSelectModeActive) {
-                    isBoxSelecting = true;
-                    boxSelectStart.x = event.clientX;
-                    boxSelectStart.y = event.clientY;
-                    if (controls) controls.enabled = false;
-                    const marquee = document.getElementById('selection-box-marquee');
-                    if (marquee) {
-                        marquee.style.left = `${event.clientX}px`;
-                        marquee.style.top = `${event.clientY}px`;
-                        marquee.style.width = '0px';
-                        marquee.style.height = '0px';
-                        marquee.classList.remove('hidden');
-                    }
-                    return;
-                }
-
                 pointerDown.x = event.clientX;
                 pointerDown.y = event.clientY;
                 pointerMovedSinceDown = false;
@@ -3709,48 +3489,10 @@
                 updateMouseCoordinates(event);
             });
 
-            // Kutu Seçim Marquee Canlı Güncelleme
-            window.addEventListener('pointermove', (event) => {
-                if (isBoxSelecting) {
-                    const x1 = Math.min(boxSelectStart.x, event.clientX);
-                    const y1 = Math.min(boxSelectStart.y, event.clientY);
-                    const w = Math.abs(event.clientX - boxSelectStart.x);
-                    const h = Math.abs(event.clientY - boxSelectStart.y);
-                    const marquee = document.getElementById('selection-box-marquee');
-                    if (marquee) {
-                        marquee.style.left = `${x1}px`;
-                        marquee.style.top = `${y1}px`;
-                        marquee.style.width = `${w}px`;
-                        marquee.style.height = `${h}px`;
-                        marquee.classList.remove('hidden');
-                    }
-                }
-            });
-
             renderer.domElement.addEventListener('pointerup', async (event) => {
                 if (event.button !== 0) {
                     return; // Yalnızca sol tık seçim yapar; orta tuş (Orbit/Pan) veya sağ tık seçimi bozmaz
                 }
-
-                // Kutu Seçim Tamamlama
-                if (isBoxSelecting) {
-                    isBoxSelecting = false;
-                    if (controls) controls.enabled = true;
-                    const marquee = document.getElementById('selection-box-marquee');
-                    if (marquee) marquee.classList.add('hidden');
-
-                    const w = Math.abs(event.clientX - boxSelectStart.x);
-                    const h = Math.abs(event.clientY - boxSelectStart.y);
-                    if (w > 8 && h > 8) {
-                        const minX = Math.min(boxSelectStart.x, event.clientX);
-                        const minY = Math.min(boxSelectStart.y, event.clientY);
-                        const maxX = minX + w;
-                        const maxY = minY + h;
-                        executeBoxSelection(minX, minY, maxX, maxY, event);
-                        return;
-                    }
-                }
-
                 if (isTransformGizmoDragging) {
                     return;
                 }
