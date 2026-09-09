@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.6 - Kutu Seçim İptal Edildi & Temiz 3D Seçim</title>
+    <title>WEDO v1.3.7 - Projeye Özel Ayrık Ürün Ağacı & Boş Sahne İzolasyonu</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="3D Çoklu Seçim (CTRL/Shift) & Akıllı JSON Kayıt (Kutu Seçim İptal Edildi)">v1.3.6 • Kutu Seçim İptal Edildi & Temiz 3D Seçim</span>
+                    title="Projeye Özel Ayrık Ürün Ağacı • Her projenin montaj ve üst montaj hiyerarşisi birbirinden tamamen izole edilir; boş sahnede veya diğer projelerde boş montajlar görünmez">v1.3.7 • Projeye Özel Ürün Ağacı & İzolasyon</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -2955,26 +2955,56 @@
         let collapsedAssemblies = new Set();
         let treeSearchTerm = '';
 
-        function loadAssemblyHierarchy() {
+        function getActiveProjectStorageKey() {
             try {
-                const savedParents = localStorage.getItem('wedo_parent_assemblies');
+                const urlParams = new URLSearchParams(window.location.search);
+                const p = urlParams.get('project') || urlParams.get('json') || urlParams.get('xml') || currentXmlFilename || 'default_project';
+                return 'wedo_proj_' + p.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            } catch(e) {
+                return 'wedo_proj_default';
+            }
+        }
+        window.getActiveProjectStorageKey = getActiveProjectStorageKey;
+
+        function loadAssemblyHierarchy(specificKey) {
+            try {
+                // Eski global çakışan anahtarları temizle
+                localStorage.removeItem('wedo_parent_assemblies');
+                localStorage.removeItem('wedo_assembly_parent_map');
+
+                const key = specificKey || getActiveProjectStorageKey();
+                if (key.includes('_empty') || key.includes('bos_sahne')) {
+                    parentAssemblyList = [];
+                    assemblyParentMap = {};
+                    return;
+                }
+                const savedParents = localStorage.getItem(key + '_parents');
+                const savedMap = localStorage.getItem(key + '_map');
                 if (savedParents) parentAssemblyList = JSON.parse(savedParents);
-                const savedMap = localStorage.getItem('wedo_assembly_parent_map');
+                else parentAssemblyList = [];
                 if (savedMap) assemblyParentMap = JSON.parse(savedMap);
+                else assemblyParentMap = {};
                 if (!Array.isArray(parentAssemblyList)) parentAssemblyList = [];
                 if (!assemblyParentMap || typeof assemblyParentMap !== 'object') assemblyParentMap = {};
             } catch (e) {
                 console.warn('Error loading assembly hierarchy from localStorage', e);
+                parentAssemblyList = [];
+                assemblyParentMap = {};
             }
         }
-        function saveAssemblyHierarchy() {
+        window.loadAssemblyHierarchy = loadAssemblyHierarchy;
+
+        function saveAssemblyHierarchy(specificKey) {
             try {
-                localStorage.setItem('wedo_parent_assemblies', JSON.stringify(parentAssemblyList));
-                localStorage.setItem('wedo_assembly_parent_map', JSON.stringify(assemblyParentMap));
+                const key = specificKey || getActiveProjectStorageKey();
+                if (key.includes('_empty') || key.includes('bos_sahne')) return;
+                localStorage.setItem(key + '_parents', JSON.stringify(parentAssemblyList));
+                localStorage.setItem(key + '_map', JSON.stringify(assemblyParentMap));
             } catch (e) {
                 console.warn('Error saving assembly hierarchy to localStorage', e);
             }
         }
+        window.saveAssemblyHierarchy = saveAssemblyHierarchy;
         loadAssemblyHierarchy();
         let importedProjectRoot = null;
         let smartComponents = [];
@@ -4098,6 +4128,8 @@
             selectedTreeKey = null;
             collapsedAssemblies = new Set();
             treeSearchTerm = '';
+            parentAssemblyList = [];
+            assemblyParentMap = {};
             const treeSearchInput = document.getElementById('tree-search-input');
             if (treeSearchInput) treeSearchInput.value = '';
 
@@ -9058,7 +9090,7 @@
                 ...Object.values(assemblyParentMap)
             ]));
 
-            // 3. Alt montajları üst montajlarına göre grupla
+            // 3. Alt montajları üst montajlarına göre grupla (Yalnızca bu projede modeli olanları al)
             const parentGroups = allParentNames.map(pName => {
                 const childAssemblies = rawAssemblies.filter(a => assemblyParentMap[a.name] === pName);
                 const directItems = rawAssemblies.find(a => a.name === pName)?.items || [];
@@ -9069,7 +9101,7 @@
                     directItems,
                     totalItemsCount
                 };
-            });
+            }).filter(p => p.totalItemsCount > 0); // KESİN KURAL: Bu projede/sahnede hiç modeli olmayan boş üst montajları gösterme!
 
             // 4. Herhangi bir üst montaja atanmamış bağımsız montajlar
             const standaloneAssemblies = rawAssemblies.filter(a => 
@@ -11350,6 +11382,10 @@
                 dxfDrawings: serializableDxfDrawings,
                 manualModels: manualModelsData,
                 buildingLevels: buildingLevels || [],
+                assemblyHierarchy: {
+                    parentAssemblyList: [...parentAssemblyList],
+                    assemblyParentMap: { ...assemblyParentMap }
+                },
                 addedPanels: serializablePanels,
                 savedCableLinks: serializableCableLinks,
                 addedCables: addedCables || [],
@@ -11453,6 +11489,19 @@
 
         async function restoreStateData(data) {
             if (!data) return false;
+
+            // Projeye ait montaj hiyerarşisini geri yükle
+            if (data.assemblyHierarchy) {
+                parentAssemblyList = Array.isArray(data.assemblyHierarchy.parentAssemblyList) ? [...data.assemblyHierarchy.parentAssemblyList] : [];
+                assemblyParentMap = (data.assemblyHierarchy.assemblyParentMap && typeof data.assemblyHierarchy.assemblyParentMap === 'object') ? { ...data.assemblyHierarchy.assemblyParentMap } : {};
+                saveAssemblyHierarchy();
+            } else if (Array.isArray(data.parentAssemblyList)) {
+                parentAssemblyList = [...data.parentAssemblyList];
+                assemblyParentMap = (data.assemblyParentMap && typeof data.assemblyParentMap === 'object') ? { ...data.assemblyParentMap } : {};
+                saveAssemblyHierarchy();
+            } else {
+                loadAssemblyHierarchy();
+            }
 
             const sceneData = data.scene || data;
 
@@ -12519,6 +12568,8 @@
             if (Array.isArray(window.modelTreeEntries)) {
                 window.modelTreeEntries = [];
             }
+            parentAssemblyList = [];
+            assemblyParentMap = {};
             if (typeof renderModelTree === 'function') {
                 renderModelTree();
             }
