@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.4 - Model Merkezli Orbit & Sabit Ekran Seçimi (Shift+Mouse Wheel)</title>
+    <title>WEDO v1.2.5 - Sabit Ağaç Seçimi & F Tuşu Odaklama</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Model Orbit & Sabit Ekran • Seçimde ekran konumu asla değişmez • Shift+Tekerlek ile model merkezli orbit">v1.2.4 • Model Orbit & Sabit Ekran</span>
+                    title="Sabit Ağaç Seçimi • Ağaçtan ürün veya montaj seçildiğinde ekran asla hareket etmez • F tuşu ile seçilen modele/montaja odaklanılır">v1.2.5 • Sabit Ağaç & F Odak</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -3064,14 +3064,18 @@
                 if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
                     return;
                 }
+
+                if (event.key === 'f' || event.key === 'F') {
+                    focusSelectedModelCamera();
+                    return;
+                }
+
                 if (!selectedMesh) return;
 
                 if (event.key === 'w' || event.key === 'W') {
                     setTransformMode('translate');
                 } else if (event.key === 'e' || event.key === 'E' || event.key === 'r' || event.key === 'R') {
                     setTransformMode('rotate');
-                } else if (event.key === 'f' || event.key === 'F') {
-                    focusSelectedModelCamera();
                 }
             });
 
@@ -8707,7 +8711,6 @@
                         (typeof findRootMesh === 'function' ? findRootMesh(entry.mesh) : entry.mesh) || entry.mesh;
 
                     selectMesh(targetMesh);
-                    focusCameraOnMesh(targetMesh);
 
                     const isP = (typeof getPanelRootFromObject === 'function' && getPanelRootFromObject(targetMesh)) ||
                         targetMesh.userData?.isPanel || targetMesh.userData?.parametricKind === 'panel' || targetMesh.userData?.panelId;
@@ -8869,7 +8872,6 @@
                         }
                     });
                 });
-                focusCameraOnMeshGroup(meshes);
             }
 
             renderModelTree();
@@ -8907,7 +8909,6 @@
             if (entry.mesh) {
                 const targetMesh = findRootMesh(entry.mesh) || entry.mesh;
                 selectMesh(targetMesh);
-                focusCameraOnMesh(targetMesh);
             } else {
                 clearSelection();
                 const product = entry.product;
