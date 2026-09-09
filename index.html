@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.2 - Seçili Model Merkezli Orbit (Shift+Mouse Wheel)</title>
+    <title>WEDO v1.2.3 - Sabit Ekran Seçimi & Pürüzsüz Model Orbiti (Shift+Mouse Wheel)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Model Merkezli Orbit (Shift + Mouse Wheel) • Seçilen model otomatik olarak dönüş ekseni yapılır">v1.2.2 • Model Merkezli Orbit</span>
+                    title="Sabit Ekran Seçimi • Seçim sırasında kamera konumu ASLA değişmez • Shift+Tekerlek ile model merkezli orbit">v1.2.3 • Sabit Ekran Seçimi</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -3001,12 +3001,6 @@
                     onCadStreetViewPinMoved(transformControls.object);
                     return;
                 }
-                if (controls && selectedMesh) {
-                    const meshCenter = (typeof getSelectedObjectCenter === 'function' ? getSelectedObjectCenter(selectedMesh) : null);
-                    if (meshCenter) {
-                        controls.target.copy(meshCenter);
-                    }
-                }
                 syncSelectedProductDataFromMesh();
                 updateSelectionInfoPanel();
                 updateWorldPositionEditorForSelection();
@@ -3334,15 +3328,29 @@
                 return isDxfObject(closest) ? null : closest;
             };
 
+            let isModelOrbitDragging = false;
+            let modelOrbitPivot = new THREE.Vector3();
+            let modelOrbitStartPos = new THREE.Vector3();
+            let modelOrbitStartQuat = new THREE.Quaternion();
+            let modelOrbitStartOffset = new THREE.Vector3();
+            let modelOrbitStartPointer = { x: 0, y: 0 };
+
             renderer.domElement.addEventListener('pointerdown', (event) => {
-                // Eğer Shift + Orta Tuş (veya Sağ Tuş) ile Orbit başlatılıyorsa ve bir model seçiliyse:
-                // Orbit dönüş merkezini kesinlikle seçili modelin geometrik merkezine ayarla
+                // Shift + Orta Tuş (Tekerlek) veya Shift + Sağ Tuş ile Seçili Model Merkezli Orbit:
+                // Ekranı veya kamerayı aniden ZIPLATMADAN, pürüzsüz CAD pivot dönüşü başlatır
                 if (event.shiftKey && (event.button === 1 || event.button === 2)) {
-                    if (controls && selectedMesh) {
+                    if (selectedMesh) {
                         const meshCenter = (typeof getSelectedObjectCenter === 'function' ? getSelectedObjectCenter(selectedMesh) : null);
                         if (meshCenter) {
-                            controls.target.copy(meshCenter);
-                            controls.update();
+                            isModelOrbitDragging = true;
+                            modelOrbitPivot.copy(meshCenter);
+                            modelOrbitStartPos.copy(camera.position);
+                            modelOrbitStartQuat.copy(camera.quaternion);
+                            modelOrbitStartOffset.copy(camera.position).sub(meshCenter);
+                            modelOrbitStartPointer.x = event.clientX;
+                            modelOrbitStartPointer.y = event.clientY;
+                            if (controls) controls.enabled = false;
+                            return;
                         }
                     }
                     return;
@@ -3354,6 +3362,46 @@
                 cameraStartRotation.copy(camera.rotation);
                 cameraStartPos.copy(camera.position);
                 updateMouseCoordinates(event);
+            });
+
+            window.addEventListener('pointermove', (event) => {
+                if (isModelOrbitDragging) {
+                    const dx = event.clientX - modelOrbitStartPointer.x;
+                    const dy = event.clientY - modelOrbitStartPointer.y;
+                    const rotSpeed = 0.005;
+
+                    // 1. Azimut (Yaw): Dünya dikey Y (0, 1, 0) ekseni etrafında dönüş
+                    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
+
+                    // 2. Yükseklik (Pitch): Kameranın başlangıç yerel X (sağ) ekseni etrafında dönüş
+                    const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(modelOrbitStartQuat).normalize();
+                    const qPitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, -dy * rotSpeed);
+
+                    // Bileşke rotasyon
+                    const qRot = qYaw.clone().multiply(qPitch);
+
+                    // Kamerayı model merkezi etrafında pürüzsüz döndür
+                    const newOffset = modelOrbitStartOffset.clone().applyQuaternion(qRot);
+                    camera.position.copy(modelOrbitPivot).add(newOffset);
+                    camera.quaternion.copy(qRot).multiply(modelOrbitStartQuat);
+                    camera.updateMatrixWorld();
+                    return;
+                }
+            });
+
+            window.addEventListener('pointerup', (event) => {
+                if (isModelOrbitDragging) {
+                    isModelOrbitDragging = false;
+                    if (controls) {
+                        // OrbitControls hedef noktasını kameranın bakış ekseni üzerindeki model derinliğine hizala (sıçramasız)
+                        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                        const dist = new THREE.Vector3().subVectors(modelOrbitPivot, camera.position).dot(forward);
+                        if (dist > 0.5) {
+                            controls.target.copy(camera.position).addScaledVector(forward, dist);
+                        }
+                        controls.enabled = true;
+                    }
+                }
             });
 
             renderer.domElement.addEventListener('pointerup', async (event) => {
@@ -9694,15 +9742,6 @@
             syncSelectedProductDataFromMesh();
             updateParametricEditorForSelection();
             updateWorldPositionEditorForSelection();
-
-            // Seçili modeli Orbit ve Kamera pivot merkezi yap:
-            if (controls && mesh && (!mesh.userData?.isBlenderCamera)) {
-                const meshCenter = getSelectedObjectCenter(mesh);
-                if (meshCenter) {
-                    controls.target.copy(meshCenter);
-                    controls.update();
-                }
-            }
 
             if (mesh.userData?.isBlenderCamera && mesh.userData?.cameraId) {
                 switchToCameraView(mesh.userData.cameraId);
