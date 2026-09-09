@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.7 - Projeye Özel Ayrık Ürün Ağacı & Boş Sahne İzolasyonu</title>
+    <title>WEDO v1.3.8 - AutoCAD Blok Otomatik Temas & Montaj Gruplama Motoru</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Projeye Özel Ayrık Ürün Ağacı • Her projenin montaj ve üst montaj hiyerarşisi birbirinden tamamen izole edilir; boş sahnede veya diğer projelerde boş montajlar görünmez">v1.3.7 • Projeye Özel Ürün Ağacı & İzolasyon</span>
+                    title="AutoCAD Blok Otomatik Montaj • JSON import edilirken birbirine fiziksel olarak temas eden modeller 3D temas grafiğiyle bağımsız konveyör hatlarına otomatik gruplanır">v1.3.8 • AutoCAD Otomatik Montaj Motoru</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -12945,37 +12945,10 @@
                     const isMillimeters = maxCoord > 500;
                     const unitScale = isMillimeters ? 0.001 : 1.0;
 
-                    // 4. Hedef Montaj (Assembly) Grubu Oluşturma
-                    const now = new Date();
-                    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                    const baseAssemblyTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-]/g, '_') || 'AutoCAD_Blocks';
-                    const assemblyName = `${baseAssemblyTitle}_${timeStr}`;
-
-                    if (!importedProjectRoot) {
-                        importedProjectRoot = new THREE.Group();
-                        importedProjectRoot.userData = { type: 'project-root' };
-                        scene.add(importedProjectRoot);
-                    }
-
-                    const assemblyGroup = new THREE.Group();
-                    assemblyGroup.userData = {
-                        type: 'assembly',
-                        assemblyName: assemblyName
-                    };
-                    importedProjectRoot.add(assemblyGroup);
-
-                    if (!importedProject || !Array.isArray(importedProject)) {
-                        importedProject = [];
-                    }
-                    const newAssemblyData = {
-                        assemblyName: assemblyName,
-                        products: []
-                    };
-                    importedProject.push(newAssemblyData);
-
-                    // 5. Her bloğu kütüphanedeki GLB modeliyle eşleştir ve sahneye yerleştir
+                    // 4. Modelleri Kütüphane İle Eşleştirip 3D Mesh Nesnelerini Hazırla
                     let matchedCount = 0;
                     let unmatchedBlocks = [];
+                    const createdBlocksList = [];
 
                     for (let idx = 0; idx < parsedBlocks.length; idx++) {
                         const b = parsedBlocks[idx];
@@ -12993,7 +12966,7 @@
                             productcode: resolved.cleanName || b.name,
                             type: 'CAD_BLOCK',
                             group: 'AutoCAD',
-                            assemblyName: assemblyName,
+                            assemblyName: '',
                             sequence: idx,
                             isCeilingSupport: resolved.isCeilingSupport || false,
                             cadBlockName: b.name,
@@ -13025,28 +12998,166 @@
                             }
                         };
 
-                        newAssemblyData.products.push(product);
-
                         try {
                             const mesh = await createProductMesh(product);
                             if (mesh) {
-                                mesh.userData.assemblyName = assemblyName;
-                                assemblyGroup.add(mesh);
+                                mesh.updateMatrixWorld(true);
+                                const box = new THREE.Box3().setFromObject(mesh);
+                                createdBlocksList.push({
+                                    product,
+                                    mesh,
+                                    box,
+                                    center: box.getCenter(new THREE.Vector3()),
+                                    name: b.name
+                                });
+                                matchedCount++;
                             }
-                            modelTreeEntries.push({ assemblyName: assemblyName, product, mesh: mesh || null });
-                            matchedCount++;
                         } catch (err) {
                             console.warn('Blok modeli sahnede oluşturulamadı:', b.name, err);
                         }
                     }
 
-                    // 6. Sahne ve Model Ağacını Yenile
+                    if (createdBlocksList.length === 0) {
+                        alert('Eşleşen hiçbir 3D model sahneye yerleştirilemedi.');
+                        input.value = '';
+                        return;
+                    }
+
+                    // 5. 3D UZAMSAL TEMAS VE BAĞLANTI GRAFİĞİ (CONNECTED COMPONENTS BFS)
+                    // Birbirine fiziksel olarak temas eden / bağlanan modelleri tespit et
+                    const N = createdBlocksList.length;
+                    const adj = Array.from({ length: N }, () => []);
+                    const contactMargin = 0.08; // 80 mm bağlantı / flanş toleransı
+
+                    for (let i = 0; i < N; i++) {
+                        const boxA = createdBlocksList[i].box.clone().expandByScalar(contactMargin);
+                        const cA = createdBlocksList[i].center;
+                        for (let j = i + 1; j < N; j++) {
+                            const boxB = createdBlocksList[j].box;
+                            const cB = createdBlocksList[j].center;
+
+                            // 1. 3D Bounding Box Teması
+                            let isConnected = boxA.intersectsBox(boxB);
+
+                            // 2. Eğer kutular ince/noktasal ise merkezler arası yakınlık kontrolü
+                            if (!isConnected) {
+                                const dist = cA.distanceTo(cB);
+                                if (dist < 0.35) { // 35 cm'den yakınsa temas
+                                    isConnected = true;
+                                }
+                            }
+
+                            if (isConnected) {
+                                adj[i].push(j);
+                                adj[j].push(i);
+                            }
+                        }
+                    }
+
+                    // BFS ile ayrık bileşenleri (Connected Components / Hatları) grupla
+                    const visited = new Set();
+                    const components = [];
+
+                    for (let i = 0; i < N; i++) {
+                        if (!visited.has(i)) {
+                            const comp = [];
+                            const queue = [i];
+                            visited.add(i);
+                            while (queue.length > 0) {
+                                const curr = queue.shift();
+                                comp.push(createdBlocksList[curr]);
+                                for (const nbr of adj[curr]) {
+                                    if (!visited.has(nbr)) {
+                                        visited.add(nbr);
+                                        queue.push(nbr);
+                                    }
+                                }
+                            }
+                            components.push(comp);
+                        }
+                    }
+
+                    // Hatları parça sayısına göre sırala (büyük hatlar önce)
+                    components.sort((a, b) => b.length - a.length);
+
+                    // 6. ÜST MONTAJ (PARENT) VE ALT MONTAJLARI (ASSEMBLIES) OLUŞTUR
+                    if (!importedProjectRoot) {
+                        importedProjectRoot = new THREE.Group();
+                        importedProjectRoot.userData = { type: 'project-root' };
+                        scene.add(importedProjectRoot);
+                    }
+
+                    const baseDocName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-]/g, '_') || 'AutoCAD_Çizimi';
+                    const parentAssemblyTitle = `📂 ${baseDocName}`;
+
+                    if (!parentAssemblyList.includes(parentAssemblyTitle)) {
+                        parentAssemblyList.push(parentAssemblyTitle);
+                    }
+
+                    if (!importedProject || !Array.isArray(importedProject)) {
+                        importedProject = [];
+                    }
+
+                    let conveyorLineCounter = 1;
+                    let machineCounter = 1;
+
+                    for (let cIdx = 0; cIdx < components.length; cIdx++) {
+                        const comp = components[cIdx];
+                        
+                        // Akıllı Montaj İsmi Belirleme
+                        let assemblyTitle = '';
+                        const hasConveyorKeywords = comp.some(item => {
+                            const n = (item.name || '').toUpperCase();
+                            return n.includes('XB') || n.includes('KONV') || n.includes('CONVEYOR') || n.includes('RULO') || n.includes('BANT');
+                        });
+
+                        if (comp.length > 1 || hasConveyorKeywords) {
+                            assemblyTitle = `Konveyör Hattı ${conveyorLineCounter++} (${comp.length} Parça)`;
+                        } else {
+                            const cleanName = comp[0].product.name || comp[0].name || 'Ekipman';
+                            assemblyTitle = `${cleanName} #${machineCounter++}`;
+                        }
+
+                        // Three.js Grubu
+                        const assemblyGroup = new THREE.Group();
+                        assemblyGroup.userData = {
+                            type: 'assembly',
+                            assemblyName: assemblyTitle
+                        };
+                        importedProjectRoot.add(assemblyGroup);
+
+                        // importedProject veri dizisine ekle
+                        const assemblyProducts = [];
+                        comp.forEach(item => {
+                            item.product.assemblyName = assemblyTitle;
+                            item.mesh.userData.assemblyName = assemblyTitle;
+                            assemblyGroup.add(item.mesh);
+                            assemblyProducts.push(item.product);
+                            modelTreeEntries.push({
+                                assemblyName: assemblyTitle,
+                                product: item.product,
+                                mesh: item.mesh
+                            });
+                        });
+
+                        importedProject.push({
+                            assemblyName: assemblyTitle,
+                            products: assemblyProducts
+                        });
+
+                        // Üst Montaj Haritasına Bağla
+                        assemblyParentMap[assemblyTitle] = parentAssemblyTitle;
+                    }
+
+                    saveAssemblyHierarchy();
+
+                    // 7. Sahne ve Model Ağacını Yenile
                     rebuildModelTreeFromScene();
                     if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
                     if (typeof renderModelTree === 'function') renderModelTree();
 
-                    if (assemblyGroup.children.length > 0) {
-                        fitCameraToObject(assemblyGroup);
+                    if (importedProjectRoot.children.length > 0) {
+                        fitCameraToObject(importedProjectRoot);
                     }
 
                     // 7. Bildirim & Durum Özeti
