@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.4 - 3D Fare ile Kutu Seçim & Hızlı Montaj Gruplama</title>
+    <title>WEDO v1.3.5 - Akıllı Proje Kayıt & 422 JSON İndirme Güvencesi</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="3D Kutu Seçim & Montaj Gruplama • Shift + Sol Tık Drag veya 'B' ile fareyi sürükleyerek çerçeve içine aldığınız tüm modelleri topluca seçer ve sağ tıkla montajlar">v1.3.4 • 3D Fare Kutu Seçim (Box Select)</span>
+                    title="Akıllı Proje Kayıt & 422 Koruması • Hem Buluta Kayıt hem de doğrudan bilgisayara JSON indirme; GitHub 422 sınırında otomatik yerel dosya güvencesi">v1.3.5 • Akıllı JSON Kayıt & 422 Koruması</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -12217,11 +12217,16 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
-                            <button onclick="closeSaveAsNewProjectModal()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition cursor-pointer">İptal</button>
-                            <button id="btn-confirm-cloud-save" onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer">
-                                <span>☁️</span> Yeni Versiyonu Kaydet
+                        <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-800">
+                            <button onclick="downloadActiveProjectJsonLocally()" type="button" class="px-3 py-1.5 rounded bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/50 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs" title="GitHub API 422 sınırlarına takılmadan projeyi doğrudan bilgisayarınıza .json olarak kaydeder">
+                                <span>💾</span> Bilgisayara JSON İndir
                             </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="closeSaveAsNewProjectModal()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition cursor-pointer">İptal</button>
+                                <button id="btn-confirm-cloud-save" onclick="executeSaveAsNewProject()" class="px-4 py-1.5 rounded bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer">
+                                    <span>☁️</span> Buluta Kaydet
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -12328,6 +12333,47 @@
         }
         window.testTokenFromModal = testTokenFromModal;
 
+        function downloadActiveProjectJsonLocally(customName, customContent) {
+            const inputEl = document.getElementById('save-as-project-name-input');
+            let name = customName || (inputEl ? inputEl.value.trim() : '');
+            if (!name) name = `Proje_${Date.now()}.json`;
+            if (!name.toLowerCase().endsWith('.json') && !name.toLowerCase().endsWith('.xml')) {
+                name += '.json';
+            }
+
+            let content = customContent;
+            if (!content) {
+                const isJson = name.toLowerCase().endsWith('.json');
+                if (isJson) {
+                    const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
+                    content = JSON.stringify(stateData, null, 2);
+                } else {
+                    if (typeof generateXmlProjectContent === 'function') {
+                        content = generateXmlProjectContent();
+                    } else {
+                        const stateData = typeof getSerializableState === 'function' ? getSerializableState() : {};
+                        content = `<?xml version="1.0" encoding="utf-8"?>\n<flexport version="3.6">\n<state>${JSON.stringify(stateData)}</state>\n</flexport>`;
+                    }
+                }
+            }
+
+            const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            closeSaveAsNewProjectModal();
+            if (typeof showNotice === 'function') {
+                showNotice(`💾 "${name}" bilgisayarınıza indirildi! Yerel projeler klasörünüze taşıyıp pushlayabilirsiniz.`, 'success');
+            }
+        }
+        window.downloadActiveProjectJsonLocally = downloadActiveProjectJsonLocally;
+
         function closeSaveAsNewProjectModal() {
             const modal = document.getElementById('modal-save-as-project');
             if (modal) {
@@ -12428,6 +12474,12 @@
                         alert(`❌ GitHub Yetkilendirme Hatası (401):\n${errDetail}\n\nToken geçersiz veya süresi dolmuş.`);
                     } else if (blobRes.status === 403) {
                         alert(`❌ GitHub Yazma Yetkisi Hatası (403 Forbidden):\n${errDetail}\n\nToken'ın repoya yazma izni bulunmuyor. "repo" yetkisini kontrol edin.`);
+                    } else if (blobRes.status === 422) {
+                        console.warn('[CloudSave] 422 Blob boyutu sınırı aşıldı. Yerel indirme güvencesi devreye giriyor...');
+                        if (typeof downloadActiveProjectJsonLocally === 'function') {
+                            downloadActiveProjectJsonLocally(cleanFilename, content);
+                        }
+                        alert(`⚠️ GitHub Doğrudan Yükleme Sınırı (422):\nBu proje verisi, tarayıcı üzerinden doğrudan GitHub API'ye iletilemeyecek kadar büyük.\n\n✅ Güvence Devrede: Projeniz güvenle bilgisayarınıza indirildi:\n"${cleanFilename}"\n\n📌 Yapmanız Gereken:\nİndirilen dosyayı yerel 'projects/' klasörünüze koyun ve asistanınıza 'GitHub'a pushla' demeniz yeterlidir!`);
                     } else {
                         alert(`❌ GitHub Veri Bloğu Hatası (${blobRes.status}):\n${errDetail}`);
                     }
