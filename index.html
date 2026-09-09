@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.9 - Montaj & Üst Montaj Taşıma Gizmosu</title>
+    <title>WEDO v1.3.0 - Montaj Konum & Açı Koordinat Kutusu</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Montaj & Üst Montaj Taşıma Gizmosu • Ağaçtan seçilen montaj/üst montaj öğeleri TransformControls gizmosu ile sahnede grup olarak taşınıp döndürülebilir">v1.2.9 • Montaj Taşıma Gizmosu</span>
+                    title="Montaj Konum & Açı Koordinat Kutusu • Seçilen montaj ve üst montajların X, Y, Z konumları ve Rotasyon açıları koordinat kutusundan doğrudan sayısal olarak değiştirilebilir">v1.3.0 • Montaj Koordinat & Açı Girişi</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -866,7 +866,7 @@
                     <div id="world-position-editor" class="space-y-3 bg-[#252526]/90 p-3 rounded-lg border border-[#333333] shadow-md">
                         <div>
                             <div class="mb-1.5 flex items-center justify-between gap-3">
-                                <div class="text-[10px] uppercase tracking-[0.2em] text-blue-400 font-bold">World Position (m)</div>
+                                <div id="world-pos-header-label" class="text-[10px] uppercase tracking-[0.2em] text-blue-400 font-bold">World Position (m)</div>
                             </div>
                             <div class="grid grid-cols-3 gap-1.5">
                                 <label class="space-y-1 text-[10px] text-gray-400">
@@ -892,7 +892,7 @@
 
                         <div class="pt-2 border-t border-gray-700/80">
                             <div class="mb-1.5 flex items-center justify-between gap-3">
-                                <div class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-bold">World Rotation (°)</div>
+                                <div id="world-rot-header-label" class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-bold">World Rotation (°)</div>
                             </div>
                             <div class="grid grid-cols-3 gap-1.5">
                                 <label class="space-y-1 text-[10px] text-gray-400">
@@ -3084,9 +3084,8 @@
                             const newCenter = new THREE.Vector3();
                             box.getCenter(newCenter);
                             assemblyTransformProxy.position.copy(newCenter);
-                            assemblyTransformProxy.rotation.set(0, 0, 0);
-                            assemblyTransformProxy.quaternion.identity();
                         }
+                        updateWorldPositionEditorForSelection();
                         assemblyDragInitialData = null;
                         scheduleAutoSave();
                     }
@@ -3108,6 +3107,7 @@
                         m.updateMatrixWorld(true);
                         syncSelectedProductDataFromMesh(m);
                     });
+                    updateWorldPositionEditorForSelection();
                     return;
                 }
                 if (transformControls.object && transformControls.object.userData && transformControls.object.userData.isCadStreetViewPin) {
@@ -8075,13 +8075,25 @@
             const rotX = document.getElementById('world-rot-x');
             const rotY = document.getElementById('world-rot-y');
             const rotZ = document.getElementById('world-rot-z');
+            const posLabel = document.getElementById('world-pos-header-label');
+            const rotLabel = document.getElementById('world-rot-header-label');
             if (!panel || !inputX || !inputY || !inputZ) {
                 return;
             }
 
             panel.classList.remove('hidden');
 
-            if (!selectedMesh) {
+            const isAssemblyActive = Boolean(assemblyTransformProxy && (!selectedMesh || selectedAssemblyName));
+            const activeTarget = isAssemblyActive ? assemblyTransformProxy : selectedMesh;
+
+            if (posLabel) {
+                posLabel.innerText = isAssemblyActive ? 'Montaj Konumu (m)' : 'World Position (m)';
+            }
+            if (rotLabel) {
+                rotLabel.innerText = isAssemblyActive ? 'Montaj Rotasyonu (°)' : 'World Rotation (°)';
+            }
+
+            if (!activeTarget) {
                 inputX.disabled = true;
                 inputY.disabled = true;
                 inputZ.disabled = true;
@@ -8106,7 +8118,7 @@
             if (rotZ) rotZ.disabled = false;
 
             const worldPos = new THREE.Vector3();
-            selectedMesh.getWorldPosition(worldPos);
+            activeTarget.getWorldPosition(worldPos);
 
             if (document.activeElement !== inputX) inputX.value = worldPos.x.toFixed(3);
             if (document.activeElement !== inputY) inputY.value = worldPos.y.toFixed(3);
@@ -8114,7 +8126,7 @@
 
             if (rotX && rotY && rotZ) {
                 const worldQuat = new THREE.Quaternion();
-                selectedMesh.getWorldQuaternion(worldQuat);
+                activeTarget.getWorldQuaternion(worldQuat);
                 const euler = new THREE.Euler().setFromQuaternion(worldQuat, 'XYZ');
                 if (document.activeElement !== rotX) rotX.value = THREE.MathUtils.radToDeg(euler.x).toFixed(1);
                 if (document.activeElement !== rotY) rotY.value = THREE.MathUtils.radToDeg(euler.y).toFixed(1);
@@ -8123,10 +8135,6 @@
         }
 
         function applySelectedWorldPosition() {
-            if (!selectedMesh) {
-                return;
-            }
-
             const inputX = document.getElementById('world-pos-x');
             const inputY = document.getElementById('world-pos-y');
             const inputZ = document.getElementById('world-pos-z');
@@ -8141,6 +8149,37 @@
                 return;
             }
 
+            if (assemblyTransformProxy && (!selectedMesh || selectedAssemblyName)) {
+                const currentPos = assemblyTransformProxy.position.clone();
+                const targetPos = new THREE.Vector3(x, y, z);
+                const delta = new THREE.Vector3().subVectors(targetPos, currentPos);
+
+                const members = assemblyTransformProxy.userData?.members || [];
+                members.forEach((m) => {
+                    if (!m) return;
+                    m.position.add(delta);
+                    m.updateMatrixWorld(true);
+                    syncSelectedProductDataFromMesh(m);
+                });
+
+                assemblyTransformProxy.position.copy(targetPos);
+                assemblyTransformProxy.updateMatrixWorld(true);
+
+                if (transformControls && transformControls.object === assemblyTransformProxy) {
+                    transformControls.updateMatrixWorld();
+                }
+
+                if (typeof scheduleAutoSave === 'function') {
+                    scheduleAutoSave();
+                }
+                updateModelMeasurementOverlay();
+                return;
+            }
+
+            if (!selectedMesh) {
+                return;
+            }
+
             selectedMesh.position.set(x, y, z);
             syncSelectedProductDataFromMesh();
             updateSelectionInfoPanel();
@@ -8149,10 +8188,6 @@
         }
 
         function applySelectedWorldRotation() {
-            if (!selectedMesh) {
-                return;
-            }
-
             const rotX = document.getElementById('world-rot-x');
             const rotY = document.getElementById('world-rot-y');
             const rotZ = document.getElementById('world-rot-z');
@@ -8170,6 +8205,45 @@
             const radX = THREE.MathUtils.degToRad(rx);
             const radY = THREE.MathUtils.degToRad(ry);
             const radZ = THREE.MathUtils.degToRad(rz);
+
+            if (assemblyTransformProxy && (!selectedMesh || selectedAssemblyName)) {
+                const targetEuler = new THREE.Euler(radX, radY, radZ, 'XYZ');
+                const targetQuat = new THREE.Quaternion().setFromEuler(targetEuler);
+                const currentQuat = assemblyTransformProxy.quaternion.clone();
+                const invCurrentQuat = currentQuat.clone().invert();
+                const deltaQuat = targetQuat.clone().multiply(invCurrentQuat);
+
+                const center = assemblyTransformProxy.position.clone();
+                const members = assemblyTransformProxy.userData?.members || [];
+                members.forEach((m) => {
+                    if (!m) return;
+                    const rel = new THREE.Vector3().subVectors(m.position, center);
+                    rel.applyQuaternion(deltaQuat);
+                    m.position.copy(center).add(rel);
+                    m.quaternion.copy(deltaQuat).multiply(m.quaternion);
+                    m.rotation.setFromQuaternion(m.quaternion);
+                    m.updateMatrixWorld(true);
+                    syncSelectedProductDataFromMesh(m);
+                });
+
+                assemblyTransformProxy.quaternion.copy(targetQuat);
+                assemblyTransformProxy.rotation.copy(targetEuler);
+                assemblyTransformProxy.updateMatrixWorld(true);
+
+                if (transformControls && transformControls.object === assemblyTransformProxy) {
+                    transformControls.updateMatrixWorld();
+                }
+
+                if (typeof scheduleAutoSave === 'function') {
+                    scheduleAutoSave();
+                }
+                updateModelMeasurementOverlay();
+                return;
+            }
+
+            if (!selectedMesh) {
+                return;
+            }
 
             selectedMesh.rotation.set(radX, radY, radZ, 'XYZ');
 
@@ -9293,7 +9367,49 @@
                     </div>
                 `;
             }
+
+            const leftInfo = document.getElementById('left-selection-info');
+            if (leftInfo) {
+                leftInfo.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="border-b border-[#333333] pb-2">
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Montaj / Grup Seçimi</div>
+                            <div class="text-sm font-bold ${isParent ? 'text-amber-300' : 'text-cyan-300'} truncate" title="${assemblyName}">
+                                ${isParent ? '🏢 ' : '📦 '}${assemblyName}
+                            </div>
+                        </div>
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Parça Sayısı:</span>
+                                <span class="font-mono text-gray-200">${entries.length}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">3D Modeller:</span>
+                                <span class="font-mono text-emerald-400">${meshes.length} adet</span>
+                            </div>
+                            ${childNames && childNames.length > 0 ? `
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Alt Montaj:</span>
+                                <span class="font-mono text-amber-300">${childNames.length} adet</span>
+                            </div>` : ''}
+                        </div>
+                        <div class="pt-1.5 text-[11px] text-gray-400 leading-tight">
+                            💡 Aşağıdaki koordinat veya rotasyon kutularından montajın konumunu ve açısını hassas olarak ayarlayabilirsiniz.
+                        </div>
+                    </div>
+                `;
+            }
+
+            const leftDeleteBtn = document.getElementById('delete-selected-left-btn');
+            if (leftDeleteBtn) leftDeleteBtn.classList.add('hidden');
+
+            if (typeof ensureRightPropertiesPanelOpen === 'function') {
+                ensureRightPropertiesPanelOpen();
+            }
+
+            updateWorldPositionEditorForSelection();
         }
+        window.selectAssemblyFromTree = selectAssemblyFromTree;
 
         function filterModelTree(value) {
             treeSearchTerm = value || '';
@@ -10459,6 +10575,9 @@
             syncSelectedProductDataFromMesh();
             updateParametricEditorForSelection();
             updateWorldPositionEditorForSelection();
+            if (typeof ensureRightPropertiesPanelOpen === 'function') {
+                ensureRightPropertiesPanelOpen();
+            }
 
             if (mesh.userData?.isBlenderCamera && mesh.userData?.cameraId) {
                 switchToCameraView(mesh.userData.cameraId);
@@ -13985,6 +14104,28 @@
             }
         }
         window.toggleRightPropertiesPanel = toggleRightPropertiesPanel;
+
+        function ensureRightPropertiesPanelOpen() {
+            const panel = document.getElementById('fixed-right-properties-panel');
+            const expandedView = document.getElementById('right-panel-expanded-view');
+            const collapsedView = document.getElementById('right-panel-collapsed-view');
+            const axisGizmoWrapper = document.getElementById('axis-gizmo-wrapper');
+            if (!panel || !expandedView || !collapsedView) return;
+            if (expandedView.classList.contains('hidden')) {
+                expandedView.classList.remove('hidden');
+                collapsedView.classList.add('hidden');
+                collapsedView.style.display = 'none';
+                panel.className = 'absolute top-0 right-0 h-full w-64 bg-[#1e1e1e]/95 backdrop-blur border-l border-[#2d2d2d] flex flex-col z-20 pointer-events-auto select-none shadow-2xl transition-all duration-300';
+                if (axisGizmoWrapper) {
+                    axisGizmoWrapper.className = 'absolute bottom-4 right-[275px] z-30 pointer-events-auto transition-all duration-300';
+                }
+                if (typeof onWindowResize === 'function') {
+                    onWindowResize();
+                    setTimeout(onWindowResize, 100);
+                }
+            }
+        }
+        window.ensureRightPropertiesPanelOpen = ensureRightPropertiesPanelOpen;
 
         window.openPanelDesignerModal = openPanelDesignerModal;
         window.closePanelDesignerModal = closePanelDesignerModal;
