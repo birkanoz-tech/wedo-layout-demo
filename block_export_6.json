@@ -1,0 +1,4015 @@
+{
+  "blocks": [
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C4082",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 122867.634363,
+        "y": 59752.011213,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 1.000000,
+        "y": 0.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C4078",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 122867.634363,
+        "y": 60263.750586,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.965926,
+        "y": -0.258819,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C406E",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 122960.156671,
+        "y": 60609.048539,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.866025,
+        "y": -0.500000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C4065",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 124049.526357,
+        "y": 62495.892185,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.866025,
+        "y": -0.500000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C405B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 124138.896044,
+        "y": 62650.685023,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": -0.965926,
+        "y": 0.258819,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C4051",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 124231.418352,
+        "y": 62995.982976,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": -1.000000,
+        "y": 0.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C4048",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 124231.418352,
+        "y": 63507.722349,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 1.000000,
+        "y": 0.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 1221A180 LITE_R#774VF4Q",
+      "handle": "1C3F5D",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107428.761118,
+        "y": 69194.212901,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3F4B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 59752.011163,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3F42",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 60263.750537,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.258819,
+        "z": 0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3F39",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 60609.048490,
+        "z": -1271.261681
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3F31",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 62495.892135,
+        "z": -181.891994
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3F28",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 62650.684974,
+        "z": -92.522308
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.258819,
+        "z": -0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3F1F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 62995.982927,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": -1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3F17",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 63507.722300,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3F0C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 59752.011213,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3F03",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 60263.750586,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.258819,
+        "z": 0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3EFA",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 60609.048539,
+        "z": -1271.261681
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3EF2",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 62495.892185,
+        "z": -181.891994
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3EE9",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 62650.685023,
+        "z": -92.522308
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.258819,
+        "z": -0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3EE0",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 62995.982976,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": -1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3ED8",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 63507.722349,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 1157A180 LITE_R#569N3NX",
+      "handle": "1C3ECA",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 64997.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 573A180 LITE_R#559WK2K",
+      "handle": "1C3EB5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 64413.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 790A180 LITE_R#405GPT6",
+      "handle": "1C3EA0",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 64630.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3E4A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 57423.630796,
+        "z": -329.130864
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3E3F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 59752.011213,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3E36",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 60263.750586,
+        "z": -1363.783989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.258819,
+        "z": 0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3E2D",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 60609.048539,
+        "z": -1271.261681
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3E25",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 62495.892185,
+        "z": -181.891994
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -0.500000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3E1C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 62650.685023,
+        "z": -92.522308
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.258819,
+        "z": -0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3E13",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 62995.982976,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": -1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3E0B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 63507.722349,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C3CE9",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 5376A180 LITE_R#122AXL6",
+      "handle": "1C3CE1",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91911.545248,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3CD8",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104785.470674,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": -0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3CCF",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 105130.768628,
+        "y": 48887.563302,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": -0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#394PKFD",
+      "handle": "1C3CC7",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107017.612273,
+        "y": 47798.193616,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3CBE",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107172.405111,
+        "y": 47708.823929,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3CB5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107517.703065,
+        "y": 47616.301621,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3CAD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 47616.301621,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 612A180 LITE_R#881VHJ2",
+      "handle": "1C3CA5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 103328.697196,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3C9A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C91",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104785.470674,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": -0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C88",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 105130.768628,
+        "y": 48887.563302,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": -0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#394PKFD",
+      "handle": "1C3C80",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107017.612273,
+        "y": 47798.193616,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C77",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107172.405111,
+        "y": 47708.823929,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C6E",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107517.703065,
+        "y": 47616.301621,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3C66",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 47616.301621,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3C5B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 99239.986060,
+        "y": 47616.301621,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C52",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 99751.725433,
+        "y": 47616.301621,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 360.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C49",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 100097.023387,
+        "y": 47708.823929,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 360.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3C41",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 101983.867032,
+        "y": 48798.193616,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C38",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102138.659870,
+        "y": 48887.563302,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": -0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3C2F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102483.957823,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3C27",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102995.697196,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3C1C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102995.697196,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3C14",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 48980.085610,
+        "z": 2046.703125
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3C0B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 97621.020229,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 5987A180 LITE_R#280KCS4",
+      "handle": "1C3C03",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 103940.731301,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C3BF8",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91578.545248,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C3BED",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 97621.020229,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3BE5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 48980.085610,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C3B9B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3B5C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 87822.834111,
+        "y": 47616.301621,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3B53",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 88334.573485,
+        "y": 47616.301621,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 360.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3B4A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 88679.871438,
+        "y": 47708.823929,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 360.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3B42",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 90566.715084,
+        "y": 48798.193616,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.866025,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3B39",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 90721.507922,
+        "y": 48887.563302,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": -0.965926,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3B30",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91066.805875,
+        "y": 48980.085610,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": -1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3B28",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91578.545248,
+        "y": 48980.085610,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 1.000000,
+        "z": 0.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 5376A180 LITE_R#122AXL6",
+      "handle": "1C3B12",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91911.545248,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3B00",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 87822.834111,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3AF7",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 88334.573485,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.000000,
+        "z": 0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3AEE",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 88679.871438,
+        "y": 53853.458639,
+        "z": 1104.572308
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C3AE6",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 90566.715084,
+        "y": 53853.458639,
+        "z": 2193.941994
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3ADD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 90721.507922,
+        "y": 53853.458639,
+        "z": 2283.311681
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.000000,
+        "z": -0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3AD4",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91066.805875,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": -1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3ACC",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91578.545248,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A90",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104785.470674,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.000000,
+        "z": -0.965926
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A87",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 105130.768628,
+        "y": 53853.458639,
+        "z": 2283.311681
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": -0.866025
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#394PKFD",
+      "handle": "1C3A7F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107017.612273,
+        "y": 53853.458639,
+        "z": 1193.941994
+      },
+      "normal": {
+        "x": 0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A76",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107172.405111,
+        "y": 53853.458639,
+        "z": 1104.572308
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.000000,
+        "z": 0.965926
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A6D",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107517.703065,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3A65",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 612A180 LITE_R#881VHJ2",
+      "handle": "1C3A57",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 103328.697196,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3A45",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A3C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104785.470674,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.000000,
+        "z": -0.965926
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A33",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 105130.768628,
+        "y": 54182.589503,
+        "z": 2283.311681
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": -0.866025
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#394PKFD",
+      "handle": "1C3A25",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107017.612273,
+        "y": 54182.589503,
+        "z": 1193.941994
+      },
+      "normal": {
+        "x": 0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C3A15",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107172.405111,
+        "y": 54182.589503,
+        "z": 1104.572308
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.000000,
+        "z": 0.965926
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C39EC",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107517.703065,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C39E4",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 1157A180 LITE_R#798GOAV",
+      "handle": "1C3807",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109676.280350,
+        "y": 67472.757896,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C37E0",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 63507.722300,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 1523A180 LITE_R#511HW5N",
+      "handle": "1C37BD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 122852.075018,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C37AD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 8895A180 LITE_R#4595VD4",
+      "handle": "1C3797",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132413.165206,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 1053A180 LITE_R#436SQLX",
+      "handle": "1C3782",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132080.209297,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 257A180 LITE_R#426CR13",
+      "handle": "1C376D",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 133003.203856,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 3129A180 LITE_R#410JDRW",
+      "handle": "1C3750",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 133703.203856,
+        "y": 69460.686950,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3740",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 133703.203856,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3735",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 130694.487060,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 6453A180 LITE_R#305XBQT",
+      "handle": "1C371F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 139532.117170,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 2327A180 LITE_R#292TU2T",
+      "handle": "1C370A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 140232.117170,
+        "y": 68357.166982,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C36FA",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 140232.117170,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C36EF",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120629.403533,
+        "y": 63507.722349,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C36E4",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 123185.075018,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C36D9",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132746.165206,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C36CE",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132413.209297,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C36C6",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 123185.075018,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C36BE",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132746.165206,
+        "y": 65330.504866,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C36B6",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 132413.209297,
+        "y": 65632.180817,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C36AE",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 140232.117170,
+        "y": 68690.166982,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C36A6",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 133703.203856,
+        "y": 69793.686950,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 1101A180 LITE_R#659A6V0",
+      "handle": "1C3694",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 127639.296471,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 3015A180 LITE_R#639SV2Y",
+      "handle": "1C3677",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 128339.296471,
+        "y": 69412.028298,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 6256A180 LITE_R#610UA4L",
+      "handle": "1C365A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 125873.778979,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 1574A180 LITE_R#597Q6BK",
+      "handle": "1C3645",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 118951.786998,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3636",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 119284.786998,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C362B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 119284.304956,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3623",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 126206.778979,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3618",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 126204.841918,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C3610",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 128339.296471,
+        "y": 69745.028298,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3607",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 128339.296471,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 3161A180 LITE_R#287VVBO",
+      "handle": "1C35EA",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114018.962911,
+        "y": 74447.751331,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 1630A180 LITE_R#2736OQN",
+      "handle": "1C35D5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113318.962911,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 1610A180 LITE_R#26405JA",
+      "handle": "1C35C0",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110683.392084,
+        "y": 73166.140061,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 640A180 LITE_R#251V3Y0",
+      "handle": "1C35AB",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109983.392084,
+        "y": 70856.166602,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 985A180 LITE_R#241F3RM",
+      "handle": "1C3596",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108705.293069,
+        "y": 70419.894101,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 210.000000
+    }
+,
+    {
+      "name": "XBCB L 1701A180 LITE_R#231OM3Y",
+      "handle": "1C3581",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 111029.448736,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 361A180 LITE_R#21578X4",
+      "handle": "1C356C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110737.696087,
+        "y": 68172.757896,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 5285A180 LITE_R#10422SI",
+      "handle": "1C354F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110376.280350,
+        "y": 65615.413580,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 219A180 LITE_R#091D83I",
+      "handle": "1C353A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 119496.913748,
+        "y": 67886.221284,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 575A180 LITE_R#078YRYH",
+      "handle": "1C3525",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 118577.896379,
+        "y": 66611.368749,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 450A180 LITE_R#068I66U",
+      "handle": "1C3510",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 117427.689001,
+        "y": 65911.368749,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 386A180 LITE_R#029TYNS",
+      "handle": "1C34FB",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116361.318118,
+        "y": 64529.870648,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBCB L 2355A180 LITE_R#002KLT6",
+      "handle": "1C34D1",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110851.037982,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 2344A180 LITE_R#963VRQ6",
+      "handle": "1C34BC",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107830.099107,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBCB L 2258A180 LITE_R#944P7BQ",
+      "handle": "1C34A7",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 68070.856974,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 1749A180 LITE_R#931K465",
+      "handle": "1C3492",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 70484.324704,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 60A180R5 LITE",
+      "handle": "1C347B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107428.761118,
+        "y": 69682.888036,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBP 30A180R5 LITE",
+      "handle": "1C3462",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108994.523553,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 30.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3442",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3439",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3430",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110683.392084,
+        "y": 70856.166602,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C3427",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114018.962911,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C341C",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107428.761118,
+        "y": 67640.588061,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3411",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109010.370414,
+        "y": 70856.166602,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C3406",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 111355.537458,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C33FB",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113905.976857,
+        "y": 63507.722300,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C33F0",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110507.493638,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C33E5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 68402.562040,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33DD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110518.037982,
+        "y": 65113.351071,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33D5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 68403.856974,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33CD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 111362.448736,
+        "y": 70586.881399,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33C5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 107130.099107,
+        "y": 70817.324704,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33BD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 110683.392084,
+        "y": 73499.140061,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C33B5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114018.962911,
+        "y": 74780.751331,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C289D",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116361.318118,
+        "y": 64196.870648,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C2894",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116361.318118,
+        "y": 65615.413580,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C288B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109676.280350,
+        "y": 65615.413580,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C2882",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109676.280350,
+        "y": 68172.757896,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C287A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 111070.696087,
+        "y": 68172.757896,
+        "z": -0.122117
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C286F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116677.425781,
+        "y": 65697.513472,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C2864",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 117094.689001,
+        "y": 65911.368749,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C285B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 118577.896379,
+        "y": 65911.368749,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C2852",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 118577.896379,
+        "y": 67886.221284,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 90.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C284A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 119829.913748,
+        "y": 67886.221284,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C26EF",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 99239.986060,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C26E6",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 99751.725433,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": -0.258819,
+        "y": 0.000000,
+        "z": 0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C26DD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 100097.023387,
+        "y": 54182.589503,
+        "z": 1104.572308
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 2000A180 LITE_R#714TORV",
+      "handle": "1C26D5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 101983.867032,
+        "y": 54182.589503,
+        "z": 2193.941994
+      },
+      "normal": {
+        "x": -0.500000,
+        "y": 0.000000,
+        "z": 0.866025
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C26CC",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102138.659870,
+        "y": 54182.589503,
+        "z": 2283.311681
+      },
+      "normal": {
+        "x": 0.258819,
+        "y": 0.000000,
+        "z": -0.965926
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBV 15A180R750 LITE",
+      "handle": "1C26C3",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102483.957823,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": -1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C26BB",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102995.697196,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C22F5",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 102995.697196,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C22ED",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 54182.589503,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C22C7",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 97621.020229,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 5987A180 LITE_R#280KCS4",
+      "handle": "1C22B1",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 103940.731301,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C229F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 91578.545248,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNLP LITE",
+      "handle": "1C228B",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 97621.020229,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C2276",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 104273.731301,
+        "y": 53853.458639,
+        "z": 2375.833989
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 5657A180 LITE_R#130NHHE",
+      "handle": "1C2257",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114019.805315,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 5290A180 LITE_R#111GK61",
+      "handle": "1C223A",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 119976.168192,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 718A180 LITE_R#101PLKQ",
+      "handle": "1C2225",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120676.168192,
+        "y": 55271.246476,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 389A180 LITE_R#0884F0P",
+      "handle": "1C2210",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116749.662505,
+        "y": 55271.246476,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBCB L 7687A180 LITE_R#068EHM5",
+      "handle": "1C21DD",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116049.662505,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 2983A180 LITE_R#052L6AC",
+      "handle": "1C21C8",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113237.904166,
+        "y": 54405.399763,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBCB L 147A180 LITE_R#039GMP0",
+      "handle": "1C21B3",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113937.904166,
+        "y": 55252.514400,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C21A4",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114352.805315,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C2199",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 114352.805315,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C218E",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C2183",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 108029.442438,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBEB 0A180HNRP LITE",
+      "handle": "1C2178",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 109922.085133,
+        "y": 54405.399763,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C216F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113937.904166,
+        "y": 54405.399763,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C2166",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116749.662505,
+        "y": 54182.589503,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBBP 90A180R5 LITE",
+      "handle": "1C2156",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120676.168192,
+        "y": 53853.458639,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C2147",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 113937.904166,
+        "y": 55585.514400,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C213F",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 116749.662505,
+        "y": 55604.246476,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "XBEJ A180 LITE",
+      "handle": "1C2137",
+      "layer": "MD_Layer_Path",
+      "position": {
+        "x": 120676.168192,
+        "y": 55604.246476,
+        "z": 1012.050000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "Palet Magaz\\U+0131n",
+      "handle": "17D260",
+      "layer": "KUTU",
+      "position": {
+        "x": -3448839.256137,
+        "y": -367900.082590,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "Rulo Konveyor-2",
+      "handle": "17D25F",
+      "layer": "0",
+      "position": {
+        "x": -3479791.581655,
+        "y": -308650.199547,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "Rulo Konveyor-2",
+      "handle": "17CA2C",
+      "layer": "0",
+      "position": {
+        "x": -3479791.581655,
+        "y": -310981.232428,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 270.000000
+    }
+,
+    {
+      "name": "Robopac-2",
+      "handle": "17CA2B",
+      "layer": "0",
+      "position": {
+        "x": 40098.179389,
+        "y": 4720.208057,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "741214",
+      "handle": "176052",
+      "layer": "0",
+      "position": {
+        "x": 104437.248152,
+        "y": 11689.059255,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "741214",
+      "handle": "176051",
+      "layer": "0",
+      "position": {
+        "x": 97762.428719,
+        "y": 11689.059255,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "741214",
+      "handle": "176050",
+      "layer": "0",
+      "position": {
+        "x": 64261.533242,
+        "y": 11689.059255,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "741214",
+      "handle": "17604F",
+      "layer": "0",
+      "position": {
+        "x": 59881.938181,
+        "y": 11689.059255,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "741214",
+      "handle": "17604E",
+      "layer": "0",
+      "position": {
+        "x": 53207.118748,
+        "y": 11689.059255,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "15A3A3",
+      "layer": "0",
+      "position": {
+        "x": 594683.577877,
+        "y": -4666.087604,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "15A3A2",
+      "layer": "0",
+      "position": {
+        "x": -162860.950363,
+        "y": 467743.669302,
+        "z": -36.083605
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 135.000000
+    }
+,
+    {
+      "name": "konveyör",
+      "handle": "152590",
+      "layer": "0",
+      "position": {
+        "x": 687649.923059,
+        "y": 148842.175976,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 180.000000
+    }
+,
+    {
+      "name": "konveyör",
+      "handle": "1515FE",
+      "layer": "-AM_7",
+      "position": {
+        "x": -415166.516786,
+        "y": 54390.124491,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515FD",
+      "layer": "-AM_0",
+      "position": {
+        "x": 602179.887344,
+        "y": 53846.476639,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515FC",
+      "layer": "0",
+      "position": {
+        "x": 610225.029192,
+        "y": 45329.891627,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515FB",
+      "layer": "0",
+      "position": {
+        "x": 610236.483537,
+        "y": 41853.387017,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515FA",
+      "layer": "0",
+      "position": {
+        "x": 610247.937881,
+        "y": 38376.882407,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515F9",
+      "layer": "0",
+      "position": {
+        "x": 610259.392226,
+        "y": 34900.377797,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515F8",
+      "layer": "0",
+      "position": {
+        "x": 610270.846571,
+        "y": 31423.873187,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515F7",
+      "layer": "0",
+      "position": {
+        "x": 610282.300915,
+        "y": 27947.368576,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515F6",
+      "layer": "0",
+      "position": {
+        "x": 610293.755260,
+        "y": 24470.863966,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "konv",
+      "handle": "1515F5",
+      "layer": "0",
+      "position": {
+        "x": 610305.209605,
+        "y": 20994.359356,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "1515EF",
+      "layer": "-AM_7",
+      "position": {
+        "x": 605268.147316,
+        "y": 12794.949653,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "1515EE",
+      "layer": "-AM_7",
+      "position": {
+        "x": 607277.787557,
+        "y": 12794.949653,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "1515ED",
+      "layer": "-AM_7",
+      "position": {
+        "x": 609262.617425,
+        "y": 12794.949653,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "1515EC",
+      "layer": "-AM_7",
+      "position": {
+        "x": 611288.797915,
+        "y": 12794.949653,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A36E",
+      "layer": "-AM_7",
+      "position": {
+        "x": 586953.302950,
+        "y": 9891.776401,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A36D",
+      "layer": "-AM_7",
+      "position": {
+        "x": 601596.212061,
+        "y": 10015.828268,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A36C",
+      "layer": "-AM_7",
+      "position": {
+        "x": 599597.538724,
+        "y": 10015.828268,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A36B",
+      "layer": "-AM_7",
+      "position": {
+        "x": 597618.282201,
+        "y": 10015.828268,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A36A",
+      "layer": "-AM_7",
+      "position": {
+        "x": 595621.047147,
+        "y": 10015.828268,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A369",
+      "layer": "-AM_7",
+      "position": {
+        "x": 593271.989274,
+        "y": 9891.776401,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A368",
+      "layer": "-AM_7",
+      "position": {
+        "x": 591270.619158,
+        "y": 9891.776401,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "hammadde konv",
+      "handle": "14A367",
+      "layer": "-AM_7",
+      "position": {
+        "x": 589290.872486,
+        "y": 9891.776401,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+,
+    {
+      "name": "SW_HATCH_7",
+      "handle": "125484",
+      "layer": "-AM_7",
+      "position": {
+        "x": 99193.677971,
+        "y": 99279.391481,
+        "z": 0.000000
+      },
+      "normal": {
+        "x": 0.000000,
+        "y": 0.000000,
+        "z": 1.000000
+      },
+      "rotation_deg": 0.000000
+    }
+  ]
+}
