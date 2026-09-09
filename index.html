@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.1 - AutoCAD Blok İçe Aktarma</title>
+    <title>WEDO v1.3.2 - AutoCAD Blok 3D Oryantasyon & Normal Eksen Motoru</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="AutoCAD Blok İçe Aktarma • AutoCAD'den dışa aktarılan JSON dosyalarındaki blokları kütüphane modelleriyle eşleştirip sahneye koordinatlarıyla ekler">v1.3.1 • AutoCAD Blok İçe Aktarma</span>
+                    title="AutoCAD Blok 3D Oryantasyon Motoru • AutoCAD normal (ekstrüzyon) vektörü ve rotation_deg açılarını OCS Arbitrary Axis algoritmasıyla tam 3D sahnede modeller">v1.3.2 • AutoCAD Blok Hassas 3D Oryantasyon</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -12198,66 +12198,160 @@
         }
         window.loadXmlProjectFromFile = loadXmlProjectFromFile;
 
-        // AutoCAD Block JSON Importer
-        function resolveAutoCADBlockModel(blockName) {
-            const rawName = String(blockName || '').trim();
+        // AutoCAD Block JSON Importer with Full 3D OCS/WCS Arbitrary Axis Engine
+        function resolveAutoCADBlockModel(rawName) {
             if (!rawName) return null;
+            let clean = String(rawName || '').trim();
 
-            // 1. Direct getModelAssetPath test
-            let testProd = { name: rawName, productno: rawName, productcode: rawName };
+            // Suffix temizliği: LITE, _R#... gibi AutoCAD blok varyasyon ekleri
+            clean = clean.replace(/[\s_]+(LITE.*|R#.*)$/i, '').trim();
+            clean = clean.replace(/\s*LITE\b/i, '').trim();
+
+            // Profil uzunluğu tespiti: XBCB L 2000A180 -> boy: 2000 mm, temel model: XBCB LA180
+            let lengthMm = null;
+            const lenMatch = clean.match(/(X[BH]CB\s*L)\s*(\d+)([A-Za-z0-9]*)/i);
+            if (lenMatch) {
+                lengthMm = parseFloat(lenMatch[2]);
+                clean = `${lenMatch[1]} ${lenMatch[3]}`.trim();
+            }
+
+            // 1. Doğrudan kütüphane asset yolu testi
+            let testProd = { name: clean, productno: clean, productcode: clean };
             let assetPath = (typeof getModelAssetPath === 'function') ? getModelAssetPath(testProd) : null;
             if (assetPath && (window.EMBEDDED_GLB_ASSETS?.[assetPath] || (typeof modelCache !== 'undefined' && modelCache.has(assetPath)))) {
-                return { assetPath, isCeilingSupport: false };
+                return { assetPath, length: lengthMm, isCeilingSupport: false, cleanName: clean };
             }
 
-            const norm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(rawName) : rawName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const norm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(clean) : clean.toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const normNoZero = norm.replace(/^(x[bh]eb)0([a-z0-9]+)/i, '$1$2');
             const normNoPrefix = norm.replace(/^(flexlink|autocad|block|blk)+/i, '');
+            const normNoZeroNoPrefix = normNoZero.replace(/^(flexlink|autocad|block|blk)+/i, '');
 
-            // 2. Check EXACT_LIBRARY_MODEL_MAP
+            // 2. EXACT_LIBRARY_MODEL_MAP kontrolü
             if (typeof EXACT_LIBRARY_MODEL_MAP !== 'undefined') {
-                if (EXACT_LIBRARY_MODEL_MAP[norm]) {
-                    return { assetPath: EXACT_LIBRARY_MODEL_MAP[norm], isCeilingSupport: false };
-                }
-                if (EXACT_LIBRARY_MODEL_MAP[normNoPrefix]) {
-                    return { assetPath: EXACT_LIBRARY_MODEL_MAP[normNoPrefix], isCeilingSupport: false };
+                const found = EXACT_LIBRARY_MODEL_MAP[norm] ||
+                              EXACT_LIBRARY_MODEL_MAP[normNoZero] ||
+                              EXACT_LIBRARY_MODEL_MAP[normNoPrefix] ||
+                              EXACT_LIBRARY_MODEL_MAP[normNoZeroNoPrefix];
+                if (found) {
+                    return { assetPath: found, length: lengthMm, isCeilingSupport: false, cleanName: clean };
                 }
             }
 
-            // 3. Check Ceiling Support
+            // 3. Tavan Askı Destekleri
             if (norm.includes('ceilingsupport') || (norm.includes('ceiling') && norm.includes('support'))) {
-                return { assetPath: 'Library/FlexLink XCBL 1X44X88.glb', isCeilingSupport: true };
+                return { assetPath: 'Library/FlexLink XCBL 1X44X88.glb', length: lengthMm, isCeilingSupport: true, cleanName: clean };
             }
 
-            // 4. Match against window.EMBEDDED_GLB_ASSETS keys
+            // 4. window.EMBEDDED_GLB_ASSETS anahtarlarıyla eşleşme
             if (window.EMBEDDED_GLB_ASSETS) {
                 for (const fullPath of Object.keys(window.EMBEDDED_GLB_ASSETS)) {
                     const cleanFileName = fullPath.replace(/^Library\//i, '').replace(/\.glb$/i, '');
                     const pathNorm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(cleanFileName) : cleanFileName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+                    const pathNormNoZero = pathNorm.replace(/^(x[bh]eb)0([a-z0-9]+)/i, '$1$2');
                     const pathNormNoPrefix = pathNorm.replace(/^flexlink/i, '');
-                    if (pathNorm === norm || pathNorm === normNoPrefix || pathNormNoPrefix === norm || pathNormNoPrefix === normNoPrefix) {
-                        return { assetPath: fullPath, isCeilingSupport: false };
+                    const pathNormNoZeroNoPrefix = pathNormNoZero.replace(/^flexlink/i, '');
+
+                    if (pathNorm === norm || pathNorm === normNoZero || pathNormNoZero === normNoZero ||
+                        pathNormNoPrefix === norm || pathNormNoPrefix === normNoZero || pathNormNoZeroNoPrefix === normNoZero) {
+                        return { assetPath: fullPath, length: lengthMm, isCeilingSupport: false, cleanName: clean };
                     }
                 }
-                // Substring / fuzzy match
+                // Alt dize / esnek eşleşme
                 for (const fullPath of Object.keys(window.EMBEDDED_GLB_ASSETS)) {
                     const cleanFileName = fullPath.replace(/^Library\//i, '').replace(/\.glb$/i, '');
                     const pathNorm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(cleanFileName).replace(/^flexlink/i, '') : cleanFileName.toLowerCase().replace(/[^a-z0-9]+/g, '');
                     if (normNoPrefix.length >= 4 && (pathNorm.includes(normNoPrefix) || normNoPrefix.includes(pathNorm))) {
-                        return { assetPath: fullPath, isCeilingSupport: false };
+                        return { assetPath: fullPath, length: lengthMm, isCeilingSupport: false, cleanName: clean };
                     }
                 }
             }
 
-            // 5. Fallback check with getModelAssetPath on stripped name
+            // 5. Fallback getModelAssetPath
             if (typeof getModelAssetPath === 'function') {
-                testProd = { name: normNoPrefix, productno: normNoPrefix };
+                testProd = { name: clean, productno: clean };
                 assetPath = getModelAssetPath(testProd);
                 if (assetPath) {
-                    return { assetPath, isCeilingSupport: false };
+                    return { assetPath, length: lengthMm, isCeilingSupport: false, cleanName: clean };
                 }
             }
 
             return null;
+        }
+
+        // AutoCAD OCS/WCS Arbitrary Axis Algorithm ile 3D Rotasyon ve Normal Hesaplayıcı
+        function computeAutoCADBlockOrientation(item) {
+            // 1. Derece cinsinden rotasyon açısını oku (rotation_deg, rotationDeg, rotation_angle veya rotation)
+            let rotDeg = 0;
+            if (item.rotation_deg !== undefined && item.rotation_deg !== null) {
+                rotDeg = Number(item.rotation_deg) || 0;
+            } else if (item.rotationDeg !== undefined && item.rotationDeg !== null) {
+                rotDeg = Number(item.rotationDeg) || 0;
+            } else if (item.rotation_angle !== undefined && item.rotation_angle !== null) {
+                rotDeg = Number(item.rotation_angle) || 0;
+            } else if (item.RotationDeg !== undefined && item.RotationDeg !== null) {
+                rotDeg = Number(item.RotationDeg) || 0;
+            } else {
+                let rawRot = item.rotation ?? item.Rotation ?? item.rot ?? item.angle ?? item.Angle ?? item.rotationAngle ?? 0;
+                if (typeof rawRot === 'number') {
+                    rotDeg = (Math.abs(rawRot) > 6.3) ? rawRot : (rawRot * 180.0 / Math.PI);
+                }
+            }
+
+            // 2. Normal (Ekstrüzyon / Düzlem Vektörü - DXF 210, 220, 230)
+            let nx = 0, ny = 0, nz = 1;
+            const norm = item.normal || item.Normal || item.extrusion || item.Extrusion;
+            if (norm) {
+                if (Array.isArray(norm)) {
+                    nx = Number(norm[0]) || 0;
+                    ny = Number(norm[1]) || 0;
+                    nz = Number(norm[2]) || 0;
+                } else if (typeof norm === 'object') {
+                    nx = Number(norm.x ?? norm.X) || 0;
+                    ny = Number(norm.y ?? norm.Y) || 0;
+                    nz = Number(norm.z ?? norm.Z) || 0;
+                }
+            }
+
+            let N = new THREE.Vector3(nx, ny, nz);
+            if (N.lengthSq() < 1e-7) {
+                N.set(0, 0, 1);
+            } else {
+                N.normalize();
+            }
+
+            // 3. AutoCAD Arbitrary Axis Algorithm
+            let Ax = new THREE.Vector3();
+            if (Math.abs(N.x) < (1.0 / 64.0) && Math.abs(N.y) < (1.0 / 64.0)) {
+                Ax.set(N.z, 0, -N.x);
+            } else {
+                Ax.set(-N.y, N.x, 0);
+            }
+            Ax.normalize();
+
+            let Ay = new THREE.Vector3().crossVectors(N, Ax).normalize();
+
+            // 4. Blok yerel rotasyon açısının OCS taban vektörlerine uygulanması
+            const alpha = (rotDeg * Math.PI) / 180.0;
+            const cosA = Math.cos(alpha);
+            const sinA = Math.sin(alpha);
+
+            const basisX = new THREE.Vector3().addScaledVector(Ax, cosA).addScaledVector(Ay, sinA).normalize();
+            const basisY = new THREE.Vector3().addScaledVector(Ax, -sinA).addScaledVector(Ay, cosA).normalize();
+            const basisZ = N.clone();
+
+            const rotMatrix = new THREE.Matrix4().makeBasis(basisX, basisY, basisZ);
+            const quat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
+            const euler = new THREE.Euler().setFromRotationMatrix(rotMatrix, 'XYZ');
+
+            return {
+                quaternion: quat,
+                rotation: euler,
+                rotDeg,
+                basisX,
+                basisY,
+                basisZ
+            };
         }
 
         async function importAutoCADBlocksFromFile(input) {
@@ -12270,7 +12364,7 @@
                     const content = (e.target.result || '').trim();
                     const jsonData = JSON.parse(content);
 
-                    // 1. Extract block items array from various JSON schemas
+                    // 1. Farklı JSON şemalarından blok listesini çıkar
                     let rawItems = [];
                     if (Array.isArray(jsonData)) {
                         rawItems = jsonData;
@@ -12281,7 +12375,11 @@
                         else if (Array.isArray(jsonData.inserts)) rawItems = jsonData.inserts;
                         else if (Array.isArray(jsonData.data)) rawItems = jsonData.data;
                         else if (Array.isArray(jsonData.objects)) rawItems = jsonData.objects;
-                        else {
+                        else if (Array.isArray(jsonData.assemblies)) {
+                            jsonData.assemblies.forEach(a => {
+                                if (Array.isArray(a.products)) rawItems.push(...a.products);
+                            });
+                        } else {
                             const vals = Object.values(jsonData);
                             if (vals.length > 0 && typeof vals[0] === 'object') {
                                 rawItems = vals;
@@ -12295,7 +12393,7 @@
                         return;
                     }
 
-                    // 2. Parse positions, rotations, names
+                    // 2. Blok koordinatları ve 3D oryantasyonlarını hesapla
                     const parsedBlocks = [];
                     let maxCoord = 0;
 
@@ -12326,28 +12424,17 @@
                             z = Number(item.z ?? item.Z) || 0;
                         }
 
-                        let rot = item.rotation ?? item.Rotation ?? item.rot ?? item.angle ?? item.Angle ?? item.rotationAngle ?? item.yaw ?? 0;
-                        let rotRad = 0;
-                        if (typeof rot === 'number') {
-                            if (Math.abs(rot) > 6.3) {
-                                rotRad = (rot * Math.PI) / 180;
-                            } else {
-                                rotRad = rot;
-                            }
-                        } else if (typeof rot === 'object' && rot !== null) {
-                            let rz = Number(rot.z ?? rot.Z) || 0;
-                            rotRad = Math.abs(rz) > 6.3 ? (rz * Math.PI) / 180 : rz;
-                        }
-
                         maxCoord = Math.max(maxCoord, Math.abs(x), Math.abs(y), Math.abs(z));
                         const layer = item.layer || item.Layer || item.assemblyName || item.group || '';
+
+                        const orientation = computeAutoCADBlockOrientation(item);
 
                         parsedBlocks.push({
                             name,
                             x,
                             y,
                             z,
-                            rotationZ: rotRad,
+                            orientation,
                             layer,
                             raw: item
                         });
@@ -12359,11 +12446,11 @@
                         return;
                     }
 
-                    // 3. Unit scale detection (mm to meters if max coordinate > 50)
-                    const isMillimeters = maxCoord > 50;
+                    // 3. Birim Ölçeği Tespiti (Koordinatlar mm cinsindeyse > 500 olur, metreye dönüştür)
+                    const isMillimeters = maxCoord > 500;
                     const unitScale = isMillimeters ? 0.001 : 1.0;
 
-                    // 4. Target assembly creation
+                    // 4. Hedef Montaj (Assembly) Grubu Oluşturma
                     const now = new Date();
                     const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
                     const baseAssemblyTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-]/g, '_') || 'AutoCAD_Blocks';
@@ -12391,7 +12478,7 @@
                     };
                     importedProject.push(newAssemblyData);
 
-                    // 5. Match and load each block model
+                    // 5. Her bloğu kütüphanedeki GLB modeliyle eşleştir ve sahneye yerleştir
                     let matchedCount = 0;
                     let unmatchedBlocks = [];
 
@@ -12406,9 +12493,9 @@
 
                         const product = {
                             guid: 'acad-' + Math.random().toString(36).substring(2, 10),
-                            name: b.name,
-                            productno: b.name,
-                            productcode: b.name,
+                            name: resolved.cleanName || b.name,
+                            productno: resolved.cleanName || b.name,
+                            productcode: resolved.cleanName || b.name,
                             type: 'CAD_BLOCK',
                             group: 'AutoCAD',
                             assemblyName: assemblyName,
@@ -12416,26 +12503,29 @@
                             isCeilingSupport: resolved.isCeilingSupport || false,
                             cadBlockName: b.name,
                             path: resolved.assetPath,
+                            length: resolved.length || null,
                             position: {
                                 x: b.x * unitScale,
                                 y: b.y * unitScale,
                                 z: b.z * unitScale
                             },
                             rotation: {
-                                x: 0,
-                                y: 0,
-                                z: b.rotationZ
+                                x: b.orientation.rotation.x,
+                                y: b.orientation.rotation.y,
+                                z: b.orientation.rotation.z
                             },
                             quaternion: {
-                                x: 0,
-                                y: 0,
-                                z: Math.sin(b.rotationZ / 2),
-                                w: Math.cos(b.rotationZ / 2)
+                                x: b.orientation.quaternion.x,
+                                y: b.orientation.quaternion.y,
+                                z: b.orientation.quaternion.z,
+                                w: b.orientation.quaternion.w
                             },
                             scale: { x: 1, y: 1, z: 1 },
                             customAttributes: {
                                 source: 'AutoCAD_JSON_Import',
                                 originalLayer: b.layer || '',
+                                originalBlockName: b.name,
+                                rotationDeg: b.orientation.rotDeg,
                                 unit: isMillimeters ? 'mm (scaled to m)' : 'm'
                             }
                         };
@@ -12455,7 +12545,7 @@
                         }
                     }
 
-                    // 6. Refresh Scene & Tree
+                    // 6. Sahne ve Model Ağacını Yenile
                     rebuildModelTreeFromScene();
                     if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
                     if (typeof renderModelTree === 'function') renderModelTree();
@@ -12464,9 +12554,9 @@
                         fitCameraToObject(assemblyGroup);
                     }
 
-                    // 7. Notification & Status
+                    // 7. Bildirim & Durum Özeti
                     const uniqueUnmatched = Array.from(new Set(unmatchedBlocks));
-                    let msg = `📐 ${matchedCount} AutoCAD bloğu "${assemblyName}" montajı olarak sahneye yerleştirildi.`;
+                    let msg = `📐 ${matchedCount} AutoCAD bloğu "${assemblyName}" montajı olarak 3D sahneye tam hassasiyetle yerleştirildi.`;
                     if (isMillimeters) {
                         msg += ` (Ölçüler mm'den metreye otomatik dönüştürüldü).`;
                     }
@@ -12495,6 +12585,7 @@
             reader.readAsText(file);
         }
         window.resolveAutoCADBlockModel = resolveAutoCADBlockModel;
+        window.computeAutoCADBlockOrientation = computeAutoCADBlockOrientation;
         window.importAutoCADBlocksFromFile = importAutoCADBlocksFromFile;
 
 
