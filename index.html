@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.8 - AutoCAD Blok Otomatik Temas & Montaj Gruplama Motoru</title>
+    <title>WEDO v1.3.9 - Hassas 3-5mm Temas Toleransı ile AutoCAD Montaj Ayrımı</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="AutoCAD Blok Otomatik Montaj • JSON import edilirken birbirine fiziksel olarak temas eden modeller 3D temas grafiğiyle bağımsız konveyör hatlarına otomatik gruplanır">v1.3.8 • AutoCAD Otomatik Montaj Motoru</span>
+                    title="Hassas 3-5mm Temas Toleransı • Bounding box temas toleransı 5mm olarak sınırlandırıldı; yan yana veya yakın geçen hatlar birbirine karışmadan ayrık montajlanır">v1.3.9 • Hassas 5mm Montaj Toleransı</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -13024,28 +13024,18 @@
                     }
 
                     // 5. 3D UZAMSAL TEMAS VE BAĞLANTI GRAFİĞİ (CONNECTED COMPONENTS BFS)
-                    // Birbirine fiziksel olarak temas eden / bağlanan modelleri tespit et
+                    // Birbirine fiziksel olarak temas eden / bağlanan modelleri tespit et (Hassas 5 mm tolerans)
                     const N = createdBlocksList.length;
                     const adj = Array.from({ length: N }, () => []);
-                    const contactMargin = 0.08; // 80 mm bağlantı / flanş toleransı
+                    const contactMargin = 0.005; // En fazla 5 mm (0.005 m) hassas temas toleransı
 
                     for (let i = 0; i < N; i++) {
                         const boxA = createdBlocksList[i].box.clone().expandByScalar(contactMargin);
-                        const cA = createdBlocksList[i].center;
                         for (let j = i + 1; j < N; j++) {
                             const boxB = createdBlocksList[j].box;
-                            const cB = createdBlocksList[j].center;
 
-                            // 1. 3D Bounding Box Teması
-                            let isConnected = boxA.intersectsBox(boxB);
-
-                            // 2. Eğer kutular ince/noktasal ise merkezler arası yakınlık kontrolü
-                            if (!isConnected) {
-                                const dist = cA.distanceTo(cB);
-                                if (dist < 0.35) { // 35 cm'den yakınsa temas
-                                    isConnected = true;
-                                }
-                            }
+                            // 3D Bounding Box Teması: Yalnızca fiziksel olarak birebir temas eden modeller bağlanır
+                            const isConnected = boxA.intersectsBox(boxB);
 
                             if (isConnected) {
                                 adj[i].push(j);
