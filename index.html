@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.5 - Sabit Ağaç Seçimi & F Tuşu Odaklama</title>
+    <title>WEDO v1.2.6 - Ağaçta Model & Montaj Vurgusu</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Sabit Ağaç Seçimi • Ağaçtan ürün veya montaj seçildiğinde ekran asla hareket etmez • F tuşu ile seçilen modele/montaja odaklanılır">v1.2.5 • Sabit Ağaç & F Odak</span>
+                    title="Model Seçiminde Ağaç Vurgusu • Model seçildiğinde hem model ismi hem ait olduğu montaj vurgulanır • Daraltılmış montaj otomatik açılır">v1.2.6 • Model & Montaj Vurgusu</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -2888,6 +2888,7 @@
         let lastLoadedModelMeasurement = null;
         let modelTreeEntries = [];
         let selectedTreeKey = null;
+        let selectedModelParentAssembly = null;
         let collapsedAssemblies = new Set();
         let treeSearchTerm = '';
         let importedProjectRoot = null;
@@ -8783,10 +8784,22 @@
                 const assemblyHighlighted = Boolean(term) && assembly.name.toLowerCase().includes(term);
                 const isCollapsed = !term && collapsedAssemblies.has(assembly.name);
                 const isAssemblySelected = assembly.name === selectedAssemblyName;
+                const isParentOfSelectedModel = (selectedModelParentAssembly === assembly.name) ||
+                    Boolean(selectedTreeKey && assembly.items.some((item) => getTreeKeyForProduct(assembly.name, item.product) === selectedTreeKey));
                 const safeToggleName = assembly.name.replace(/"/g, '&quot;');
+                const headerBgClass = isAssemblySelected
+                    ? 'bg-blue-600/30 text-blue-900 font-extrabold border border-blue-500/50'
+                    : isParentOfSelectedModel
+                        ? 'bg-amber-400/25 text-amber-950 font-extrabold border border-amber-500/70 shadow-sm'
+                        : 'hover:bg-slate-200/50';
+                const titleColorClass = isAssemblySelected
+                    ? 'text-blue-700'
+                    : isParentOfSelectedModel
+                        ? 'text-amber-900 font-black'
+                        : 'text-slate-900 hover:text-blue-600';
                 return `
                         <div class="bg-transparent">
-                            <div class="flex items-center gap-0.5 py-0 px-0.5 rounded transition-colors ${isAssemblySelected ? 'bg-blue-600/30 text-blue-900 font-extrabold' : 'hover:bg-slate-200/50'}">
+                            <div class="flex items-center gap-0.5 py-0 px-0.5 rounded transition-colors ${headerBgClass}">
                                 <button
                                     type="button"
                                     data-assembly-toggle="${safeToggleName}"
@@ -8798,9 +8811,10 @@
                                 <button
                                     type="button"
                                     data-assembly-select="${safeToggleName}"
-                                    class="flex-1 text-left py-0 text-[9px] font-extrabold uppercase tracking-wider truncate cursor-pointer ${isAssemblySelected ? 'text-blue-700' : 'text-slate-900 hover:text-blue-600'}"
+                                    class="flex-1 text-left py-0 text-[9px] font-extrabold uppercase tracking-wider truncate cursor-pointer ${titleColorClass}"
                                 >
                                     ${highlight(assembly.name)} <span class="text-[8px] text-slate-600 font-normal">(${assembly.items.length})</span>
+                                    ${isParentOfSelectedModel ? '<span class="ml-1 text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-900 border border-amber-400 font-bold tracking-normal normal-case">📦 Seçili Model</span>' : ''}
                                 </button>
                             </div>
                             ${isCollapsed ? '' : `
@@ -8833,6 +8847,29 @@
             }).join('')}
                 </div>
             `;
+
+            if (selectedTreeKey) {
+                requestAnimationFrame(() => {
+                    const buttons = tree.querySelectorAll('button[data-key]');
+                    for (const b of buttons) {
+                        if (b.dataset.key === selectedTreeKey) {
+                            b.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            break;
+                        }
+                    }
+                });
+            } else if (selectedAssemblyName || selectedModelParentAssembly) {
+                requestAnimationFrame(() => {
+                    const target = selectedAssemblyName || selectedModelParentAssembly;
+                    const buttons = tree.querySelectorAll('button[data-assembly-select]');
+                    for (const b of buttons) {
+                        if (b.dataset.assemblySelect === target) {
+                            b.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            break;
+                        }
+                    }
+                });
+            }
         }
 
         function toggleTreeAssembly(assemblyName) {
@@ -8851,6 +8888,7 @@
             clearSelection();
             selectedAssemblyName = assemblyName;
             selectedAssemblyMeshes = meshes;
+            selectedModelParentAssembly = assemblyName;
 
             if (meshes.length > 0) {
                 meshes.forEach((mesh) => {
@@ -8865,7 +8903,7 @@
                                 });
                             } else {
                                 childMesh.material.emissive?.setHex(0x00674F);
-                                if ('emissiveIntensity' in childMesh.material) childMesh.material.emissiveIntensity = 0.8;
+                                childMesh.material.emissiveIntensity = 0.8;
                                 childMesh.material.opacity = 1;
                                 childMesh.material.transparent = false;
                             }
@@ -8904,6 +8942,8 @@
             if (!entry) return;
 
             selectedTreeKey = key;
+            selectedModelParentAssembly = entry.assemblyName;
+            collapsedAssemblies.delete(entry.assemblyName);
             renderModelTree();
 
             if (entry.mesh) {
@@ -9427,6 +9467,7 @@
             selectedAssemblyName = null;
             selectedAssemblyMeshes = [];
             selectedTreeKey = null;
+            selectedModelParentAssembly = null;
             renderModelTree();
             updateSelectionInfoPanel();
             const modeBar = document.getElementById('gizmo-mode-bar');
@@ -9678,10 +9719,35 @@
                 }
             });
 
-            const product = mesh.userData?.product;
-            if (product) {
-                const assemblyName = mesh.userData?.assemblyName || product.assemblyName || 'Montaj';
-                selectedTreeKey = getTreeKeyForProduct(assemblyName, product);
+            // Modelin ait olduğu ürünü ve montajı belirle
+            let targetProduct = mesh.userData?.product;
+            let targetAssemblyName = mesh.userData?.assemblyName || targetProduct?.assemblyName;
+
+            if (!targetProduct || !targetAssemblyName) {
+                const rootM = (typeof findRootMesh === 'function' ? findRootMesh(mesh) : null) || mesh;
+                const found = modelTreeEntries.find(e => e.mesh === mesh || e.mesh === rootM) ||
+                              modelTreeEntries.find(e => {
+                                  if (!e.mesh) return false;
+                                  let match = false;
+                                  e.mesh.traverse(c => { if (c === mesh || c === rootM) match = true; });
+                                  return match;
+                              });
+                if (found) {
+                    targetProduct = targetProduct || found.product;
+                    targetAssemblyName = targetAssemblyName || found.assemblyName;
+                }
+            }
+
+            if (targetProduct) {
+                const assemblyName = targetAssemblyName || 'Montaj';
+                selectedTreeKey = getTreeKeyForProduct(assemblyName, targetProduct);
+                selectedModelParentAssembly = assemblyName;
+                // Ağaç tamamen daraltılmış (All collapsed) olsa dahi seçilen modelin ağaçta görünmesi için montajı aç:
+                collapsedAssemblies.delete(assemblyName);
+                renderModelTree();
+            } else {
+                selectedTreeKey = null;
+                selectedModelParentAssembly = null;
                 renderModelTree();
             }
             const modeBar = document.getElementById('gizmo-mode-bar');
