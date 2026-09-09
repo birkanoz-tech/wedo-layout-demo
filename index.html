@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.0 - Montaj Konum & Açı Koordinat Kutusu</title>
+    <title>WEDO v1.3.1 - AutoCAD Blok İçe Aktarma</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Montaj Konum & Açı Koordinat Kutusu • Seçilen montaj ve üst montajların X, Y, Z konumları ve Rotasyon açıları koordinat kutusundan doğrudan sayısal olarak değiştirilebilir">v1.3.0 • Montaj Koordinat & Açı Girişi</span>
+                    title="AutoCAD Blok İçe Aktarma • AutoCAD'den dışa aktarılan JSON dosyalarındaki blokları kütüphane modelleriyle eşleştirip sahneye koordinatlarıyla ekler">v1.3.1 • AutoCAD Blok İçe Aktarma</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -182,6 +182,13 @@
                         <span>📥</span> Proje Aç (.json / .xml)
                         <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json" class="hidden"
                             onchange="loadXmlProjectFromFile(this)">
+                    </label>
+                    <label
+                        class="bg-cyan-700 hover:bg-cyan-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm border border-cyan-500/40"
+                        title="AutoCAD'den dışa aktarılan blok JSON dosyasını okur ve kütüphanedeki eşleşen 3D modelleri sahneye koordinatlarıyla ekler">
+                        <span>📐</span> AutoCAD Blokları İçe Aktar (.json)
+                        <input type="file" id="autocad-blocks-file-input" accept=".json,application/json" class="hidden"
+                            onchange="importAutoCADBlocksFromFile(this)">
                     </label>
                     <button onclick="exportXmlProjectAsNewFile()"
                         class="bg-slate-700 hover:bg-slate-600 text-gray-200 px-2.5 py-1.5 rounded text-xs transition cursor-pointer shadow font-medium">
@@ -12190,6 +12197,305 @@
             }
         }
         window.loadXmlProjectFromFile = loadXmlProjectFromFile;
+
+        // AutoCAD Block JSON Importer
+        function resolveAutoCADBlockModel(blockName) {
+            const rawName = String(blockName || '').trim();
+            if (!rawName) return null;
+
+            // 1. Direct getModelAssetPath test
+            let testProd = { name: rawName, productno: rawName, productcode: rawName };
+            let assetPath = (typeof getModelAssetPath === 'function') ? getModelAssetPath(testProd) : null;
+            if (assetPath && (window.EMBEDDED_GLB_ASSETS?.[assetPath] || (typeof modelCache !== 'undefined' && modelCache.has(assetPath)))) {
+                return { assetPath, isCeilingSupport: false };
+            }
+
+            const norm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(rawName) : rawName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const normNoPrefix = norm.replace(/^(flexlink|autocad|block|blk)+/i, '');
+
+            // 2. Check EXACT_LIBRARY_MODEL_MAP
+            if (typeof EXACT_LIBRARY_MODEL_MAP !== 'undefined') {
+                if (EXACT_LIBRARY_MODEL_MAP[norm]) {
+                    return { assetPath: EXACT_LIBRARY_MODEL_MAP[norm], isCeilingSupport: false };
+                }
+                if (EXACT_LIBRARY_MODEL_MAP[normNoPrefix]) {
+                    return { assetPath: EXACT_LIBRARY_MODEL_MAP[normNoPrefix], isCeilingSupport: false };
+                }
+            }
+
+            // 3. Check Ceiling Support
+            if (norm.includes('ceilingsupport') || (norm.includes('ceiling') && norm.includes('support'))) {
+                return { assetPath: 'Library/FlexLink XCBL 1X44X88.glb', isCeilingSupport: true };
+            }
+
+            // 4. Match against window.EMBEDDED_GLB_ASSETS keys
+            if (window.EMBEDDED_GLB_ASSETS) {
+                for (const fullPath of Object.keys(window.EMBEDDED_GLB_ASSETS)) {
+                    const cleanFileName = fullPath.replace(/^Library\//i, '').replace(/\.glb$/i, '');
+                    const pathNorm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(cleanFileName) : cleanFileName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+                    const pathNormNoPrefix = pathNorm.replace(/^flexlink/i, '');
+                    if (pathNorm === norm || pathNorm === normNoPrefix || pathNormNoPrefix === norm || pathNormNoPrefix === normNoPrefix) {
+                        return { assetPath: fullPath, isCeilingSupport: false };
+                    }
+                }
+                // Substring / fuzzy match
+                for (const fullPath of Object.keys(window.EMBEDDED_GLB_ASSETS)) {
+                    const cleanFileName = fullPath.replace(/^Library\//i, '').replace(/\.glb$/i, '');
+                    const pathNorm = (typeof normalizeProductCode === 'function') ? normalizeProductCode(cleanFileName).replace(/^flexlink/i, '') : cleanFileName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+                    if (normNoPrefix.length >= 4 && (pathNorm.includes(normNoPrefix) || normNoPrefix.includes(pathNorm))) {
+                        return { assetPath: fullPath, isCeilingSupport: false };
+                    }
+                }
+            }
+
+            // 5. Fallback check with getModelAssetPath on stripped name
+            if (typeof getModelAssetPath === 'function') {
+                testProd = { name: normNoPrefix, productno: normNoPrefix };
+                assetPath = getModelAssetPath(testProd);
+                if (assetPath) {
+                    return { assetPath, isCeilingSupport: false };
+                }
+            }
+
+            return null;
+        }
+
+        async function importAutoCADBlocksFromFile(input) {
+            if (!input || !input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                try {
+                    const content = (e.target.result || '').trim();
+                    const jsonData = JSON.parse(content);
+
+                    // 1. Extract block items array from various JSON schemas
+                    let rawItems = [];
+                    if (Array.isArray(jsonData)) {
+                        rawItems = jsonData;
+                    } else if (jsonData && typeof jsonData === 'object') {
+                        if (Array.isArray(jsonData.blocks)) rawItems = jsonData.blocks;
+                        else if (Array.isArray(jsonData.entities)) rawItems = jsonData.entities;
+                        else if (Array.isArray(jsonData.items)) rawItems = jsonData.items;
+                        else if (Array.isArray(jsonData.inserts)) rawItems = jsonData.inserts;
+                        else if (Array.isArray(jsonData.data)) rawItems = jsonData.data;
+                        else if (Array.isArray(jsonData.objects)) rawItems = jsonData.objects;
+                        else {
+                            const vals = Object.values(jsonData);
+                            if (vals.length > 0 && typeof vals[0] === 'object') {
+                                rawItems = vals;
+                            }
+                        }
+                    }
+
+                    if (!rawItems || rawItems.length === 0) {
+                        alert('Seçilen JSON dosyasında okunabilir blok verisi bulunamadı.');
+                        input.value = '';
+                        return;
+                    }
+
+                    // 2. Parse positions, rotations, names
+                    const parsedBlocks = [];
+                    let maxCoord = 0;
+
+                    for (const item of rawItems) {
+                        if (!item || typeof item !== 'object') continue;
+
+                        const name = item.name || item.blockName || item.BlockName || item.block_name || item.block ||
+                                     item.effectiveName || item.EffectiveName || item.tag || item.productNo || item.id ||
+                                     item.part || item.model || '';
+                        if (!name) continue;
+
+                        let x = 0, y = 0, z = 0;
+                        const pos = item.position || item.insertionPoint || item.InsertionPoint || item.origin || item.point || item.coord || item.coordinates;
+
+                        if (pos) {
+                            if (Array.isArray(pos)) {
+                                x = Number(pos[0]) || 0;
+                                y = Number(pos[1]) || 0;
+                                z = Number(pos[2]) || 0;
+                            } else if (typeof pos === 'object') {
+                                x = Number(pos.x ?? pos.X) || 0;
+                                y = Number(pos.y ?? pos.Y) || 0;
+                                z = Number(pos.z ?? pos.Z) || 0;
+                            }
+                        } else {
+                            x = Number(item.x ?? item.X) || 0;
+                            y = Number(item.y ?? item.Y) || 0;
+                            z = Number(item.z ?? item.Z) || 0;
+                        }
+
+                        let rot = item.rotation ?? item.Rotation ?? item.rot ?? item.angle ?? item.Angle ?? item.rotationAngle ?? item.yaw ?? 0;
+                        let rotRad = 0;
+                        if (typeof rot === 'number') {
+                            if (Math.abs(rot) > 6.3) {
+                                rotRad = (rot * Math.PI) / 180;
+                            } else {
+                                rotRad = rot;
+                            }
+                        } else if (typeof rot === 'object' && rot !== null) {
+                            let rz = Number(rot.z ?? rot.Z) || 0;
+                            rotRad = Math.abs(rz) > 6.3 ? (rz * Math.PI) / 180 : rz;
+                        }
+
+                        maxCoord = Math.max(maxCoord, Math.abs(x), Math.abs(y), Math.abs(z));
+                        const layer = item.layer || item.Layer || item.assemblyName || item.group || '';
+
+                        parsedBlocks.push({
+                            name,
+                            x,
+                            y,
+                            z,
+                            rotationZ: rotRad,
+                            layer,
+                            raw: item
+                        });
+                    }
+
+                    if (parsedBlocks.length === 0) {
+                        alert('Dosyada geçerli blok adı veya koordinat içeren kayıt bulunamadı.');
+                        input.value = '';
+                        return;
+                    }
+
+                    // 3. Unit scale detection (mm to meters if max coordinate > 50)
+                    const isMillimeters = maxCoord > 50;
+                    const unitScale = isMillimeters ? 0.001 : 1.0;
+
+                    // 4. Target assembly creation
+                    const now = new Date();
+                    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+                    const baseAssemblyTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_\-]/g, '_') || 'AutoCAD_Blocks';
+                    const assemblyName = `${baseAssemblyTitle}_${timeStr}`;
+
+                    if (!importedProjectRoot) {
+                        importedProjectRoot = new THREE.Group();
+                        importedProjectRoot.userData = { type: 'project-root' };
+                        scene.add(importedProjectRoot);
+                    }
+
+                    const assemblyGroup = new THREE.Group();
+                    assemblyGroup.userData = {
+                        type: 'assembly',
+                        assemblyName: assemblyName
+                    };
+                    importedProjectRoot.add(assemblyGroup);
+
+                    if (!importedProject || !Array.isArray(importedProject)) {
+                        importedProject = [];
+                    }
+                    const newAssemblyData = {
+                        assemblyName: assemblyName,
+                        products: []
+                    };
+                    importedProject.push(newAssemblyData);
+
+                    // 5. Match and load each block model
+                    let matchedCount = 0;
+                    let unmatchedBlocks = [];
+
+                    for (let idx = 0; idx < parsedBlocks.length; idx++) {
+                        const b = parsedBlocks[idx];
+                        const resolved = resolveAutoCADBlockModel(b.name);
+
+                        if (!resolved) {
+                            unmatchedBlocks.push(b.name);
+                            continue;
+                        }
+
+                        const product = {
+                            guid: 'acad-' + Math.random().toString(36).substring(2, 10),
+                            name: b.name,
+                            productno: b.name,
+                            productcode: b.name,
+                            type: 'CAD_BLOCK',
+                            group: 'AutoCAD',
+                            assemblyName: assemblyName,
+                            sequence: idx,
+                            isCeilingSupport: resolved.isCeilingSupport || false,
+                            cadBlockName: b.name,
+                            path: resolved.assetPath,
+                            position: {
+                                x: b.x * unitScale,
+                                y: b.y * unitScale,
+                                z: b.z * unitScale
+                            },
+                            rotation: {
+                                x: 0,
+                                y: 0,
+                                z: b.rotationZ
+                            },
+                            quaternion: {
+                                x: 0,
+                                y: 0,
+                                z: Math.sin(b.rotationZ / 2),
+                                w: Math.cos(b.rotationZ / 2)
+                            },
+                            scale: { x: 1, y: 1, z: 1 },
+                            customAttributes: {
+                                source: 'AutoCAD_JSON_Import',
+                                originalLayer: b.layer || '',
+                                unit: isMillimeters ? 'mm (scaled to m)' : 'm'
+                            }
+                        };
+
+                        newAssemblyData.products.push(product);
+
+                        try {
+                            const mesh = await createProductMesh(product);
+                            if (mesh) {
+                                mesh.userData.assemblyName = assemblyName;
+                                assemblyGroup.add(mesh);
+                            }
+                            modelTreeEntries.push({ assemblyName: assemblyName, product, mesh: mesh || null });
+                            matchedCount++;
+                        } catch (err) {
+                            console.warn('Blok modeli sahnede oluşturulamadı:', b.name, err);
+                        }
+                    }
+
+                    // 6. Refresh Scene & Tree
+                    rebuildModelTreeFromScene();
+                    if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
+                    if (typeof renderModelTree === 'function') renderModelTree();
+
+                    if (assemblyGroup.children.length > 0) {
+                        fitCameraToObject(assemblyGroup);
+                    }
+
+                    // 7. Notification & Status
+                    const uniqueUnmatched = Array.from(new Set(unmatchedBlocks));
+                    let msg = `📐 ${matchedCount} AutoCAD bloğu "${assemblyName}" montajı olarak sahneye yerleştirildi.`;
+                    if (isMillimeters) {
+                        msg += ` (Ölçüler mm'den metreye otomatik dönüştürüldü).`;
+                    }
+                    if (uniqueUnmatched.length > 0) {
+                        msg += ` ⚠️ Kütüphanede eşleşmeyen ${uniqueUnmatched.length} blok türü: ${uniqueUnmatched.slice(0, 4).join(', ')}${uniqueUnmatched.length > 4 ? '...' : ''}`;
+                        console.warn('AutoCAD içe aktarmada eşleşmeyen bloklar:', uniqueUnmatched);
+                    }
+
+                    if (typeof showNotice === 'function') {
+                        showNotice(msg, uniqueUnmatched.length > 0 ? 'warning' : 'success');
+                    }
+                    const statusEl = document.getElementById('import-status');
+                    if (statusEl) {
+                        statusEl.innerText = `📐 ${matchedCount} blok yüklendi (${assemblyName})`;
+                    }
+                    alert(msg);
+
+                } catch (err) {
+                    console.error('AutoCAD blok import hatası:', err);
+                    alert('AutoCAD blok JSON dosyası işlenirken hata oluştu: ' + err.message);
+                } finally {
+                    input.value = '';
+                }
+            };
+
+            reader.readAsText(file);
+        }
+        window.resolveAutoCADBlockModel = resolveAutoCADBlockModel;
+        window.importAutoCADBlocksFromFile = importAutoCADBlocksFromFile;
 
 
         // Camera and Context Menu Handlers
