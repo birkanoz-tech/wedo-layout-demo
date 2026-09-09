@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.2.3 - Sabit Ekran Seçimi & Pürüzsüz Model Orbiti (Shift+Mouse Wheel)</title>
+    <title>WEDO v1.2.4 - Model Merkezli Orbit & Sabit Ekran Seçimi (Shift+Mouse Wheel)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Sabit Ekran Seçimi • Seçim sırasında kamera konumu ASLA değişmez • Shift+Tekerlek ile model merkezli orbit">v1.2.3 • Sabit Ekran Seçimi</span>
+                    title="Model Orbit & Sabit Ekran • Seçimde ekran konumu asla değişmez • Shift+Tekerlek ile model merkezli orbit">v1.2.4 • Model Orbit & Sabit Ekran</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -3328,29 +3328,15 @@
                 return isDxfObject(closest) ? null : closest;
             };
 
-            let isModelOrbitDragging = false;
-            let modelOrbitPivot = new THREE.Vector3();
-            let modelOrbitStartPos = new THREE.Vector3();
-            let modelOrbitStartQuat = new THREE.Quaternion();
-            let modelOrbitStartOffset = new THREE.Vector3();
-            let modelOrbitStartPointer = { x: 0, y: 0 };
-
             renderer.domElement.addEventListener('pointerdown', (event) => {
-                // Shift + Orta Tuş (Tekerlek) veya Shift + Sağ Tuş ile Seçili Model Merkezli Orbit:
-                // Ekranı veya kamerayı aniden ZIPLATMADAN, pürüzsüz CAD pivot dönüşü başlatır
+                // Shift + Orta Tuş (Tekerlek) veya Shift + Sağ Tuş ile Orbit başlatıldığında:
+                // Eğer bir model seçiliyse, OrbitControls dönüş eksenini (controls.target) o modelin geometrik merkezine ayarla.
+                // Bu işlem seçim (tıklama) anında yapılmaz; kullanıcı Shift+Mouse Wheel ile orbit başlattığı anda devreye girer.
                 if (event.shiftKey && (event.button === 1 || event.button === 2)) {
-                    if (selectedMesh) {
+                    if (controls && selectedMesh) {
                         const meshCenter = (typeof getSelectedObjectCenter === 'function' ? getSelectedObjectCenter(selectedMesh) : null);
                         if (meshCenter) {
-                            isModelOrbitDragging = true;
-                            modelOrbitPivot.copy(meshCenter);
-                            modelOrbitStartPos.copy(camera.position);
-                            modelOrbitStartQuat.copy(camera.quaternion);
-                            modelOrbitStartOffset.copy(camera.position).sub(meshCenter);
-                            modelOrbitStartPointer.x = event.clientX;
-                            modelOrbitStartPointer.y = event.clientY;
-                            if (controls) controls.enabled = false;
-                            return;
+                            controls.target.copy(meshCenter);
                         }
                     }
                     return;
@@ -3362,46 +3348,6 @@
                 cameraStartRotation.copy(camera.rotation);
                 cameraStartPos.copy(camera.position);
                 updateMouseCoordinates(event);
-            });
-
-            window.addEventListener('pointermove', (event) => {
-                if (isModelOrbitDragging) {
-                    const dx = event.clientX - modelOrbitStartPointer.x;
-                    const dy = event.clientY - modelOrbitStartPointer.y;
-                    const rotSpeed = 0.005;
-
-                    // 1. Azimut (Yaw): Dünya dikey Y (0, 1, 0) ekseni etrafında dönüş
-                    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -dx * rotSpeed);
-
-                    // 2. Yükseklik (Pitch): Kameranın başlangıç yerel X (sağ) ekseni etrafında dönüş
-                    const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(modelOrbitStartQuat).normalize();
-                    const qPitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, -dy * rotSpeed);
-
-                    // Bileşke rotasyon
-                    const qRot = qYaw.clone().multiply(qPitch);
-
-                    // Kamerayı model merkezi etrafında pürüzsüz döndür
-                    const newOffset = modelOrbitStartOffset.clone().applyQuaternion(qRot);
-                    camera.position.copy(modelOrbitPivot).add(newOffset);
-                    camera.quaternion.copy(qRot).multiply(modelOrbitStartQuat);
-                    camera.updateMatrixWorld();
-                    return;
-                }
-            });
-
-            window.addEventListener('pointerup', (event) => {
-                if (isModelOrbitDragging) {
-                    isModelOrbitDragging = false;
-                    if (controls) {
-                        // OrbitControls hedef noktasını kameranın bakış ekseni üzerindeki model derinliğine hizala (sıçramasız)
-                        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                        const dist = new THREE.Vector3().subVectors(modelOrbitPivot, camera.position).dot(forward);
-                        if (dist > 0.5) {
-                            controls.target.copy(camera.position).addScaledVector(forward, dist);
-                        }
-                        controls.enabled = true;
-                    }
-                }
             });
 
             renderer.domElement.addEventListener('pointerup', async (event) => {
