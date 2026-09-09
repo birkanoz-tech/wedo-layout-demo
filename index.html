@@ -526,12 +526,20 @@
                 <div class="bg-transparent p-1 flex items-center justify-between pointer-events-auto">
                     <span
                         class="text-[11px] font-bold text-slate-900 [text-shadow:_0_0_4px_#ffffff,_0_0_4px_#ffffff] flex items-center gap-1.5">
-                        <span>🌲</span> Browser / Ürün Ağacı
+                        <span>🌲</span> Ürün Ağacı
                     </span>
-                    <button type="button" onclick="collapseAllTreeAssemblies()"
-                        class="text-[9px] bg-white/80 hover:bg-white text-slate-900 px-1.5 py-0.5 rounded border border-slate-300 transition cursor-pointer font-semibold shadow-sm">
-                        📁 Collapse All
-                    </button>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="promptCreateParentAssembly()"
+                            class="text-[9px] bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded border border-blue-400 transition cursor-pointer font-bold shadow-sm"
+                            title="Yeni bir üst montaj (grup) oluşturur. Diğer montajları sürükleyip bunun altına ekleyebilirsiniz.">
+                            ➕ Üst Montaj
+                        </button>
+                        <button type="button" onclick="collapseAllTreeAssemblies()"
+                            class="text-[9px] bg-white/80 hover:bg-white text-slate-900 px-1 py-0.5 rounded border border-slate-300 transition cursor-pointer font-semibold shadow-sm"
+                            title="Tüm montajları kapatır">
+                            📁 Kapat
+                        </button>
+                    </div>
                 </div>
                 <div class="bg-transparent p-1 pointer-events-auto">
                     <input id="tree-search-input" type="text" placeholder="🔍 Konveyör / parça ara..."
@@ -2889,8 +2897,32 @@
         let modelTreeEntries = [];
         let selectedTreeKey = null;
         let selectedModelParentAssembly = null;
+        let parentAssemblyList = []; // ["Ana Konveyör Hattı 1", ...]
+        let assemblyParentMap = {};  // { "Konveyör A": "Ana Konveyör Hattı 1", "Konveyör B": "Ana Konveyör Hattı 1" }
         let collapsedAssemblies = new Set();
         let treeSearchTerm = '';
+
+        function loadAssemblyHierarchy() {
+            try {
+                const savedParents = localStorage.getItem('wedo_parent_assemblies');
+                if (savedParents) parentAssemblyList = JSON.parse(savedParents);
+                const savedMap = localStorage.getItem('wedo_assembly_parent_map');
+                if (savedMap) assemblyParentMap = JSON.parse(savedMap);
+                if (!Array.isArray(parentAssemblyList)) parentAssemblyList = [];
+                if (!assemblyParentMap || typeof assemblyParentMap !== 'object') assemblyParentMap = {};
+            } catch (e) {
+                console.warn('Error loading assembly hierarchy from localStorage', e);
+            }
+        }
+        function saveAssemblyHierarchy() {
+            try {
+                localStorage.setItem('wedo_parent_assemblies', JSON.stringify(parentAssemblyList));
+                localStorage.setItem('wedo_assembly_parent_map', JSON.stringify(assemblyParentMap));
+            } catch (e) {
+                console.warn('Error saving assembly hierarchy to localStorage', e);
+            }
+        }
+        loadAssemblyHierarchy();
         let importedProjectRoot = null;
         let smartComponents = [];
         let manualPlacementFrontViewApplied = false;
@@ -8684,6 +8716,12 @@
 
             if (!tree.dataset.bound) {
                 tree.addEventListener('click', (event) => {
+                    const menuBtn = event.target.closest('button[data-assembly-menu]');
+                    if (menuBtn) {
+                        event.stopPropagation();
+                        openAssemblyActionModal(menuBtn.dataset.assemblyMenu);
+                        return;
+                    }
                     const toggleBtn = event.target.closest('button[data-assembly-toggle]');
                     if (toggleBtn) {
                         toggleTreeAssembly(toggleBtn.dataset.assemblyToggle);
@@ -8700,6 +8738,13 @@
                 });
 
                 tree.addEventListener('contextmenu', (event) => {
+                    const assemblyEl = event.target.closest('[data-assembly-drag]');
+                    if (assemblyEl) {
+                        event.preventDefault();
+                        openAssemblyActionModal(assemblyEl.dataset.assemblyDrag);
+                        return;
+                    }
+
                     const button = event.target.closest('button[data-key]');
                     if (!button) return;
                     event.preventDefault();
@@ -8731,6 +8776,52 @@
                     }
                 });
 
+                // HTML5 Drag & Drop desteği: Montajları sürükleyip birleştirme
+                tree.addEventListener('dragstart', (e) => {
+                    const dragEl = e.target.closest('[data-assembly-drag]');
+                    if (!dragEl) return;
+                    const assyName = dragEl.dataset.assemblyDrag;
+                    e.dataTransfer.setData('text/plain', assyName);
+                    window._draggedAssembly = assyName;
+                    dragEl.classList.add('opacity-40');
+                });
+
+                tree.addEventListener('dragend', (e) => {
+                    const dragEl = e.target.closest('[data-assembly-drag]');
+                    if (dragEl) dragEl.classList.remove('opacity-40');
+                    tree.querySelectorAll('.drag-over-active').forEach(el => {
+                        el.classList.remove('drag-over-active', 'bg-amber-200', 'border-amber-600', 'border-2', 'border-dashed');
+                    });
+                    window._draggedAssembly = null;
+                });
+
+                tree.addEventListener('dragover', (e) => {
+                    const dropEl = e.target.closest('[data-assembly-drop]');
+                    if (!dropEl) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    dropEl.classList.add('drag-over-active', 'bg-amber-200', 'border-amber-600', 'border-2', 'border-dashed');
+                });
+
+                tree.addEventListener('dragleave', (e) => {
+                    const dropEl = e.target.closest('[data-assembly-drop]');
+                    if (dropEl) {
+                        dropEl.classList.remove('drag-over-active', 'bg-amber-200', 'border-amber-600', 'border-2', 'border-dashed');
+                    }
+                });
+
+                tree.addEventListener('drop', (e) => {
+                    const dropEl = e.target.closest('[data-assembly-drop]');
+                    if (!dropEl) return;
+                    e.preventDefault();
+                    dropEl.classList.remove('drag-over-active', 'bg-amber-200', 'border-amber-600', 'border-2', 'border-dashed');
+                    const draggedName = e.dataTransfer.getData('text/plain') || window._draggedAssembly;
+                    const targetName = dropEl.dataset.assemblyDrop;
+                    if (!draggedName || !targetName || draggedName === targetName) return;
+
+                    handleAssemblyDrop(draggedName, targetName);
+                });
+
                 tree.dataset.bound = 'true';
             }
 
@@ -8739,7 +8830,8 @@
                 return;
             }
 
-            const assemblies = modelTreeEntries.reduce((acc, entry) => {
+            // 1. Temel montajları topla
+            const rawAssemblies = modelTreeEntries.reduce((acc, entry) => {
                 const existing = acc.find((item) => item.name === entry.assemblyName);
                 if (existing) {
                     existing.items.push(entry);
@@ -8748,6 +8840,30 @@
                 }
                 return acc;
             }, []);
+
+            // 2. Üst montaj listesindeki tüm parent isimleri
+            const allParentNames = Array.from(new Set([
+                ...parentAssemblyList,
+                ...Object.values(assemblyParentMap)
+            ]));
+
+            // 3. Alt montajları üst montajlarına göre grupla
+            const parentGroups = allParentNames.map(pName => {
+                const childAssemblies = rawAssemblies.filter(a => assemblyParentMap[a.name] === pName);
+                const directItems = rawAssemblies.find(a => a.name === pName)?.items || [];
+                const totalItemsCount = childAssemblies.reduce((sum, c) => sum + c.items.length, 0) + directItems.length;
+                return {
+                    name: pName,
+                    childAssemblies,
+                    directItems,
+                    totalItemsCount
+                };
+            });
+
+            // 4. Herhangi bir üst montaja atanmamış bağımsız montajlar
+            const standaloneAssemblies = rawAssemblies.filter(a => 
+                !assemblyParentMap[a.name] && !allParentNames.includes(a.name)
+            );
 
             const term = treeSearchTerm.trim().toLowerCase();
             const highlight = (text) => {
@@ -8758,30 +8874,8 @@
                 return `${safeText.slice(0, idx)}<mark class="bg-yellow-500/60 text-yellow-50 rounded px-0.5">${safeText.slice(idx, idx + term.length)}</mark>${safeText.slice(idx + term.length)}`;
             };
 
-            const filteredAssemblies = assemblies
-                .map((assembly) => {
-                    const assemblyMatches = Boolean(term) && assembly.name.toLowerCase().includes(term);
-                    const items = term
-                        ? assembly.items.filter((entry) => {
-                            const label = entry.product.name || entry.product.type || '';
-                            return assemblyMatches
-                                || label.toLowerCase().includes(term)
-                                || (entry.product.type || '').toLowerCase().includes(term);
-                        })
-                        : assembly.items;
-                    return { name: assembly.name, items, matches: assemblyMatches || items.length > 0 };
-                })
-                .filter((assembly) => !term || assembly.matches);
-
-            if (term && !filteredAssemblies.length) {
-                tree.innerHTML = '<p class="text-xs text-gray-500">Eşleşen konveyör/ürün bulunamadı.</p>';
-                return;
-            }
-
-            tree.innerHTML = `
-                <div class="space-y-0 bg-transparent">
-                    ${filteredAssemblies.map((assembly) => {
-                const assemblyHighlighted = Boolean(term) && assembly.name.toLowerCase().includes(term);
+            // Tekil montaj kartı render fonksiyonu
+            const renderAssemblyCard = (assembly, isInsideParent = false) => {
                 const isCollapsed = !term && collapsedAssemblies.has(assembly.name);
                 const isAssemblySelected = assembly.name === selectedAssemblyName;
                 const isParentOfSelectedModel = (selectedModelParentAssembly === assembly.name) ||
@@ -8797,54 +8891,165 @@
                     : isParentOfSelectedModel
                         ? 'text-amber-900 font-black'
                         : 'text-slate-900 hover:text-blue-600';
+
                 return `
-                        <div class="bg-transparent">
-                            <div class="flex items-center gap-0.5 py-0 px-0.5 rounded transition-colors ${headerBgClass}">
-                                <button
-                                    type="button"
-                                    data-assembly-toggle="${safeToggleName}"
-                                    class="shrink-0 px-0.5 py-0 text-slate-900 font-bold text-[9px] cursor-pointer"
-                                    aria-label="Genişlet/Daralt"
-                                >
-                                    ${isCollapsed ? '▶' : '▼'}
-                                </button>
-                                <button
-                                    type="button"
-                                    data-assembly-select="${safeToggleName}"
-                                    class="flex-1 text-left py-0 text-[9px] font-extrabold uppercase tracking-wider truncate cursor-pointer ${titleColorClass}"
-                                >
-                                    ${highlight(assembly.name)} <span class="text-[8px] text-slate-600 font-normal">(${assembly.items.length})</span>
-                                    ${isParentOfSelectedModel ? '<span class="ml-1 text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-900 border border-amber-400 font-bold tracking-normal normal-case">📦 Seçili Model</span>' : ''}
-                                </button>
-                            </div>
-                            ${isCollapsed ? '' : `
-                            <div class="border-l border-slate-400/50 pl-1.5 ml-1 space-y-0 py-0">
-                                ${assembly.items.map((entry) => {
-                    const key = getTreeKeyForProduct(entry.assemblyName, entry.product);
-                    const isSelected = key === selectedTreeKey;
-                    const safeKey = String(key).replace(/"/g, '&quot;');
-                    const label = entry.product.productno || entry.product.name || entry.product.type || 'Ürün';
-                    const hasMesh = Boolean(entry.mesh);
-                    return `
-                                        <button
-                                            type="button"
-                                            data-key="${safeKey}"
-                                            class="w-full text-left rounded px-1 py-0 text-[9px] transition-colors cursor-pointer ${isSelected ? 'bg-blue-500/40 text-blue-900 font-bold border border-blue-400/70' : hasMesh ? 'text-slate-900 font-semibold hover:bg-slate-200/50' : 'text-slate-700 hover:bg-slate-200/40'}"
-                                        >
-                                            <div class="flex items-center justify-between gap-1">
-                                                <span class="truncate flex-1 font-mono ${hasMesh ? 'font-medium' : 'italic'}">${highlight(label)}</span>
-                                                <div class="flex items-center gap-1 shrink-0">
-                                                    ${hasMesh ? '<span class="text-[7px] px-1 py-0 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">3D</span>' : '<span class="text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-800 border border-amber-300">Model Yok</span>'}
-                                                </div>
+                    <div class="bg-transparent ${isInsideParent ? 'ml-2 border-l border-amber-500/40 pl-1 my-0.5' : ''}">
+                        <div class="flex items-center gap-0.5 py-0 px-0.5 rounded transition-colors ${headerBgClass}"
+                            draggable="true"
+                            data-assembly-drag="${safeToggleName}"
+                            data-assembly-drop="${safeToggleName}"
+                        >
+                            <span class="cursor-grab text-slate-400 hover:text-slate-700 text-[8px] px-0.5 select-none" title="Sürükleyip başka bir montaja veya üst montaja bırakabilirsiniz">⠿</span>
+                            <button
+                                type="button"
+                                data-assembly-toggle="${safeToggleName}"
+                                class="shrink-0 px-0.5 py-0 text-slate-900 font-bold text-[9px] cursor-pointer"
+                                aria-label="Genişlet/Daralt"
+                            >
+                                ${isCollapsed ? '▶' : '▼'}
+                            </button>
+                            <button
+                                type="button"
+                                data-assembly-select="${safeToggleName}"
+                                class="flex-1 text-left py-0 text-[9px] font-extrabold uppercase tracking-wider truncate cursor-pointer ${titleColorClass}"
+                            >
+                                ${highlight(assembly.name)} <span class="text-[8px] text-slate-600 font-normal">(${assembly.items.length})</span>
+                                ${isParentOfSelectedModel ? '<span class="ml-1 text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-900 border border-amber-400 font-bold tracking-normal normal-case">📦 Seçili Model</span>' : ''}
+                            </button>
+                            <button
+                                type="button"
+                                data-assembly-menu="${safeToggleName}"
+                                class="shrink-0 px-1 text-slate-500 hover:text-slate-900 text-[10px] font-bold cursor-pointer rounded hover:bg-slate-300/60 transition"
+                                title="Montaj İşlemleri (Üst Montaja Ekle / Birleştir)..."
+                            >⋮</button>
+                        </div>
+                        ${isCollapsed ? '' : `
+                        <div class="border-l border-slate-400/50 pl-1.5 ml-2 space-y-0 py-0">
+                            ${assembly.items.map((entry) => {
+                                const key = getTreeKeyForProduct(entry.assemblyName, entry.product);
+                                const isSelected = key === selectedTreeKey;
+                                const safeKey = String(key).replace(/"/g, '&quot;');
+                                const label = entry.product.productno || entry.product.name || entry.product.type || 'Ürün';
+                                const hasMesh = Boolean(entry.mesh);
+                                return `
+                                    <button
+                                        type="button"
+                                        data-key="${safeKey}"
+                                        class="w-full text-left rounded px-1 py-0 text-[9px] transition-colors cursor-pointer ${isSelected ? 'bg-blue-500/40 text-blue-900 font-bold border border-blue-400/70' : hasMesh ? 'text-slate-900 font-semibold hover:bg-slate-200/50' : 'text-slate-700 hover:bg-slate-200/40'}"
+                                    >
+                                        <div class="flex items-center justify-between gap-1">
+                                            <span class="truncate flex-1 font-mono ${hasMesh ? 'font-medium' : 'italic'}">${highlight(label)}</span>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                ${hasMesh ? '<span class="text-[7px] px-1 py-0 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">3D</span>' : '<span class="text-[7px] px-1 py-0 rounded bg-amber-100 text-amber-800 border border-amber-300">Model Yok</span>'}
                                             </div>
-                                        </button>
-                                    `;
-                }).join('')}
-                            </div>
+                                        </div>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                        `}
+                    </div>
+                `;
+            };
+
+            // Üst montaj (Parent Group) kartı render fonksiyonu
+            const renderParentGroupCard = (parentGroup) => {
+                const isCollapsed = !term && collapsedAssemblies.has(parentGroup.name);
+                const isGroupSelected = (parentGroup.name === selectedAssemblyName);
+                const hasSelectedModel = (selectedModelParentAssembly === parentGroup.name) ||
+                    parentGroup.childAssemblies.some(ca => ca.name === selectedModelParentAssembly || 
+                        (selectedTreeKey && ca.items.some(item => getTreeKeyForProduct(ca.name, item.product) === selectedTreeKey)));
+                
+                const safeParentName = parentGroup.name.replace(/"/g, '&quot;');
+                const headerBgClass = isGroupSelected
+                    ? 'bg-amber-500/30 text-amber-950 font-black border-2 border-amber-500 shadow-sm'
+                    : hasSelectedModel
+                        ? 'bg-amber-400/25 text-amber-950 font-black border border-amber-500/70 shadow-sm'
+                        : 'bg-slate-200/70 hover:bg-slate-200 text-slate-900 border border-slate-300 shadow-sm';
+
+                return `
+                    <div class="bg-white/45 rounded border border-amber-600/40 p-0.5 my-1 shadow-sm"
+                        data-assembly-drop="${safeParentName}"
+                    >
+                        <div class="flex items-center gap-0.5 py-0.5 px-1 rounded transition-colors ${headerBgClass}"
+                            draggable="true"
+                            data-assembly-drag="${safeParentName}"
+                            data-is-parent="true"
+                        >
+                            <span class="text-[10px]">🏢</span>
+                            <button
+                                type="button"
+                                data-assembly-toggle="${safeParentName}"
+                                class="shrink-0 px-0.5 py-0 text-slate-900 font-bold text-[9px] cursor-pointer"
+                                aria-label="Genişlet/Daralt"
+                            >
+                                ${isCollapsed ? '▶' : '▼'}
+                            </button>
+                            <button
+                                type="button"
+                                data-assembly-select="${safeParentName}"
+                                class="flex-1 text-left py-0 text-[9px] font-black uppercase tracking-wider truncate cursor-pointer text-amber-950 hover:text-blue-700"
+                                title="Bu üst montajdaki TÜM alt montajları sahnede tek bir birleşik model gibi seçer"
+                            >
+                                ${highlight(parentGroup.name)} 
+                                <span class="text-[7.5px] font-bold text-amber-900 bg-amber-200/90 px-1 py-0.2 rounded border border-amber-400 ml-1">
+                                    ${parentGroup.childAssemblies.length} Alt Montaj • ${parentGroup.totalItemsCount} Parça
+                                </span>
+                                ${hasSelectedModel ? '<span class="ml-1 text-[7px] px-1 py-0 rounded bg-amber-300 text-amber-950 border border-amber-600 font-black">📦 Seçili</span>' : ''}
+                            </button>
+                            <button
+                                type="button"
+                                data-assembly-menu="${safeParentName}"
+                                class="shrink-0 px-1 text-amber-900 hover:text-black text-[11px] font-extrabold cursor-pointer rounded hover:bg-amber-300/60 transition"
+                                title="Üst Montaj İşlemleri (Dağıt / Yeniden Adlandır)..."
+                            >⋮</button>
+                        </div>
+
+                        ${isCollapsed ? '' : `
+                        <div class="pt-0.5 space-y-0.5">
+                            ${parentGroup.childAssemblies.length === 0 ? `
+                                <div class="text-[8px] text-slate-500 italic px-2 py-1 bg-white/50 rounded border border-dashed border-slate-300 text-center my-0.5"
+                                    data-assembly-drop="${safeParentName}"
+                                >
+                                    📥 Alt montajları buraya sürükleyip bırakın
+                                </div>
+                            ` : `
+                                ${parentGroup.childAssemblies.map(ca => renderAssemblyCard(ca, true)).join('')}
                             `}
                         </div>
-                        `;
-            }).join('')}
+                        `}
+                    </div>
+                `;
+            };
+
+            // Filtreleme
+            const filteredParents = parentGroups.filter(p => {
+                if (!term) return true;
+                if (p.name.toLowerCase().includes(term)) return true;
+                return p.childAssemblies.some(ca => ca.name.toLowerCase().includes(term) || ca.items.some(i => (i.product.name || i.product.type || '').toLowerCase().includes(term)));
+            });
+
+            const filteredStandalone = standaloneAssemblies.filter(a => {
+                if (!term) return true;
+                if (a.name.toLowerCase().includes(term)) return true;
+                return a.items.some(i => (i.product.name || i.product.type || '').toLowerCase().includes(term));
+            });
+
+            if (term && !filteredParents.length && !filteredStandalone.length) {
+                tree.innerHTML = '<p class="text-xs text-gray-500">Eşleşen konveyör/ürün bulunamadı.</p>';
+                return;
+            }
+
+            tree.innerHTML = `
+                <div class="space-y-0 bg-transparent">
+                    ${filteredParents.map(pg => renderParentGroupCard(pg)).join('')}
+                    ${filteredStandalone.map(sa => renderAssemblyCard(sa, false)).join('')}
+                    <div class="text-[7.5px] text-slate-400 hover:text-slate-600 text-center py-0.5 mt-1 border-t border-dashed border-slate-300"
+                        data-assembly-drop="__ROOT__"
+                        title="Bir alt montajı buraya bırakarak üst montajdan çıkarıp bağımsız hale getirebilirsiniz."
+                    >
+                        📤 Bağımsız yapmak için buraya bırakın
+                    </div>
                 </div>
             `;
 
@@ -8882,7 +9087,15 @@
         }
 
         function selectAssemblyFromTree(assemblyName) {
-            const entries = modelTreeEntries.filter((entry) => entry.assemblyName === assemblyName);
+            const isParent = parentAssemblyList.includes(assemblyName) || Object.values(assemblyParentMap).includes(assemblyName);
+            let entries = [];
+            let childNames = [];
+            if (isParent) {
+                childNames = Object.keys(assemblyParentMap).filter(k => assemblyParentMap[k] === assemblyName);
+                entries = modelTreeEntries.filter(e => e.assemblyName === assemblyName || childNames.includes(e.assemblyName));
+            } else {
+                entries = modelTreeEntries.filter((entry) => entry.assemblyName === assemblyName);
+            }
             const meshes = entries.filter((entry) => entry.mesh).map((entry) => entry.mesh);
 
             clearSelection();
@@ -8918,10 +9131,28 @@
             if (infoPanel) {
                 infoPanel.innerHTML = `
                     <div class="space-y-1">
-                        <p class="font-semibold text-[#9FE2D0]">${assemblyName}</p>
-                        <p><span class="text-gray-400">Ürün Ağacındaki Ürün Sayısı:</span> ${entries.length}</p>
+                        <p class="font-semibold ${isParent ? 'text-amber-300' : 'text-[#9FE2D0]'}">
+                            ${isParent ? '🏢 [Üst Montaj / Grup] ' : ''}${assemblyName}
+                        </p>
+                        ${isParent && childNames.length > 0 ? `
+                            <p class="text-[11px] text-amber-200/90 leading-tight">
+                                <span class="text-gray-400">Bağlı Alt Montajlar (${childNames.length}):</span> 
+                                <span class="font-mono text-white">${childNames.join(', ')}</span>
+                            </p>
+                        ` : ''}
+                        <p><span class="text-gray-400">Toplam Parça:</span> ${entries.length}</p>
                         <p><span class="text-gray-400">3D Modeli Bulunan Parçalar:</span> ${meshes.length}</p>
                         ${entries.length > meshes.length ? `<p class="text-amber-400/90 text-xs italic">⚠️ ${entries.length - meshes.length} ürünün 3D GLB modeli bulunmamaktadır.</p>` : ''}
+                        ${isParent ? `
+                            <div class="pt-2 flex flex-wrap gap-1">
+                                <button type="button" onclick="ungroupParentAssembly('${assemblyName.replace(/'/g, "\\'")}')" class="text-[9px] bg-red-900/80 hover:bg-red-800 text-white px-2 py-0.5 rounded border border-red-500 font-semibold cursor-pointer shadow-sm">
+                                    🗑️ Grubu Dağıt
+                                </button>
+                                <button type="button" onclick="promptRenameParentAssembly('${assemblyName.replace(/'/g, "\\'")}')" class="text-[9px] bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 rounded border border-slate-500 font-semibold cursor-pointer shadow-sm">
+                                    ✏️ Yeniden Adlandır
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }
@@ -8933,9 +9164,317 @@
         }
 
         function collapseAllTreeAssemblies() {
-            collapsedAssemblies = new Set(modelTreeEntries.map((entry) => entry.assemblyName));
+            collapsedAssemblies = new Set([
+                ...modelTreeEntries.map((entry) => entry.assemblyName),
+                ...parentAssemblyList,
+                ...Object.values(assemblyParentMap)
+            ]);
             renderModelTree();
         }
+
+        // --- Üst Montaj (Parent Assembly) ve Birleştirme Yönetim Fonksiyonları ---
+        function promptCreateParentAssembly() {
+            const defaultName = `Üst Montaj #${parentAssemblyList.length + 1}`;
+            const name = window.prompt("Yeni Üst Montaj (Grup) adı girin:", defaultName);
+            if (!name || !name.trim()) return;
+            const cleanName = name.trim();
+            if (!parentAssemblyList.includes(cleanName)) {
+                parentAssemblyList.push(cleanName);
+                collapsedAssemblies.delete(cleanName);
+                saveAssemblyHierarchy();
+                renderModelTree();
+                if (typeof showNotice === 'function') {
+                    showNotice(`🏢 "${cleanName}" üst montajı oluşturuldu. Diğer montajları sürükleyip içine bırakabilirsiniz.`);
+                }
+            } else {
+                alert("Bu isimde bir üst montaj zaten mevcut!");
+            }
+        }
+
+        function handleAssemblyDrop(draggedName, targetName) {
+            if (!draggedName || !targetName || draggedName === targetName) return;
+
+            // Kök dizine bırakılmışsa (Üst montajdan ayır)
+            if (targetName === '__ROOT__') {
+                if (assemblyParentMap[draggedName]) {
+                    const oldParent = assemblyParentMap[draggedName];
+                    delete assemblyParentMap[draggedName];
+                    saveAssemblyHierarchy();
+                    renderModelTree();
+                    if (typeof showNotice === 'function') {
+                        showNotice(`✅ "${draggedName}", "${oldParent}" üst montajından ayrılarak bağımsız yapıldı.`);
+                    }
+                }
+                return;
+            }
+
+            // Hedef zaten bir üst montaj ise
+            if (parentAssemblyList.includes(targetName)) {
+                assemblyParentMap[draggedName] = targetName;
+                collapsedAssemblies.delete(targetName);
+                saveAssemblyHierarchy();
+                renderModelTree();
+                if (typeof showNotice === 'function') {
+                    showNotice(`✅ "${draggedName}" montajı "${targetName}" üst montajına taşındı.`);
+                }
+                return;
+            }
+
+            // Hedef normal bir montaj ise ikisini bir üst montaj altında birleştir
+            const defaultGroupName = `${targetName} & ${draggedName} Grubu`;
+            const newParentName = window.prompt(`"${draggedName}" ve "${targetName}" montajlarını birleştirmek için Üst Montaj adı girin:`, defaultGroupName);
+            if (!newParentName || !newParentName.trim()) return;
+
+            const cleanParentName = newParentName.trim();
+            if (!parentAssemblyList.includes(cleanParentName)) {
+                parentAssemblyList.push(cleanParentName);
+            }
+            assemblyParentMap[draggedName] = cleanParentName;
+            assemblyParentMap[targetName] = cleanParentName;
+            collapsedAssemblies.delete(cleanParentName);
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') {
+                showNotice(`✅ "${cleanParentName}" üst montajı oluşturuldu ve montajlar birleştirildi.`);
+            }
+        }
+
+        function promptRenameParentAssembly(oldName) {
+            const newName = window.prompt("Üst montaj için yeni ad girin:", oldName);
+            if (!newName || !newName.trim() || newName.trim() === oldName) return;
+            const clean = newName.trim();
+
+            const idx = parentAssemblyList.indexOf(oldName);
+            if (idx !== -1) parentAssemblyList[idx] = clean;
+            for (const child in assemblyParentMap) {
+                if (assemblyParentMap[child] === oldName) {
+                    assemblyParentMap[child] = clean;
+                }
+            }
+            if (selectedAssemblyName === oldName) selectedAssemblyName = clean;
+            if (selectedModelParentAssembly === oldName) selectedModelParentAssembly = clean;
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`✏️ Üst montaj adı "${clean}" olarak güncellendi.`);
+        }
+
+        function promptRenameAssembly(oldName) {
+            const newName = window.prompt("Montaj için yeni ad girin:", oldName);
+            if (!newName || !newName.trim() || newName.trim() === oldName) return;
+            const clean = newName.trim();
+
+            modelTreeEntries.forEach(entry => {
+                if (entry.assemblyName === oldName) {
+                    entry.assemblyName = clean;
+                    if (entry.mesh) {
+                        entry.mesh.userData.assemblyName = clean;
+                        if (entry.mesh.userData.product) entry.mesh.userData.product.assemblyName = clean;
+                    }
+                }
+            });
+
+            if (assemblyParentMap[oldName]) {
+                const p = assemblyParentMap[oldName];
+                delete assemblyParentMap[oldName];
+                assemblyParentMap[clean] = p;
+            }
+
+            if (selectedAssemblyName === oldName) selectedAssemblyName = clean;
+            if (selectedModelParentAssembly === oldName) selectedModelParentAssembly = clean;
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`✏️ Montaj adı "${clean}" olarak güncellendi.`);
+        }
+
+        function ungroupParentAssembly(parentName) {
+            if (!confirm(`"${parentName}" üst montaj grubu dağıtılsın mı? (İçindeki alt montajlar silinmez, bağımsız hale gelir)`)) return;
+            for (const child in assemblyParentMap) {
+                if (assemblyParentMap[child] === parentName) {
+                    delete assemblyParentMap[child];
+                }
+            }
+            parentAssemblyList = parentAssemblyList.filter(p => p !== parentName);
+            if (selectedAssemblyName === parentName) clearSelection();
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`🗑️ "${parentName}" üst montaj grubu dağıtıldı.`);
+        }
+
+        function createParentWithAssembly(assemblyName) {
+            const defaultName = `${assemblyName} Hattı`;
+            const name = window.prompt("Yeni Üst Montaj Adı:", defaultName);
+            if (!name || !name.trim()) return;
+            const clean = name.trim();
+            if (!parentAssemblyList.includes(clean)) {
+                parentAssemblyList.push(clean);
+            }
+            assemblyParentMap[assemblyName] = clean;
+            collapsedAssemblies.delete(clean);
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`✅ "${clean}" üst montajı oluşturuldu ve "${assemblyName}" eklendi.`);
+        }
+
+        function moveAssemblyToSelectedParent(assemblyName) {
+            const sel = document.getElementById('select-target-parent');
+            if (!sel || !sel.value) return;
+            const targetParent = sel.value;
+            assemblyParentMap[assemblyName] = targetParent;
+            collapsedAssemblies.delete(targetParent);
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`✅ "${assemblyName}", "${targetParent}" üst montajına taşındı.`);
+        }
+
+        function detachAssemblyFromParent(assemblyName) {
+            delete assemblyParentMap[assemblyName];
+            saveAssemblyHierarchy();
+            renderModelTree();
+            if (typeof showNotice === 'function') showNotice(`📤 "${assemblyName}" üst montajdan ayrıldı ve bağımsız yapıldı.`);
+        }
+
+        function mergeAssembliesDirectly(sourceName, targetName) {
+            if (!sourceName || !targetName || sourceName === targetName) return;
+            if (!confirm(`"${sourceName}" içindeki tüm parçalar "${targetName}" içine aktarılacak ve tek bir montaj olacak. Onaylıyor musunuz?`)) return;
+
+            modelTreeEntries.forEach(entry => {
+                if (entry.assemblyName === sourceName) {
+                    entry.assemblyName = targetName;
+                    if (entry.mesh) {
+                        entry.mesh.userData.assemblyName = targetName;
+                        if (entry.mesh.userData.product) entry.mesh.userData.product.assemblyName = targetName;
+                    }
+                }
+            });
+
+            delete assemblyParentMap[sourceName];
+            parentAssemblyList = parentAssemblyList.filter(p => p !== sourceName);
+
+            saveAssemblyHierarchy();
+            renderModelTree();
+            selectAssemblyFromTree(targetName);
+            if (typeof showNotice === 'function') {
+                showNotice(`✅ "${sourceName}" başarıyla "${targetName}" ile birleştirildi.`);
+            }
+        }
+
+        function mergeWithSelectedAssembly(assemblyName) {
+            const sel = document.getElementById('select-merge-target');
+            if (!sel || !sel.value) return;
+            mergeAssembliesDirectly(assemblyName, sel.value);
+        }
+
+        function openAssemblyActionModal(assemblyName) {
+            const isParent = parentAssemblyList.includes(assemblyName) || Object.values(assemblyParentMap).includes(assemblyName);
+            const parentOfThis = assemblyParentMap[assemblyName];
+
+            const modal = document.getElementById('assembly-action-modal');
+            const modalTitle = document.getElementById('assembly-modal-title');
+            const modalBody = document.getElementById('assembly-modal-body');
+            if (!modal || !modalBody) return;
+
+            modalTitle.innerHTML = `<span>⚙️</span> ${isParent ? 'Üst Montaj: ' : 'Montaj: '} <span class="text-white">${assemblyName}</span>`;
+
+            let html = '';
+
+            if (isParent) {
+                html += `
+                    <div class="space-y-2">
+                        <button type="button" onclick="promptRenameParentAssembly('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                            class="w-full text-left px-2.5 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white font-medium flex items-center gap-2 cursor-pointer transition">
+                            <span>✏️</span> Üst Montajı Yeniden Adlandır
+                        </button>
+                        <button type="button" onclick="ungroupParentAssembly('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                            class="w-full text-left px-2.5 py-1.5 rounded bg-red-900/80 hover:bg-red-800 text-white font-medium flex items-center gap-2 cursor-pointer transition">
+                            <span>🗑️</span> Üst Montajı Dağıt (Alt montajlar bağımsız olur)
+                        </button>
+                    </div>
+                `;
+            } else {
+                const otherParents = parentAssemblyList.filter(p => p !== parentOfThis);
+                const otherAssemblies = Array.from(new Set(modelTreeEntries.map(e => e.assemblyName))).filter(a => a !== assemblyName && !parentAssemblyList.includes(a));
+
+                html += `
+                    <div class="space-y-2">
+                        <button type="button" onclick="createParentWithAssembly('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                            class="w-full text-left px-2.5 py-1.5 rounded bg-blue-700 hover:bg-blue-600 text-white font-medium flex items-center gap-2 cursor-pointer transition">
+                            <span>➕</span> Yeni Üst Montaj Oluştur ve Bunu Ekle
+                        </button>
+                `;
+
+                if (otherParents.length > 0) {
+                    html += `
+                        <div class="p-2 bg-gray-900/70 rounded border border-gray-700 space-y-1">
+                            <label class="text-[10px] text-gray-400 font-bold block">📥 Var Olan Üst Montaja Taşı:</label>
+                            <div class="flex gap-1">
+                                <select id="select-target-parent" class="bg-gray-800 text-white text-xs rounded px-1.5 py-1 flex-1 border border-gray-600">
+                                    ${otherParents.map(p => `<option value="${p.replace(/"/g, '&quot;')}">${p}</option>`).join('')}
+                                </select>
+                                <button type="button" onclick="moveAssemblyToSelectedParent('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                                    class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer transition">
+                                    Taşı
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (parentOfThis) {
+                    html += `
+                        <button type="button" onclick="detachAssemblyFromParent('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                            class="w-full text-left px-2.5 py-1.5 rounded bg-amber-800 hover:bg-amber-700 text-white font-medium flex items-center gap-2 cursor-pointer transition">
+                            <span>📤</span> Üst Montajdan Çıkar ("${parentOfThis}" grubundan ayır)
+                        </button>
+                    `;
+                }
+
+                if (otherAssemblies.length > 0) {
+                    html += `
+                        <div class="p-2 bg-gray-900/70 rounded border border-gray-700 space-y-1">
+                            <label class="text-[10px] text-gray-400 font-bold block">🔗 Başka Montaj ile Doğrudan Birleştir (Merge):</label>
+                            <div class="flex gap-1">
+                                <select id="select-merge-target" class="bg-gray-800 text-white text-xs rounded px-1.5 py-1 flex-1 border border-gray-600">
+                                    ${otherAssemblies.map(a => `<option value="${a.replace(/"/g, '&quot;')}">${a}</option>`).join('')}
+                                </select>
+                                <button type="button" onclick="mergeWithSelectedAssembly('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer transition">
+                                    Birleştir
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        <button type="button" onclick="promptRenameAssembly('${assemblyName.replace(/'/g, "\\'")}'); closeAssemblyActionModal();"
+                            class="w-full text-left px-2.5 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white font-medium flex items-center gap-2 cursor-pointer transition">
+                            <span>✏️</span> Montajı Yeniden Adlandır
+                        </button>
+                    </div>
+                `;
+            }
+
+            modalBody.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
+        function closeAssemblyActionModal() {
+            const modal = document.getElementById('assembly-action-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        window.promptCreateParentAssembly = promptCreateParentAssembly;
+        window.promptRenameParentAssembly = promptRenameParentAssembly;
+        window.promptRenameAssembly = promptRenameAssembly;
+        window.ungroupParentAssembly = ungroupParentAssembly;
+        window.createParentWithAssembly = createParentWithAssembly;
+        window.moveAssemblyToSelectedParent = moveAssemblyToSelectedParent;
+        window.detachAssemblyFromParent = detachAssemblyFromParent;
+        window.mergeAssembliesDirectly = mergeAssembliesDirectly;
+        window.mergeWithSelectedAssembly = mergeWithSelectedAssembly;
+        window.openAssemblyActionModal = openAssemblyActionModal;
+        window.closeAssemblyActionModal = closeAssemblyActionModal;
+        window.handleAssemblyDrop = handleAssemblyDrop;
 
         function focusProductEntry(key) {
             const entry = modelTreeEntries.find((item) => getTreeKeyForProduct(item.assemblyName, item.product) === key);
@@ -9744,6 +10283,9 @@
                 selectedModelParentAssembly = assemblyName;
                 // Ağaç tamamen daraltılmış (All collapsed) olsa dahi seçilen modelin ağaçta görünmesi için montajı aç:
                 collapsedAssemblies.delete(assemblyName);
+                if (typeof assemblyParentMap !== 'undefined' && assemblyParentMap[assemblyName]) {
+                    collapsedAssemblies.delete(assemblyParentMap[assemblyName]);
+                }
                 renderModelTree();
             } else {
                 selectedTreeKey = null;
@@ -16774,6 +17316,22 @@ if (typeof window !== 'undefined') {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Montaj İşlemleri & Üst Montaj Yönetim Modalı -->
+    <div id="assembly-action-modal"
+        class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs hidden flex items-center justify-center p-3">
+        <div class="bg-gray-900 border border-amber-500/50 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-fade-in">
+            <div class="bg-gray-850 px-3 py-2 border-b border-gray-700 flex justify-between items-center">
+                <span id="assembly-modal-title" class="font-bold text-xs text-amber-400 flex items-center gap-1.5 truncate">
+                    <span>⚙️</span> Montaj İşlemleri
+                </span>
+                <button type="button" onclick="closeAssemblyActionModal()" class="text-gray-400 hover:text-white text-sm font-bold px-1.5 py-0.5 rounded cursor-pointer">✕</button>
+            </div>
+            <div class="p-3 text-xs" id="assembly-modal-body">
+                <!-- Dinamik içerik -->
             </div>
         </div>
     </div>
