@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.4.0 - Ters Yönde 100mm İç İçe Geçme Toleransı ile AutoCAD Montaj Ayrımı</title>
+    <title>WEDO v1.4.1 - İdler-Motor Hat Takibi & Metraj/Zincir Hesaplama Motoru</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Ters Yönde 100mm Tolerans • Modellerin en az 100mm birbirinin içine girmesi (160mm mekanik geçme) kriteriyle konveyör hatları kusursuz ayrıştırılır">v1.4.0 • Ters Yönde 100mm Girişim Kriteri</span>
+                    title="İdler-Motor Hat İzolasyonu & Metraj/Zincir • Konveyörler İdler'dan Motora kesintisiz path olarak takip edilir; hat metrajı, gerekli zincir ve kayma şeriti otomatik hesaplanır">v1.4.1 • İdler-Motor Hat Takibi & Metraj</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -13023,37 +13023,95 @@
                         return;
                     }
 
-                    // 5. 3D UZAMSAL TEMAS VE BAĞLANTI GRAFİĞİ (CONNECTED COMPONENTS BFS)
-                    // Birbirine fiziksel olarak eklenen / iç içe geçen modelleri tespit et (Ters yönde 100 mm tolerans)
+                    // 5. İDLER'DAN MOTORA AKILLI KONVEYÖR HAT TAKİBİ & METRAJ MOTORU
                     const N = createdBlocksList.length;
+
+                    // Her bloğun konveyör rolünü ve uzunluğunu tespit et
+                    createdBlocksList.forEach((item) => {
+                        const nameUpper = String(item.name || '').toUpperCase();
+                        item.isIdler = nameUpper.includes('XBEJ') || nameUpper.includes('IDLER');
+                        item.isMotor = nameUpper.includes('XBEB') || nameUpper.includes('DRIVE') || nameUpper.includes('MOTOR');
+                        item.isConveyor = nameUpper.includes('XB') || nameUpper.includes('KONV') || nameUpper.includes('CONVEYOR') || nameUpper.includes('RULO') || nameUpper.includes('BANT');
+
+                        // Metraj hesaplaması için parça boyu (metre)
+                        let partLengthM = 0.5;
+                        const lenMatch = nameUpper.match(/L\s*(\d+)A/i);
+                        if (lenMatch) {
+                            partLengthM = parseFloat(lenMatch[1]) * 0.001;
+                        } else if (nameUpper.includes('90A') || nameUpper.includes('90')) {
+                            partLengthM = 0.5 * Math.PI / 2.0; // ~0.785m (R500 90 deg bend)
+                        } else if (nameUpper.includes('60A') || nameUpper.includes('60')) {
+                            partLengthM = 0.5 * Math.PI / 3.0; // ~0.524m
+                        } else if (nameUpper.includes('30A') || nameUpper.includes('30')) {
+                            partLengthM = 0.5 * Math.PI / 6.0; // ~0.262m
+                        } else if (nameUpper.includes('15A') || nameUpper.includes('15')) {
+                            partLengthM = 0.75 * (15.0 * Math.PI / 180.0); // ~0.196m
+                        } else if (item.isMotor) {
+                            partLengthM = 0.5; // Drive ünitesi ~500mm
+                        } else if (item.isIdler) {
+                            partLengthM = 0.3; // Idler ünitesi ~300mm
+                        }
+                        item.lengthM = partLengthM;
+                    });
+
+                    // Mekanik Bağlantı Grafiği (Uç Uca Bağlantı Kuralları)
                     const adj = Array.from({ length: N }, () => []);
-                    const minOverlapDepth = 0.10; // En az 100 mm (0.10 m) iç içe geçme / girişim şartı
 
                     for (let i = 0; i < N; i++) {
-                        const boxA = createdBlocksList[i].box;
-                        for (let j = i + 1; j < N; j++) {
-                            const boxB = createdBlocksList[j].box;
+                        const itemA = createdBlocksList[i];
+                        if (!itemA.isConveyor) continue;
+                        const boxA = itemA.box;
+                        const cA = itemA.center;
 
+                        for (let j = i + 1; j < N; j++) {
+                            const itemB = createdBlocksList[j];
+                            if (!itemB.isConveyor) continue;
+                            const boxB = itemB.box;
+                            const cB = itemB.center;
+
+                            // KURAL 1: Aktarma Noktası İzolasyonu
+                            // Bir Avara (Idler) ile başka bir hattın Motoru (Drive) asla birbirine bağlanamaz
+                            if ((itemA.isIdler && itemB.isMotor) || (itemA.isMotor && itemB.isIdler)) continue;
+                            // İki Avara veya iki Motor asla birbirine bağlanamaz
+                            if (itemA.isIdler && itemB.isIdler) continue;
+                            if (itemA.isMotor && itemB.isMotor) continue;
+
+                            // KURAL 2: 3D Bounding Box Kesişimi veya Port Yakınlığı
                             let isConnected = false;
                             const intersection = boxA.clone().intersect(boxB);
 
                             if (!intersection.isEmpty()) {
-                                const overlapX = Math.max(0, intersection.max.x - intersection.min.x);
-                                const overlapY = Math.max(0, intersection.max.y - intersection.min.y);
-                                const overlapZ = Math.max(0, intersection.max.z - intersection.min.z);
-
-                                // Mekanik kural: Konveyör parçaları bağlantı ekseninde en az 100 mm birbirinin içine girer (~160mm mekanik geçme)
-                                // Yan yana duran veya dıştan temas eden parçalar iç içe 100mm girmediği için bağlanmaz!
-                                const maxOverlap = Math.max(overlapX, overlapY, overlapZ);
-
-                                // Ters yönde 100 mm tolerans kontrolü:
-                                // Ya doğrudan eksenel iç içe geçme derinliği >= 100 mm,
-                                // ya da ters yönde -100 mm genişletme (daraltma) sonrası hala kesişim olması
-                                const boxAContracted = boxA.clone().expandByScalar(-0.05);
-                                const boxBContracted = boxB.clone().expandByScalar(-0.05);
-
-                                if (maxOverlap >= minOverlapDepth || boxAContracted.intersectsBox(boxBContracted)) {
+                                isConnected = true;
+                            } else {
+                                // Bounding box'lar flanş payı kadar yakınsa
+                                const dist = cA.distanceTo(cB);
+                                const maxReach = (itemA.lengthM + itemB.lengthM) / 2.0 + 0.15;
+                                if (dist <= maxReach) {
                                     isConnected = true;
+                                }
+                            }
+
+                            // KURAL 3: Yan Yana Paralel Hatların Ayrıştırılması
+                            // İki konveyör yan yana paralel koşuyorsa enine mesafe > 100mm ise bağlantı KESİNLİKLE REDDEDİLİR!
+                            if (isConnected) {
+                                const dx = Math.abs(cA.x - cB.x);
+                                const dy = Math.abs(cA.y - cB.y);
+                                const dz = Math.abs(cA.z - cB.z);
+
+                                // Farklı kotlarda/katlarda olan parçalar bağlanmaz
+                                if (dz > 0.40) {
+                                    isConnected = false;
+                                } else {
+                                    const rotA = itemA.product?.rotation?.z ?? 0;
+                                    const rotB = itemB.product?.rotation?.z ?? 0;
+                                    // Eğer her iki parça da X doğrultusundaysa ve Y mesafesi > 100mm ise
+                                    if (dy > 0.10 && dx > 0.30) {
+                                        isConnected = false;
+                                    }
+                                    // Eğer her iki parça da Y doğrultusundaysa ve X mesafesi > 100mm ise
+                                    else if (dx > 0.10 && dy > 0.30) {
+                                        isConnected = false;
+                                    }
                                 }
                             }
 
@@ -13064,12 +13122,46 @@
                         }
                     }
 
-                    // BFS ile ayrık bileşenleri (Connected Components / Hatları) grupla
+                    // 6. İDLER'DAN MOTORA KESİNTİSİZ HAT TAKİBİ (PATH TRACING)
                     const visited = new Set();
                     const components = [];
 
+                    // 1. Öncelik: Her bir İdler'dan başlayarak Motora kadar olan hattı tekil dizi olarak çıkar
                     for (let i = 0; i < N; i++) {
-                        if (!visited.has(i)) {
+                        if (createdBlocksList[i].isIdler && !visited.has(i)) {
+                            const lineParts = [createdBlocksList[i]];
+                            visited.add(i);
+                            let curr = i;
+
+                            while (true) {
+                                // curr'e bağlı ve henüz kullanılmamış komşuları bul
+                                const candidates = adj[curr].filter(n => !visited.has(n));
+                                if (candidates.length === 0) break;
+
+                                // En yakın komşuyu seç (fiziksel akış sırası)
+                                candidates.sort((a, b) => {
+                                    const distA = createdBlocksList[curr].center.distanceTo(createdBlocksList[a].center);
+                                    const distB = createdBlocksList[curr].center.distanceTo(createdBlocksList[b].center);
+                                    return distA - distB;
+                                });
+
+                                const nextIdx = candidates[0];
+                                lineParts.push(createdBlocksList[nextIdx]);
+                                visited.add(nextIdx);
+                                curr = nextIdx;
+
+                                // Eğer Motora ulaşıldıysa bu konveyör hattı tamamlanmıştır!
+                                if (createdBlocksList[curr].isMotor) {
+                                    break;
+                                }
+                            }
+                            components.push(lineParts);
+                        }
+                    }
+
+                    // 2. Öncelik: İdler ile başlamayan kalan konveyör parçaları (Bağımsız segmentler)
+                    for (let i = 0; i < N; i++) {
+                        if (createdBlocksList[i].isConveyor && !visited.has(i)) {
                             const comp = [];
                             const queue = [i];
                             visited.add(i);
@@ -13087,10 +13179,18 @@
                         }
                     }
 
-                    // Hatları parça sayısına göre sırala (büyük hatlar önce)
+                    // 3. Öncelik: Konveyör dışındaki tekil makineler (Palet Magazin, Robopac vb.)
+                    for (let i = 0; i < N; i++) {
+                        if (!createdBlocksList[i].isConveyor && !visited.has(i)) {
+                            visited.add(i);
+                            components.push([createdBlocksList[i]]);
+                        }
+                    }
+
+                    // Hatları büyüklüklerine göre sırala
                     components.sort((a, b) => b.length - a.length);
 
-                    // 6. ÜST MONTAJ (PARENT) VE ALT MONTAJLARI (ASSEMBLIES) OLUŞTUR
+                    // 7. ÜST MONTAJ (PARENT) VE ALT MONTAJLARI (ASSEMBLIES) OLUŞTUR
                     if (!importedProjectRoot) {
                         importedProjectRoot = new THREE.Group();
                         importedProjectRoot.userData = { type: 'project-root' };
@@ -13114,15 +13214,17 @@
                     for (let cIdx = 0; cIdx < components.length; cIdx++) {
                         const comp = components[cIdx];
                         
+                        // Konveyör Metrajı Hesapla (Toplam hat boyu, zincir boyu, kayma şeriti)
+                        const totalLengthM = comp.reduce((sum, item) => sum + (item.lengthM || 0.5), 0);
+                        const chainLengthM = totalLengthM * 2.0; // Üst ve alt dönüş zincir metrajı
+                        const slideRailM = totalLengthM * 4.0;   // Sağ ve sol, üst ve alt kayma profili metrajı
+
                         // Akıllı Montaj İsmi Belirleme
                         let assemblyTitle = '';
-                        const hasConveyorKeywords = comp.some(item => {
-                            const n = (item.name || '').toUpperCase();
-                            return n.includes('XB') || n.includes('KONV') || n.includes('CONVEYOR') || n.includes('RULO') || n.includes('BANT');
-                        });
+                        const hasConveyorKeywords = comp.some(item => item.isConveyor);
 
                         if (comp.length > 1 || hasConveyorKeywords) {
-                            assemblyTitle = `Konveyör Hattı ${conveyorLineCounter++} (${comp.length} Parça)`;
+                            assemblyTitle = `Konveyör Hattı ${conveyorLineCounter++} (${comp.length} Parça • ${totalLengthM.toFixed(1)}m | Zincir: ${chainLengthM.toFixed(1)}m)`;
                         } else {
                             const cleanName = comp[0].product.name || comp[0].name || 'Ekipman';
                             assemblyTitle = `${cleanName} #${machineCounter++}`;
