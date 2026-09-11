@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.4.4 - Ağaçtan Montaj Seçimi & Kapat Düğmesi Onarımı</title>
+    <title>WEDO v1.4.5 - Müşteriye Özel 3D Viewer Modu & Paylaşım Linki</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,10 +72,139 @@
             margin: 0 4px;
             align-self: center;
         }
+
+        /* --- 3D MÜŞTERİ VIEWER SUNUM MODU STILLERI --- */
+        body.viewer-mode #viewer-presentation-header {
+            display: flex !important;
+        }
+
+        /* Düzenleme bileşenlerini müşteri modunda gizle */
+        body.viewer-mode > header:first-of-type,
+        body.viewer-mode > div.bg-\[\#252526\],
+        body.viewer-mode #top-ribbon-bar,
+        body.viewer-mode #gizmo-mode-bar,
+        body.viewer-mode #tree-batch-action-bar,
+        body.viewer-mode #batch-move-modal,
+        body.viewer-mode #assembly-action-modal,
+        body.viewer-mode #left-tools-strip,
+        body.viewer-mode #parametric-editor,
+        body.viewer-mode #world-position-editor,
+        body.viewer-mode #world-rotation-editor,
+        body.viewer-mode #delete-selected-left-btn,
+        body.viewer-mode [data-assembly-menu],
+        body.viewer-mode [data-product-checkbox],
+        body.viewer-mode [data-select-all-assembly],
+        body.viewer-mode button[onclick*="promptCreateParentAssembly"],
+        body.viewer-mode button[onclick*="promptCreateNewSubAssembly"],
+        body.viewer-mode .viewer-hide-in-presentation {
+            display: none !important;
+        }
+
+        /* 3D Görünüm alanını tam ekran yay */
+        body.viewer-mode #canvas-container,
+        body.viewer-mode #viewport {
+            height: calc(100vh - 44px) !important;
+        }
+
+        /* Sol ürün ağacını zarif yarı saydam panel olarak konumlandır */
+        body.viewer-mode #fusion-left-browser {
+            top: 12px;
+            left: 12px;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
+            max-height: calc(100vh - 80px);
+        }
+
+        body.viewer-mode #fusion-left-browser span,
+        body.viewer-mode #fusion-left-browser button {
+            color: #f1f5f9;
+        }
+
+        /* Sağ özellikleri salt-okunur gösterge olarak zarifleştir */
+        body.viewer-mode #fixed-right-properties-panel {
+            top: 12px;
+            right: 12px;
+            height: auto;
+            max-height: calc(100vh - 80px);
+            background: rgba(15, 23, 42, 0.90);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
+        }
+
     </style>
 </head>
 
 <body class="bg-gray-900 text-white font-sans overflow-hidden flex flex-col h-screen">
+
+    <!-- MÜŞTERİYE ÖZEL 3D SUNUM GÖRÜNTÜLEYİCİ ÜST BARI (Yalnızca ?mode=viewer iken görünür) -->
+    <header id="viewer-presentation-header"
+        class="hidden h-11 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/80 items-center justify-between px-4 z-50 shrink-0 select-none shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-cyan-400 text-lg">🔷</span>
+                <div class="flex flex-col">
+                    <span class="text-xs font-black text-white tracking-wider">WEDO 3D VIEW</span>
+                    <span class="text-[8.5px] text-cyan-300 font-mono tracking-wide">MÜŞTERİ YERLEŞİM SUNUMU</span>
+                </div>
+            </div>
+            <div class="h-5 w-px bg-slate-700"></div>
+            <div class="flex items-center gap-2 text-white bg-slate-800/90 border border-slate-600/70 px-3 py-1 rounded-md shadow-sm">
+                <span class="text-amber-400">📦</span>
+                <span id="viewer-project-title" class="font-bold text-xs text-cyan-200">Proje Yükleniyor...</span>
+            </div>
+        </div>
+
+        <!-- Hızlı Kamera & Sunum Kontrolleri -->
+        <div class="flex items-center gap-2">
+            <div class="flex items-center bg-slate-800/90 rounded-lg p-0.5 border border-slate-700">
+                <button onclick="setViewerCameraView('reset')" type="button"
+                    class="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                    title="Varsayılan Görünüme Sıfırla ve Sahneyi Odakla">
+                    <span>🏠</span> Odakla
+                </button>
+                <button onclick="setViewerCameraView('iso')" type="button"
+                    class="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                    title="İzometrik Açı">
+                    <span>📐</span> İzometrik
+                </button>
+                <button onclick="setViewerCameraView('top')" type="button"
+                    class="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                    title="Kuşbakışı / Üstten Görünüm">
+                    <span>🔝</span> Üstten
+                </button>
+                <button onclick="setViewerCameraView('front')" type="button"
+                    class="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+                    title="Önden Görünüm">
+                    <span>👁️</span> Önden
+                </button>
+            </div>
+
+            <button id="viewer-btn-autorotate" onclick="toggleViewerAutoRotate()" type="button"
+                class="px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-sm"
+                title="Otomatik Döndürme">
+                <span>🔄</span> <span id="viewer-autorotate-text">Dönüşü Başlat</span>
+            </button>
+
+            <button onclick="toggleViewerTree()" type="button"
+                class="px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-sm"
+                title="Ürün Ağacını Aç / Kapat">
+                <span>🗂️</span> Parçalar
+            </button>
+
+            <button onclick="toggleViewerFullscreen()" type="button"
+                class="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 border border-cyan-500/50 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-md"
+                title="Tam Ekran Modu">
+                <span>⛶</span> Tam Ekran
+            </button>
+        </div>
+    </header>
+
     <!-- 1. TOP APPLICATION HEADER & RIBBON TOOLBAR -->
     <header
         class="h-9 bg-[#1e1e1e] border-b border-[#2d2d2d] flex items-center justify-between px-3 z-30 shrink-0 select-none">
@@ -83,7 +212,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.4 • Montaj Seçimi & Ağaç Kapatma Onarımı</span>
+                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.5 • Müşteriye Özel 3D Viewer Modu & Paylaşım Linki</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -94,6 +223,11 @@
         </div>
 
         <div class="flex items-center gap-3">
+            <button onclick="copyCustomerShareLink()" type="button"
+                class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md border border-blue-400/40 cursor-pointer"
+                title="Müşteriye özel salt-okunur 3D görüntüleme linkini panoya kopyalar ve paylaşım penceresini açar">
+                <span>🔗</span> Müşteri Linki
+            </button>
             <button onclick="saveActiveProjectToCloud()" type="button"
                 class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md border border-emerald-400/30 cursor-pointer">
                 <span>☁️</span> Buluta Kaydet
@@ -10061,6 +10195,171 @@
         window.selectAssemblyFromTree = selectAssemblyFromTree;
         window.filterModelTree = filterModelTree;
         window.collapseAllTreeAssemblies = collapseAllTreeAssemblies;
+        
+        // --- MÜŞTERİ 3D VIEWER MODU VE PAYLAŞIM FONKSİYONLARI ---
+        let viewerAutoRotate = false;
+
+        function getActiveProjectNameForShare() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let proj = urlParams.get('project') || urlParams.get('xml') || urlParams.get('file');
+            if (!proj && typeof currentXmlFilename !== 'undefined' && currentXmlFilename) {
+                proj = currentXmlFilename;
+            }
+            if (!proj) {
+                const docTitleEl = document.getElementById('fusion-doc-title');
+                if (docTitleEl && docTitleEl.innerText.trim()) {
+                    proj = docTitleEl.innerText.trim();
+                }
+            }
+            return proj || 'Adkoturk_v5';
+        }
+
+        function copyCustomerShareLink() {
+            const proj = getActiveProjectNameForShare();
+            const cleanProj = proj.replace(/\.(json|xml)$/i, '');
+            
+            const origin = window.location.origin;
+            const pathname = window.location.pathname;
+            const shareUrl = `${origin}${pathname}?mode=viewer&project=${encodeURIComponent(cleanProj)}`;
+            
+            const modal = document.getElementById('modal-share-customer-link');
+            const input = document.getElementById('input-customer-share-url');
+            if (input) input.value = shareUrl;
+            if (modal) modal.classList.remove('hidden');
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    if (typeof showNotice === 'function') {
+                        showNotice('🔗 Müşteri 3D sunum linki panoya kopyalandı!');
+                    }
+                }).catch(() => {});
+            }
+        }
+
+        function closeCustomerShareModal() {
+            const modal = document.getElementById('modal-share-customer-link');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function copyCustomerShareUrlFromInput() {
+            const input = document.getElementById('input-customer-share-url');
+            if (!input) return;
+            input.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    if (typeof showNotice === 'function') {
+                        showNotice('✅ Link panoya kopyalandı!');
+                    } else {
+                        alert('Link panoya kopyalandı!');
+                    }
+                });
+            } else {
+                document.execCommand('copy');
+                alert('Link kopyalandı!');
+            }
+        }
+
+        function openCustomerViewerInNewTab() {
+            const input = document.getElementById('input-customer-share-url');
+            if (input && input.value) {
+                window.open(input.value, '_blank');
+            }
+        }
+
+        function initViewerMode(projectName) {
+            document.body.classList.add('viewer-mode');
+
+            if (transformControls) {
+                transformControls.detach();
+                transformControls.enabled = false;
+            }
+
+            const gizmoBar = document.getElementById('gizmo-mode-bar');
+            if (gizmoBar) gizmoBar.classList.add('hidden');
+
+            let displayTitle = projectName || '3D Yerleşim Modeli';
+            displayTitle = displayTitle.replace(/\.(json|xml)$/i, '');
+            if (displayTitle.includes('_')) {
+                displayTitle = displayTitle.replace(/_v(\d+)/i, ' (v$1)').replace(/_/g, ' ');
+            }
+            const titleEl = document.getElementById('viewer-project-title');
+            if (titleEl) {
+                titleEl.innerText = displayTitle;
+            }
+            document.title = `${displayTitle} - 3D Yerleşim Görüntüleyici | WEDO`;
+
+            setTimeout(() => {
+                const targetObj = (typeof getViewportTarget === 'function' ? getViewportTarget() : null) || scene;
+                if (typeof fitCameraToObject === 'function') {
+                    fitCameraToObject(targetObj, 1.4);
+                }
+            }, 600);
+        }
+
+        function setViewerCameraView(viewName) {
+            if (viewName === 'reset') {
+                const targetObj = (typeof getViewportTarget === 'function' ? getViewportTarget() : null) || scene;
+                if (typeof fitCameraToObject === 'function') {
+                    fitCameraToObject(targetObj, 1.3);
+                } else if (typeof setViewportView === 'function') {
+                    setViewportView('iso');
+                }
+            } else {
+                if (typeof setViewportView === 'function') {
+                    setViewportView(viewName);
+                }
+            }
+        }
+
+        function toggleViewerAutoRotate() {
+            viewerAutoRotate = !viewerAutoRotate;
+            if (controls) {
+                controls.autoRotate = viewerAutoRotate;
+                controls.autoRotateSpeed = 1.5;
+            }
+            const btn = document.getElementById('viewer-btn-autorotate');
+            const text = document.getElementById('viewer-autorotate-text');
+            if (btn && text) {
+                if (viewerAutoRotate) {
+                    btn.classList.add('bg-cyan-600', 'text-white');
+                    btn.classList.remove('bg-slate-800/90');
+                    text.innerText = 'Dönüşü Durdur';
+                } else {
+                    btn.classList.remove('bg-cyan-600', 'text-white');
+                    btn.classList.add('bg-slate-800/90');
+                    text.innerText = 'Dönüşü Başlat';
+                }
+            }
+        }
+
+        function toggleViewerFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+        }
+
+        function toggleViewerTree() {
+            const treeContainer = document.getElementById('fusion-left-browser');
+            if (treeContainer) {
+                treeContainer.classList.toggle('hidden');
+            }
+        }
+
+        window.copyCustomerShareLink = copyCustomerShareLink;
+        window.closeCustomerShareModal = closeCustomerShareModal;
+        window.copyCustomerShareUrlFromInput = copyCustomerShareUrlFromInput;
+        window.openCustomerViewerInNewTab = openCustomerViewerInNewTab;
+        window.initViewerMode = initViewerMode;
+        window.setViewerCameraView = setViewerCameraView;
+        window.toggleViewerAutoRotate = toggleViewerAutoRotate;
+        window.toggleViewerFullscreen = toggleViewerFullscreen;
+        window.toggleViewerTree = toggleViewerTree;
+
+
         function focusProductEntry(key) {
             const entry = modelTreeEntries.find((item) => getTreeKeyForProduct(item.assemblyName, item.product) === key);
             if (!entry) return;
@@ -10655,7 +10954,12 @@
                 if (selectedMeshes.length > 0) {
                     selectedMesh = selectedMeshes[selectedMeshes.length - 1];
                     const targetTransformMesh = getCableTrayAssemblyRoot(selectedMesh) || selectedMesh;
-                    if (transformControls) transformControls.attach(targetTransformMesh);
+                    if (transformControls) if (document.body.classList.contains('viewer-mode')) {
+                transformControls.detach();
+                transformControls.enabled = false;
+            } else {
+                transformControls.attach(targetTransformMesh);
+            }
                     attachSelectionLocalAxesGuide(targetTransformMesh);
                 } else {
                     clearSelection();
@@ -17702,6 +18006,15 @@ if (typeof window !== 'undefined') {
                     onWindowResize();
                 }
                 setViewportView('iso');
+                
+            // Müşteri 3D Viewer Modu Kontrolü (?mode=viewer)
+            const startupUrlParams = new URLSearchParams(window.location.search);
+            const isViewerStartup = startupUrlParams.get('mode') === 'viewer' || startupUrlParams.get('viewer') === 'true' || startupUrlParams.get('view') === 'client';
+            if (isViewerStartup) {
+                const targetProjName = startupUrlParams.get('project') || startupUrlParams.get('xml') || startupUrlParams.get('file');
+                initViewerMode(targetProjName);
+            }
+
                 if (typeof generateAllConveyorPathways === 'function' && restored) {
                     generateAllConveyorPathways();
                 }
@@ -19298,5 +19611,56 @@ if (typeof window !== 'undefined') {
             </div>
         </div>
     </div>
+
+    <!-- Müşteriye Özel Link Paylaşım Modalı -->
+    <div id="modal-share-customer-link" class="hidden fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 text-slate-100 border-2 border-cyan-500/80 rounded-xl shadow-2xl p-5 w-full max-w-lg space-y-4 text-xs">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-2.5">
+                <h3 class="text-sm font-bold text-cyan-400 flex items-center gap-2">
+                    <span>🔗</span> Müşteriye Özel 3D Viewer Linki
+                </h3>
+                <button type="button" onclick="closeCustomerShareModal()" class="text-slate-400 hover:text-white text-base font-bold cursor-pointer">✕</button>
+            </div>
+            
+            <p class="text-slate-300 text-xs leading-relaxed">
+                Bu bağlantı müşterilerinize özeldir. Sayfa açıldığında <strong>tüm CAD düzenleme araçları, gizmo taşıma kontrolleri ve hassas paneller gizlenir</strong>; müşteri doğrudan 3D yerleşimi inceler, kamera açılarını değiştirir ve ürün ağacından parçaları seçebilir.
+            </p>
+
+            <div class="space-y-1.5">
+                <label class="font-semibold text-slate-300 text-[11px] block">Müşteri Paylaşım Bağlantısı:</label>
+                <div class="flex items-center gap-2">
+                    <input id="input-customer-share-url" type="text" readonly
+                        class="flex-1 bg-slate-800 border border-slate-600 text-cyan-200 font-mono text-[11px] px-3 py-2 rounded-lg focus:outline-none focus:border-cyan-400 select-all" />
+                    <button type="button" onclick="copyCustomerShareUrlFromInput()"
+                        class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition cursor-pointer shadow">
+                        Kopyala
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700 space-y-1.5 text-[11px] text-slate-300">
+                <div class="font-bold text-amber-300 flex items-center gap-1.5">
+                    <span>💡</span> Müşteri Görünümü Özellikleri:
+                </div>
+                <ul class="list-disc list-inside space-y-1 text-slate-400 text-[10.5px]">
+                    <li>Salt-okunur korumalı: Yerleşim ve parçalar taşınamaz veya silinemez.</li>
+                    <li>Sadeleştirilmiş üst bar: İzometrik, Üst, Ön açılar ve Otomatik Tur.</li>
+                    <li>Dokunmatik ekran, fare tekerleği ve çift tıkla parça odaklama.</li>
+                </ul>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+                <button type="button" onclick="openCustomerViewerInNewTab()"
+                    class="text-cyan-400 hover:text-cyan-300 underline text-xs font-semibold flex items-center gap-1 cursor-pointer">
+                    <span>↗️</span> Müşteri Görünümünü Önizle (Yeni Sekmede Aç)
+                </button>
+                <button type="button" onclick="closeCustomerShareModal()"
+                    class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
