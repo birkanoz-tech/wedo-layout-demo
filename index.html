@@ -34,7 +34,7 @@
                       (document.body?.classList.contains('viewer-mode') || document.documentElement?.classList.contains('viewer-mode'))));
         }
     </script>
-    <title>WEDO v1.4.8 - Müşteri Linkinde Kablo Tavaları ve Yolları Tamamen Gizlendi</title>
+    <title>WEDO v1.4.9 - Müşteri Linki Sadeleştirme & Temiz Sunum Görünümü</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -136,35 +136,18 @@
             height: calc(100vh - 44px) !important;
         }
 
-        /* Sol ürün ağacını zarif yarı saydam panel olarak konumlandır */
-        body.viewer-mode #fusion-left-browser {
-            top: 12px;
-            left: 12px;
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 8px;
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
-            max-height: calc(100vh - 80px);
-        }
-
-        body.viewer-mode #fusion-left-browser span,
-        body.viewer-mode #fusion-left-browser button {
-            color: #f1f5f9;
-        }
-
-        /* Sağ özellikleri salt-okunur gösterge olarak zarifleştir */
+        /* Müşteri modunda sol ürün ağacı ve sağ özellikler panellerini tamamen gizle */
+        html.viewer-mode #fusion-left-browser,
+        body.viewer-mode #fusion-left-browser,
+        html.viewer-mode #fixed-right-properties-panel,
         body.viewer-mode #fixed-right-properties-panel {
-            top: 12px;
-            right: 12px;
-            height: auto;
-            max-height: calc(100vh - 80px);
-            background: rgba(15, 23, 42, 0.90);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
+            display: none !important;
+        }
+
+        html.viewer-mode #axis-gizmo-wrapper,
+        body.viewer-mode #axis-gizmo-wrapper {
+            right: 16px !important;
+            bottom: 16px !important;
         }
 
     </style>
@@ -221,12 +204,6 @@
                 <span>🔄</span> <span id="viewer-autorotate-text">Dönüşü Başlat</span>
             </button>
 
-            <button onclick="toggleViewerTree()" type="button"
-                class="px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-sm"
-                title="Ürün Ağacını Aç / Kapat">
-                <span>🗂️</span> Parçalar
-            </button>
-
             <button onclick="toggleViewerFullscreen()" type="button"
                 class="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 border border-cyan-500/50 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-md"
                 title="Tam Ekran Modu">
@@ -242,26 +219,13 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.8 • Müşteri Görünümü (Kablo Tavaları Gizli)</span>
+                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.9 • Temiz Müşteri Görünümü</span>
             </div>
-            <div class="h-4 w-px bg-gray-700"></div>
-            <div
-                class="flex items-center gap-2 bg-[#252526] border-t-2 border-blue-500 text-white text-xs px-3 py-1 rounded-t shadow-sm">
-                <span>📄</span>
-                <span id="fusion-doc-title" class="font-medium text-[11px]">OPP-0106989-1-R1.xml</span>
-            </div>
+            <span id="fusion-doc-title" class="hidden"></span>
         </div>
 
         <div class="flex items-center gap-3">
-            <button onclick="copyCustomerShareLink()" type="button"
-                class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md border border-blue-400/40 cursor-pointer"
-                title="Müşteriye özel salt-okunur 3D görüntüleme linkini panoya kopyalar ve paylaşım penceresini açar">
-                <span>🔗</span> Müşteri Linki
-            </button>
-            <button onclick="saveActiveProjectToCloud()" type="button"
-                class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md border border-emerald-400/30 cursor-pointer">
-                <span>☁️</span> Buluta Kaydet
-            </button>
+
             <div id="user-profile-bar" class="flex items-center gap-2">
                 <button id="user-profile-btn" onclick="openUserProfileModal()"
                     class="bg-[#2a2a2a] hover:bg-[#333333] text-white border border-gray-700 px-2.5 py-1 rounded-lg shadow-sm backdrop-blur text-xs font-semibold flex items-center gap-2 transition cursor-pointer">
@@ -337,6 +301,11 @@
                     <button onclick="saveActiveProjectToCloud()" type="button"
                         class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm">
                         <span>☁️</span> Buluta Kaydet
+                    </button>
+                    <button onclick="copyCustomerShareLink()" type="button"
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm border border-blue-400/30"
+                        title="Müşteriye özel salt-okunur 3D görüntüleme linkini panoya kopyalar ve paylaşım penceresini açar">
+                        <span>🔗</span> Müşteri Linki
                     </button>
                 </div>
 
@@ -10286,11 +10255,11 @@
             }
             if (!proj) {
                 const docTitleEl = document.getElementById('fusion-doc-title');
-                if (docTitleEl && docTitleEl.innerText.trim()) {
+                if (docTitleEl && docTitleEl.innerText.trim() && !docTitleEl.innerText.includes('OPP-0106989')) {
                     proj = docTitleEl.innerText.trim();
                 }
             }
-            return proj || 'Adkoturk_v5';
+            return proj || 'Adkoturk_v8';
         }
 
         function copyCustomerShareLink() {
@@ -10432,7 +10401,13 @@
             const gizmoBar = document.getElementById('gizmo-mode-bar');
             if (gizmoBar) gizmoBar.classList.add('hidden');
 
-            let displayTitle = projectName || '3D Yerleşim Modeli';
+            const leftBrowser = document.getElementById('fusion-left-browser');
+            if (leftBrowser) leftBrowser.classList.add('hidden');
+
+            const rightPanel = document.getElementById('fixed-right-properties-panel');
+            if (rightPanel) rightPanel.classList.add('hidden');
+
+            let displayTitle = (projectName && !projectName.includes('OPP-0106989')) ? projectName : '3D Yerleşim Modeli';
             displayTitle = displayTitle.replace(/\.(json|xml)$/i, '');
             if (displayTitle.includes('_')) {
                 displayTitle = displayTitle.replace(/_v(\d+)/i, ' (v$1)').replace(/_/g, ' ');
@@ -12087,7 +12062,7 @@
             return {
                 format: "ProposalApp_3D_Scene_Document",
                 version: "2.1.0",
-                filename: currentXmlFilename ? currentXmlFilename.replace(/\.xml$/i, '.json') : 'OPP-0106989-1-R1.json',
+                filename: currentXmlFilename ? currentXmlFilename.replace(/\.xml$/i, '.json') : 'Proje.json',
                 timestamp: Date.now(),
                 assemblies: serializableAssemblies,
                 models: allModelsList,
@@ -12604,7 +12579,7 @@
         window.saveActiveProjectToCloud = saveActiveProjectToCloud;
 
         function calculateNextAvailableRevisionName(activeProjName) {
-            let suggestedName = (activeProjName || 'OPP-0106989-1-R1.json').trim();
+            let suggestedName = (activeProjName || 'Proje.json').trim();
             if (!suggestedName.toLowerCase().endsWith('.json') && !suggestedName.toLowerCase().endsWith('.xml')) {
                 suggestedName += '.json';
             }
@@ -12664,7 +12639,7 @@
         function openSaveAsNewProjectModal() {
             let modal = document.getElementById('modal-save-as-project');
             const urlParams = new URLSearchParams(window.location.search);
-            const activeProj = urlParams.get('project') || urlParams.get('json') || urlParams.get('xml') || currentXmlFilename || 'OPP-0106989-1-R1.json';
+            const activeProj = urlParams.get('project') || urlParams.get('json') || urlParams.get('xml') || currentXmlFilename || 'Proje.json';
             
             const suggestedName = calculateNextAvailableRevisionName(activeProj);
             const savedToken = localStorage.getItem('GITHUB_ACCESS_TOKEN') || '';
@@ -15834,6 +15809,7 @@
         }
 
         function toggleRightPropertiesPanel() {
+            if (isViewerModeActive()) return;
             const panel = document.getElementById('fixed-right-properties-panel');
             const expandedView = document.getElementById('right-panel-expanded-view');
             const collapsedView = document.getElementById('right-panel-collapsed-view');
@@ -15868,6 +15844,7 @@
         window.toggleRightPropertiesPanel = toggleRightPropertiesPanel;
 
         function ensureRightPropertiesPanelOpen() {
+            if (isViewerModeActive()) return;
             const panel = document.getElementById('fixed-right-properties-panel');
             const expandedView = document.getElementById('right-panel-expanded-view');
             const collapsedView = document.getElementById('right-panel-collapsed-view');
@@ -18102,7 +18079,7 @@ if (typeof window !== 'undefined') {
                     await loadEmptyScene(false);
                     restored = true;
                 } else {
-                    let projectQuery = explicitProject || 'OPP-0106989-1-R1.xml';
+                    let projectQuery = explicitProject || null;
 
                 if (projectQuery) {
                     projectQuery = projectQuery.trim();
@@ -18120,7 +18097,7 @@ if (typeof window !== 'undefined') {
                         searchPaths.unshift(`${rawGitHubBase}/projects/${projectQuery}`, `projects/${projectQuery}`, projectQuery);
                     }
                     if (!explicitProject) {
-                        searchPaths.push('projects/OPP-0106989-1-R1.xml', 'OPP-0106989-1-R1.xml');
+                        // searchPaths fallback
                     }
 
                     const statusEl = document.getElementById('import-status');
