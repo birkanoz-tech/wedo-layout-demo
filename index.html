@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.4.6 - Yetki Kısıtlamaları Kaldırıldı (Serbest Erişim) & 3D Viewer</title>
+    <title>WEDO v1.4.7 - Müşteri Linkinde Kablo Yollarını Gizleme & Temiz Görünüm</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -212,7 +212,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.6 • Serbest Erişim & 3D Viewer</span>
+                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.7 • Müşteri Görünümü (Kablo Yolları Gizli)</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -9216,8 +9216,24 @@
                 return;
             }
 
+            // Müşteri sunum modunda kablo kanallarını ağaçtan filtrele
+            let visibleTreeEntries = modelTreeEntries;
+            if (document.body.classList.contains('viewer-mode')) {
+                visibleTreeEntries = modelTreeEntries.filter(entry => {
+                    const aName = String(entry.assemblyName || '').toLowerCase();
+                    const pName = String(entry.product?.name || '').toLowerCase();
+                    if (aName.includes('cable') || aName.includes('kablo') || pName.includes('kablo') || pName.includes('cable')) {
+                        return false;
+                    }
+                    if (entry.mesh && (entry.mesh.userData?.isCableTrayAssembly || entry.mesh.userData?.parametricKind === 'cable-tray')) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
             // 1. Temel montajları topla
-            const rawAssemblies = modelTreeEntries.reduce((acc, entry) => {
+            const rawAssemblies = visibleTreeEntries.reduce((acc, entry) => {
                 const existing = acc.find((item) => item.name === entry.assemblyName);
                 if (existing) {
                     existing.items.push(entry);
@@ -9237,10 +9253,16 @@
             }
 
             // 2. Üst montaj listesindeki tüm parent isimleri
-            const allParentNames = Array.from(new Set([
+            let allParentNames = Array.from(new Set([
                 ...parentAssemblyList,
                 ...Object.values(assemblyParentMap)
             ]));
+            if (document.body.classList.contains('viewer-mode')) {
+                allParentNames = allParentNames.filter(p => {
+                    const low = String(p || '').toLowerCase();
+                    return !low.includes('cable') && !low.includes('kablo');
+                });
+            }
 
             // 3. Alt montajları üst montajlarına göre grupla (BOŞ OLSA DAHİ GÖSTER!)
             const parentGroups = allParentNames.map(pName => {
@@ -10266,6 +10288,44 @@
             }
         }
 
+        function hideCablePathwaysForViewer() {
+            // 1. 400mm konveyör altı tava yollarını kaldır
+            if (window.conveyorPathwayGroup) {
+                window.conveyorPathwayGroup.visible = false;
+                if (typeof scene !== 'undefined' && scene) scene.remove(window.conveyorPathwayGroup);
+                window.conveyorPathwayGroup = null;
+            }
+            // 2. Kablo bağlantı çizgilerini ve tüplerini gizle
+            if (typeof pathCableLinks !== 'undefined' && Array.isArray(pathCableLinks)) {
+                pathCableLinks.forEach(l => {
+                    if (l.cableGroup) l.cableGroup.visible = false;
+                });
+            }
+            // 3. Sahnede kayıtlı tüm kablo kanalı / tava nesnelerini gizle
+            if (typeof scene !== 'undefined' && scene) {
+                scene.traverse((node) => {
+                    if (!node) return;
+                    const name = String(node.name || '').toLowerCase();
+                    const uName = String(node.userData?.product?.name || '').toLowerCase();
+                    const assName = String(node.userData?.assemblyName || '').toLowerCase();
+                    if (name.includes('conveyor400mmpathwaysgroup') || 
+                        name.includes('cableline') || 
+                        name.includes('cabletraysystem') ||
+                        name.includes('cabletray') ||
+                        name.includes('kablo') ||
+                        uName.includes('kablo') ||
+                        uName.includes('cable') ||
+                        assName.includes('cable') ||
+                        assName.includes('kablo') ||
+                        node.userData?.isCableTrayAssembly ||
+                        node.userData?.parametricKind === 'cable-tray' ||
+                        node.userData?.isCable) {
+                        node.visible = false;
+                    }
+                });
+            }
+        }
+
         function initViewerMode(projectName) {
             document.body.classList.add('viewer-mode');
 
@@ -10287,6 +10347,18 @@
                 titleEl.innerText = displayTitle;
             }
             document.title = `${displayTitle} - 3D Yerleşim Görüntüleyici | WEDO`;
+
+            // Müşteri modunda kablo yollarını gizle
+            hideCablePathwaysForViewer();
+            setTimeout(() => {
+                hideCablePathwaysForViewer();
+                if (typeof renderModelTree === 'function') {
+                    renderModelTree();
+                }
+            }, 300);
+            setTimeout(() => {
+                hideCablePathwaysForViewer();
+            }, 800);
 
             setTimeout(() => {
                 const targetObj = (typeof getViewportTarget === 'function' ? getViewportTarget() : null) || scene;
@@ -11941,6 +12013,10 @@
         }
 
         function restoreAllCableLinks(savedCableLinks) {
+            // Müşteri sunum modunda kablo bağlantıları gizlenir
+            if (document.body.classList.contains('viewer-mode')) {
+                return;
+            }
             if (!Array.isArray(savedCableLinks) || savedCableLinks.length === 0) return;
 
             if (Array.isArray(pathCableLinks)) {
@@ -14704,6 +14780,15 @@
         }
 
         function generateAllConveyorPathways() {
+            // Müşteri sunum modunda kablo yolları gizlenir
+            if (document.body.classList.contains('viewer-mode')) {
+                if (window.conveyorPathwayGroup) {
+                    scene.remove(window.conveyorPathwayGroup);
+                    window.conveyorPathwayGroup = null;
+                }
+                return;
+            }
+
             if (window.conveyorPathwayGroup) {
                 scene.remove(window.conveyorPathwayGroup);
             }
