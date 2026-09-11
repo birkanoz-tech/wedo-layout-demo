@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.3.9 - Hassas 3-5mm Temas Toleransı ile AutoCAD Montaj Ayrımı</title>
+    <title>WEDO v1.4.0 - Ters Yönde 100mm İç İçe Geçme Toleransı ile AutoCAD Montaj Ayrımı</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -83,7 +83,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Hassas 3-5mm Temas Toleransı • Bounding box temas toleransı 5mm olarak sınırlandırıldı; yan yana veya yakın geçen hatlar birbirine karışmadan ayrık montajlanır">v1.3.9 • Hassas 5mm Montaj Toleransı</span>
+                    title="Ters Yönde 100mm Tolerans • Modellerin en az 100mm birbirinin içine girmesi (160mm mekanik geçme) kriteriyle konveyör hatları kusursuz ayrıştırılır">v1.4.0 • Ters Yönde 100mm Girişim Kriteri</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -13024,18 +13024,38 @@
                     }
 
                     // 5. 3D UZAMSAL TEMAS VE BAĞLANTI GRAFİĞİ (CONNECTED COMPONENTS BFS)
-                    // Birbirine fiziksel olarak temas eden / bağlanan modelleri tespit et (Hassas 5 mm tolerans)
+                    // Birbirine fiziksel olarak eklenen / iç içe geçen modelleri tespit et (Ters yönde 100 mm tolerans)
                     const N = createdBlocksList.length;
                     const adj = Array.from({ length: N }, () => []);
-                    const contactMargin = 0.005; // En fazla 5 mm (0.005 m) hassas temas toleransı
+                    const minOverlapDepth = 0.10; // En az 100 mm (0.10 m) iç içe geçme / girişim şartı
 
                     for (let i = 0; i < N; i++) {
-                        const boxA = createdBlocksList[i].box.clone().expandByScalar(contactMargin);
+                        const boxA = createdBlocksList[i].box;
                         for (let j = i + 1; j < N; j++) {
                             const boxB = createdBlocksList[j].box;
 
-                            // 3D Bounding Box Teması: Yalnızca fiziksel olarak birebir temas eden modeller bağlanır
-                            const isConnected = boxA.intersectsBox(boxB);
+                            let isConnected = false;
+                            const intersection = boxA.clone().intersect(boxB);
+
+                            if (!intersection.isEmpty()) {
+                                const overlapX = Math.max(0, intersection.max.x - intersection.min.x);
+                                const overlapY = Math.max(0, intersection.max.y - intersection.min.y);
+                                const overlapZ = Math.max(0, intersection.max.z - intersection.min.z);
+
+                                // Mekanik kural: Konveyör parçaları bağlantı ekseninde en az 100 mm birbirinin içine girer (~160mm mekanik geçme)
+                                // Yan yana duran veya dıştan temas eden parçalar iç içe 100mm girmediği için bağlanmaz!
+                                const maxOverlap = Math.max(overlapX, overlapY, overlapZ);
+
+                                // Ters yönde 100 mm tolerans kontrolü:
+                                // Ya doğrudan eksenel iç içe geçme derinliği >= 100 mm,
+                                // ya da ters yönde -100 mm genişletme (daraltma) sonrası hala kesişim olması
+                                const boxAContracted = boxA.clone().expandByScalar(-0.05);
+                                const boxBContracted = boxB.clone().expandByScalar(-0.05);
+
+                                if (maxOverlap >= minOverlapDepth || boxAContracted.intersectsBox(boxBContracted)) {
+                                    isConnected = true;
+                                }
+                            }
 
                             if (isConnected) {
                                 adj[i].push(j);
