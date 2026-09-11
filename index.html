@@ -34,7 +34,7 @@
                       (document.body?.classList.contains('viewer-mode') || document.documentElement?.classList.contains('viewer-mode'))));
         }
     </script>
-    <title>WEDO v1.4.9 - Müşteri Linki Sadeleştirme & Temiz Sunum Görünümü</title>
+    <title>WEDO v1.5.0 - Model & Montaj Silme (X Kısayolu ve Bağımlılık Temizliği)</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -219,7 +219,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.9 • Temiz Müşteri Görünümü</span>
+                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.5.0 • Model & Montaj Silme (X Kısayolu)</span>
             </div>
             <span id="fusion-doc-title" class="hidden"></span>
         </div>
@@ -3879,6 +3879,11 @@
                 }
 
                 if (event.key === 'Escape') {
+                    if (typeof isDeleteConfirmationModalOpen === 'function' && isDeleteConfirmationModalOpen()) {
+                        event.preventDefault();
+                        closeDeleteConfirmationModal();
+                        return;
+                    }
                     if (isStreetViewActive) {
                         event.preventDefault();
                         exitStreetView();
@@ -3887,6 +3892,22 @@
                     event.preventDefault();
                     cancelActiveMode('Yerleştirme modu ESC ile kapatıldı.');
                     return;
+                }
+
+                if (event.key === 'Enter') {
+                    if (typeof isDeleteConfirmationModalOpen === 'function' && isDeleteConfirmationModalOpen()) {
+                        event.preventDefault();
+                        executeConfirmedDeletion();
+                        return;
+                    }
+                }
+
+                if (event.key === 'x' || event.key === 'X') {
+                    if (!event.ctrlKey && !event.altKey && !event.metaKey) {
+                        event.preventDefault();
+                        promptDeleteSelected();
+                        return;
+                    }
                 }
 
                 // Street View aktifken W, A, S, D, Ok tuşları, Q, E ile yürüme & kaydırma
@@ -3948,7 +3969,7 @@
 
                 if (event.key === 'Delete' || event.key === 'Backspace') {
                     event.preventDefault();
-                    deleteSelectedModel();
+                    promptDeleteSelected();
                     return;
                 }
 
@@ -10595,48 +10616,392 @@
             return current || mesh;
         }
 
-        function deleteSelectedModel() {
-            if (!selectedMesh) {
-                return;
+        // =========================================================================
+        // GELİŞMİŞ MODEL & MONTAJ SİLME MOTORU (X Kısayolu & Bağımlılık Temizliği)
+        // =========================================================================
+        let pendingDeletion = null;
+
+        function isDeleteConfirmationModalOpen() {
+            const modal = document.getElementById('modal-confirm-delete');
+            return modal && !modal.classList.contains('hidden');
+        }
+
+        function closeDeleteConfirmationModal() {
+            const modal = document.getElementById('modal-confirm-delete');
+            if (modal) modal.classList.add('hidden');
+            pendingDeletion = null;
+        }
+
+        function getDependentCableLinksForTargets(meshes, panelIds = [], productNames = []) {
+            if (!Array.isArray(pathCableLinks) || pathCableLinks.length === 0) return [];
+
+            const meshSet = new Set();
+            const idSet = new Set((panelIds || []).filter(Boolean));
+            const nameSet = new Set((productNames || []).filter(Boolean));
+
+            (meshes || []).forEach(m => {
+                if (!m) return;
+                meshSet.add(m);
+                if (m.name) nameSet.add(m.name);
+                if (m.userData) {
+                    if (m.userData.panelId) idSet.add(m.userData.panelId);
+                    if (m.userData.product?.name) nameSet.add(m.userData.product.name);
+                    if (m.userData.product?.productno) nameSet.add(m.userData.product.productno);
+                    if (m.userData.displayName) nameSet.add(m.userData.displayName);
+                }
+                m.traverse && m.traverse(c => {
+                    meshSet.add(c);
+                    if (c.name) nameSet.add(c.name);
+                    if (c.userData?.panelId) idSet.add(c.userData.panelId);
+                    if (c.userData?.product?.name) nameSet.add(c.userData.product.name);
+                });
+            });
+
+            return pathCableLinks.filter(l => {
+                if (!l) return false;
+                if (l.sourceMesh && meshSet.has(l.sourceMesh)) return true;
+                if (l.targetMesh && meshSet.has(l.targetMesh)) return true;
+                if (l.sourcePanelId && idSet.has(l.sourcePanelId)) return true;
+                if (l.sourceName && (nameSet.has(l.sourceName) || idSet.has(l.sourceName))) return true;
+                if (l.targetName && nameSet.has(l.targetName)) return true;
+                for (const n of nameSet) {
+                    if (n && l.targetName && (l.targetName === n || l.targetName.includes(n) || n.includes(l.targetName))) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
+
+        function disposeMeshHierarchy(obj) {
+            if (!obj) return;
+            obj.traverse && obj.traverse(node => {
+                if (node.isMesh) {
+                    if (node.geometry) node.geometry.dispose();
+                    if (node.material) {
+                        if (Array.isArray(node.material)) {
+                            node.material.forEach(m => m && m.dispose && m.dispose());
+                        } else if (node.material.dispose) {
+                            node.material.dispose();
+                        }
+                    }
+                }
+            });
+        }
+
+        function promptDeleteSelected() {
+            let targetType = 'model';
+            let targetName = '';
+            let targetAssembly = '';
+            let targetMeshes = [];
+            let targetProducts = [];
+            let targetPanelIds = [];
+            let targetNames = [];
+            let singleProduct = null;
+
+            // 1. Ağaçtan Montaj Grubu seçilmiş mi?
+            if (selectedAssemblyName) {
+                targetType = 'assembly';
+                targetName = selectedAssemblyName;
+                targetAssembly = selectedAssemblyName;
+                
+                const entries = (modelTreeEntries || []).filter(e => e.assemblyName === selectedAssemblyName);
+                targetProducts = entries.map(e => e.product).filter(Boolean);
+                targetMeshes = entries.filter(e => e.mesh).map(e => e.mesh);
+                
+                targetProducts.forEach(p => {
+                    if (p.name) targetNames.push(p.name);
+                });
+                targetMeshes.forEach(m => {
+                    if (m.userData?.panelId) targetPanelIds.push(m.userData.panelId);
+                    if (m.name) targetNames.push(m.name);
+                });
+            }
+            // 2. Çoklu model seçilmiş mi (batch selection)?
+            else if (Array.isArray(selectedMeshes) && selectedMeshes.length > 1) {
+                targetType = 'multiple-models';
+                targetName = `${selectedMeshes.length} Adet Seçili Model`;
+                targetMeshes = selectedMeshes.map(m => (typeof findRootMesh === 'function' ? findRootMesh(m) : null) || m);
+                targetMeshes.forEach(m => {
+                    if (m.userData?.product) targetProducts.push(m.userData.product);
+                    if (m.userData?.product?.name) targetNames.push(m.userData.product.name);
+                    if (m.userData?.panelId) targetPanelIds.push(m.userData.panelId);
+                    if (m.name) targetNames.push(m.name);
+                });
+                targetAssembly = targetMeshes[0]?.userData?.assemblyName || '-';
+            }
+            // 3. Tekil model seçilmiş mi (sahneden veya ağaçtan)?
+            else if (selectedMesh) {
+                targetType = 'model';
+                const root = (typeof findRootMesh === 'function' ? findRootMesh(selectedMesh) : null) || selectedMesh;
+                targetMeshes = [root];
+                singleProduct = root.userData?.product || selectedMesh.userData?.product || null;
+                if (singleProduct) targetProducts.push(singleProduct);
+
+                targetName = singleProduct?.name || root.userData?.panelId || root.name || 'Seçili Model';
+                targetAssembly = (typeof getAssemblyNameFromObject === 'function' ? getAssemblyNameFromObject(root) : null) || root.userData?.assemblyName || selectedModelParentAssembly || '-';
+                
+                if (root.userData?.panelId) targetPanelIds.push(root.userData.panelId);
+                if (targetName) targetNames.push(targetName);
+            }
+            // 4. Ağaçta seçili öğe var ama 3D mesh'i yok mu?
+            else if (selectedTreeKey) {
+                const entry = (modelTreeEntries || []).find(e => getTreeKeyForProduct(e.assemblyName, e.product) === selectedTreeKey);
+                if (entry) {
+                    targetType = 'tree-product';
+                    singleProduct = entry.product;
+                    targetName = entry.product?.name || entry.product?.productno || 'Ağaç Öğesi';
+                    targetAssembly = entry.assemblyName || '-';
+                    if (entry.mesh) targetMeshes = [entry.mesh];
+                }
             }
 
-            if (!isSelectionDeletable(selectedMesh)) {
-                const manualStatus = document.getElementById('manual-library-status');
-                if (manualStatus) {
-                    manualStatus.innerText = 'Bu model kilitli. Sadece manuel eklenen modeller silinebilir.';
+            // Hiçbir şey seçili değilse uyar
+            if (targetMeshes.length === 0 && !singleProduct && targetType !== 'assembly') {
+                if (typeof showNotice === 'function') {
+                    showNotice('⚠️ Lütfen silmek için önce sahneden veya ürün ağacından bir model ya da montaj seçin.', 'warning');
                 }
                 return;
             }
 
-            const manualStatus = document.getElementById('manual-library-status');
-            const targetObj = findTopDeletableObject(selectedMesh) || selectedMesh;
-            const removedLabel = targetObj.userData?.panelId || targetObj.userData?.product?.name || selectedMesh.userData?.product?.name || 'Model';
+            // Bağımlı kablo hatlarını tespit et
+            const dependentLinks = getDependentCableLinksForTargets(targetMeshes, targetPanelIds, targetNames);
 
-            const panelId = targetObj.userData?.panelId || targetObj.name;
-            if (targetObj.userData?.isPanel || targetObj.userData?.parametricKind === 'panel' || (panelId && String(panelId).startsWith('PANO-'))) {
-                addedPanels = addedPanels.filter(p => p.mesh !== targetObj && p.mesh !== selectedMesh && p.id !== panelId);
-                setSafeInnerText('cnt-panel', `${addedPanels.length} Adet`);
+            pendingDeletion = {
+                type: targetType,
+                displayName: targetName,
+                assemblyName: targetAssembly,
+                targets: targetMeshes,
+                products: targetProducts,
+                product: singleProduct,
+                dependentLinks: dependentLinks
+            };
+
+            // Modal Arayüzünü Doldur
+            const modal = document.getElementById('modal-confirm-delete');
+            const titleEl = document.getElementById('delete-modal-title');
+            const nameEl = document.getElementById('delete-modal-target-name');
+            const typeEl = document.getElementById('delete-modal-target-type');
+            const assyEl = document.getElementById('delete-modal-target-assembly');
+            const depBox = document.getElementById('delete-modal-dependency-warning');
+            const depText = document.getElementById('delete-modal-dependency-text');
+
+            if (titleEl) {
+                if (targetType === 'assembly') {
+                    titleEl.innerText = 'Montaj Grubunu Silmek İstiyor musunuz?';
+                } else if (targetType === 'multiple-models') {
+                    titleEl.innerText = `${targetMeshes.length} Adet Modeli Silmek İstiyor musunuz?`;
+                } else {
+                    titleEl.innerText = '3D Modeli Silmek İstiyor musunuz?';
+                }
             }
 
-            if (targetObj.parent) {
-                targetObj.parent.remove(targetObj);
-            } else if (selectedMesh.parent) {
-                selectedMesh.parent.remove(selectedMesh);
+            if (nameEl) nameEl.innerText = targetName;
+            if (typeEl) {
+                if (targetType === 'assembly') {
+                    typeEl.innerText = `Montaj Grubu (${targetMeshes.length} Adet 3D Model)`;
+                } else if (targetType === 'multiple-models') {
+                    typeEl.innerText = `${targetMeshes.length} Adet Model Seçimi`;
+                } else {
+                    const isPanel = targetMeshes[0]?.userData?.isPanel || targetMeshes[0]?.userData?.parametricKind === 'panel';
+                    typeEl.innerText = isPanel ? 'Elektrik Panosu' : (targetMeshes[0]?.userData?.parametricKind || '3D Ekipman / Konveyör');
+                }
             }
 
-            addedManualModels = addedManualModels.filter((entry) => entry.ref !== targetObj && entry.ref !== selectedMesh);
-            updateGLBModelCountBadge();
+            if (assyEl) assyEl.innerText = targetAssembly || '-';
 
-            clearSelection();
-
-            if (manualStatus) {
-                manualStatus.innerText = `${removedLabel} silindi. Kalan manuel model: ${addedManualModels.length}`;
+            if (depBox && depText) {
+                if (dependentLinks.length > 0) {
+                    depBox.classList.remove('hidden');
+                    depText.innerText = `⚠️ Bu öğeye bağlı ${dependentLinks.length} adet kablo bağlantı hattı bulunmaktadır. Silme onaylandığında bu kablolar da otomatik olarak sahneden ve metrajdan kaldırılacaktır.`;
+                } else if (targetType === 'assembly' && targetMeshes.length > 0) {
+                    depBox.classList.remove('hidden');
+                    depText.innerText = `⚠️ Bu montaj ve içindeki ${targetMeshes.length} adet model tamamen sahneden ve ürün ağacından silinecektir.`;
+                } else {
+                    depBox.classList.add('hidden');
+                }
             }
 
-            if (typeof saveLayoutToLocalStorage === 'function') {
-                saveLayoutToLocalStorage();
+            if (modal) {
+                modal.classList.remove('hidden');
             }
         }
+
+        function executeConfirmedDeletion() {
+            if (!pendingDeletion) {
+                closeDeleteConfirmationModal();
+                return;
+            }
+
+            const { type, targets, dependentLinks, assemblyName, product, displayName } = pendingDeletion;
+
+            // 1. Bağımlı kablo hatlarını sil
+            if (Array.isArray(dependentLinks) && dependentLinks.length > 0) {
+                dependentLinks.forEach(link => {
+                    if (typeof deleteCableLink === 'function' && link && link.id) {
+                        deleteCableLink(link.id);
+                    }
+                });
+            }
+
+            // 2. Montaj Grubu Siliniyorsa
+            if (type === 'assembly') {
+                // Sahnede bu montaja ait tüm mesh'leri kaldır
+                (targets || []).forEach(mesh => {
+                    if (mesh) {
+                        if (transformControls && transformControls.object === mesh) {
+                            transformControls.detach();
+                        }
+                        if (mesh.parent) mesh.parent.remove(mesh);
+                        else if (scene) scene.remove(mesh);
+                        disposeMeshHierarchy(mesh);
+                    }
+                });
+
+                // Sahnedeki montaj grubu nesnelerini kaldır
+                if (scene) {
+                    const groupsToRemove = [];
+                    scene.traverse(obj => {
+                        if (obj && (obj.userData?.assemblyName === assemblyName || (obj.userData?.type === 'assembly' && obj.name === assemblyName))) {
+                            groupsToRemove.push(obj);
+                        }
+                    });
+                    groupsToRemove.forEach(g => {
+                        if (g.parent) g.parent.remove(g);
+                        else scene.remove(g);
+                    });
+                }
+
+                // importedProject içinden bu montajı çıkar
+                if (importedProject && Array.isArray(importedProject)) {
+                    importedProject = importedProject.filter(assy => assy.assemblyName !== assemblyName);
+                }
+
+                // modelTreeEntries içinden bu montajın tüm öğelerini çıkar
+                if (Array.isArray(modelTreeEntries)) {
+                    modelTreeEntries = modelTreeEntries.filter(e => e.assemblyName !== assemblyName);
+                }
+
+                // Montaj hiyerarşisinden sil
+                if (Array.isArray(parentAssemblyList)) {
+                    parentAssemblyList = parentAssemblyList.filter(name => name !== assemblyName);
+                }
+                if (typeof assemblyParentMap === 'object' && assemblyParentMap) {
+                    delete assemblyParentMap[assemblyName];
+                    Object.keys(assemblyParentMap).forEach(child => {
+                        if (assemblyParentMap[child] === assemblyName) {
+                            delete assemblyParentMap[child];
+                        }
+                    });
+                }
+                if (typeof saveAssemblyHierarchy === 'function') {
+                    saveAssemblyHierarchy();
+                }
+
+                // Eklenen panolardan bu montaja ait olanları temizle
+                if (Array.isArray(addedPanels)) {
+                    addedPanels = addedPanels.filter(p => p.assemblyName !== assemblyName);
+                    setSafeInnerText('cnt-panel', `${addedPanels.length} Adet`);
+                }
+            }
+            // 3. Tekil veya Çoklu Modeller Siliniyorsa
+            else {
+                (targets || []).forEach(targetMesh => {
+                    if (!targetMesh) return;
+
+                    if (transformControls && transformControls.object === targetMesh) {
+                        transformControls.detach();
+                    }
+
+                    const targetProd = targetMesh.userData?.product;
+                    const targetGuid = targetProd?.guid || targetMesh.userData?.guid;
+                    const panelId = targetMesh.userData?.panelId || targetMesh.name;
+
+                    // Panolar listesinden çıkar
+                    if (targetMesh.userData?.isPanel || targetMesh.userData?.parametricKind === 'panel' || (panelId && String(panelId).startsWith('PANO-'))) {
+                        addedPanels = (addedPanels || []).filter(p => p.mesh !== targetMesh && p.id !== panelId);
+                        setSafeInnerText('cnt-panel', `${addedPanels.length} Adet`);
+                    }
+
+                    // importedProject içinden ürünü çıkar
+                    if (importedProject && Array.isArray(importedProject)) {
+                        importedProject.forEach(assy => {
+                            if (Array.isArray(assy.products)) {
+                                assy.products = assy.products.filter(p => p !== targetProd && (!targetGuid || p.guid !== targetGuid));
+                            }
+                        });
+                    }
+
+                    // modelTreeEntries içinden ürünü çıkar
+                    if (Array.isArray(modelTreeEntries)) {
+                        modelTreeEntries = modelTreeEntries.filter(e => e.mesh !== targetMesh && e.product !== targetProd && (!targetGuid || e.product?.guid !== targetGuid));
+                    }
+
+                    // addedManualModels içinden çıkar
+                    if (Array.isArray(addedManualModels)) {
+                        addedManualModels = addedManualModels.filter(e => e.ref !== targetMesh);
+                    }
+
+                    // Sahneden kaldır
+                    if (targetMesh.parent) {
+                        targetMesh.parent.remove(targetMesh);
+                    } else if (scene) {
+                        scene.remove(targetMesh);
+                    }
+                    disposeMeshHierarchy(targetMesh);
+                });
+
+                // 3D mesh'i olmayan bir ağaç öğesi siliniyorsa
+                if (product && (!targets || targets.length === 0)) {
+                    if (importedProject && Array.isArray(importedProject)) {
+                        importedProject.forEach(assy => {
+                            if (Array.isArray(assy.products)) {
+                                assy.products = assy.products.filter(p => p !== product && (!product.guid || p.guid !== product.guid));
+                            }
+                        });
+                    }
+                    if (Array.isArray(modelTreeEntries)) {
+                        modelTreeEntries = modelTreeEntries.filter(e => e.product !== product);
+                    }
+                }
+            }
+
+            const removedLabel = displayName || 'Öğe';
+            closeDeleteConfirmationModal();
+
+            clearSelection();
+            selectedAssemblyName = null;
+            selectedAssemblyMeshes = [];
+            selectedTreeKey = null;
+            selectedModelParentAssembly = null;
+
+            if (typeof rebuildModelTreeFromScene === 'function') rebuildModelTreeFromScene();
+            if (typeof renderModelTree === 'function') renderModelTree();
+            if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
+            if (typeof generateAllConveyorPathways === 'function' && !isViewerModeActive()) generateAllConveyorPathways();
+            if (typeof saveLayoutToLocalStorage === 'function') saveLayoutToLocalStorage();
+
+            if (typeof showNotice === 'function') {
+                showNotice(`🗑️ "${removedLabel}" ve tüm bağımlılıkları başarıyla silindi.`, 'info');
+            }
+        }
+
+        function deleteSelectedModel() {
+            promptDeleteSelected();
+        }
+
+        function deleteSelectedModelFromContext() {
+            hideSceneContextMenu();
+            promptDeleteSelected();
+        }
+
+        window.promptDeleteSelected = promptDeleteSelected;
+        window.executeConfirmedDeletion = executeConfirmedDeletion;
+        window.closeDeleteConfirmationModal = closeDeleteConfirmationModal;
+        window.isDeleteConfirmationModalOpen = isDeleteConfirmationModalOpen;
+        window.deleteSelectedModel = deleteSelectedModel;
+        window.deleteSelectedModelFromContext = deleteSelectedModelFromContext;
+
 
         async function renderImportedProject(parsedProject) {
             importedProject = parsedProject;
@@ -19784,6 +20149,56 @@ if (typeof window !== 'undefined') {
                 <button type="button" onclick="closeCustomerShareModal()"
                     class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
                     Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model & Montaj Silme Onay Modalı -->
+    <div id="modal-confirm-delete"
+        class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 select-none">
+        <div class="bg-[#1e1e1e] border-2 border-rose-500/70 rounded-xl shadow-2xl max-w-md w-full p-5 space-y-4 text-white">
+            <div class="flex items-center gap-3 border-b border-gray-700/80 pb-3">
+                <div class="w-10 h-10 rounded-full bg-rose-950/80 border border-rose-500/60 flex items-center justify-center text-rose-400 text-lg font-bold shrink-0">
+                    🗑️
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white" id="delete-modal-title">Öğeyi Silmek İstiyor musunuz?</h3>
+                    <p class="text-[11px] text-gray-400">Bu işlem geri alınamaz ve tüm bağımlılıkları da kaldıracaktır.</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-900/90 border border-gray-800 rounded-lg p-3 space-y-2 text-xs">
+                <div class="flex justify-between items-center text-gray-300">
+                    <span class="text-gray-400">Silinecek Öğe:</span>
+                    <span id="delete-modal-target-name" class="font-bold text-rose-300 font-mono text-[11px] truncate max-w-[240px]">-</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-300">
+                    <span class="text-gray-400">Tür:</span>
+                    <span id="delete-modal-target-type" class="text-gray-200 font-semibold">-</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-300">
+                    <span class="text-gray-400">Ait Olduğu Montaj:</span>
+                    <span id="delete-modal-target-assembly" class="text-cyan-300 font-mono text-[11px]">-</span>
+                </div>
+                <div id="delete-modal-dependency-warning" class="hidden mt-2 p-2.5 rounded bg-amber-950/40 border border-amber-600/50 text-[11px] text-amber-300 space-y-1">
+                    <div class="font-bold flex items-center gap-1">
+                        <span>⚠️</span> Bağlantılı Bağımlılıklar:
+                    </div>
+                    <div id="delete-modal-dependency-text" class="text-amber-200 text-[10.5px] leading-relaxed">
+                        Bu öğeye bağlı kablo hatları da silinecektir.
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2.5 pt-1">
+                <button type="button" onclick="closeDeleteConfirmationModal()"
+                    class="px-4 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition cursor-pointer border border-gray-700">
+                    İptal (ESC)
+                </button>
+                <button type="button" id="btn-confirm-delete" onclick="executeConfirmedDeletion()"
+                    class="px-5 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white text-xs font-bold transition cursor-pointer shadow-lg shadow-rose-900/30 flex items-center gap-1.5">
+                    <span>🗑️</span> Sil (Enter)
                 </button>
             </div>
         </div>
