@@ -4,7 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WEDO v1.4.7 - Müşteri Linkinde Kablo Yollarını Gizleme & Temiz Görünüm</title>
+    <!-- Early Synchronous Customer Viewer Mode Detection -->
+    <script>
+        (function () {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const isViewer = params.get('mode') === 'viewer' || 
+                                 params.get('viewer') === 'true' || 
+                                 params.get('view') === 'client' || 
+                                 params.has('viewer');
+                window.IS_VIEWER_MODE = !!isViewer;
+                if (window.IS_VIEWER_MODE) {
+                    document.documentElement.classList.add('viewer-mode');
+                    if (document.body) {
+                        document.body.classList.add('viewer-mode');
+                    } else {
+                        document.addEventListener('DOMContentLoaded', function () {
+                            if (document.body) document.body.classList.add('viewer-mode');
+                        });
+                    }
+                }
+            } catch (e) {
+                window.IS_VIEWER_MODE = false;
+            }
+        })();
+        function isViewerModeActive() {
+            return !!(window.IS_VIEWER_MODE || 
+                     (typeof document !== 'undefined' && 
+                      (document.body?.classList.contains('viewer-mode') || document.documentElement?.classList.contains('viewer-mode'))));
+        }
+    </script>
+    <title>WEDO v1.4.8 - Müşteri Linkinde Kablo Tavaları ve Yolları Tamamen Gizlendi</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -212,7 +242,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.7 • Müşteri Görünümü (Kablo Yolları Gizli)</span>
+                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.4.8 • Müşteri Görünümü (Kablo Tavaları Gizli)</span>
             </div>
             <div class="h-4 w-px bg-gray-700"></div>
             <div
@@ -5372,10 +5402,26 @@
                     child.name !== 'BuildingLevelPlanesGroup' &&
                     child.name !== 'BuildPathPreviewPolylineGroup' &&
                     child.name !== 'WallPreviewMesh' &&
+                    child.name !== 'Conveyor400mmPathwaysGroup' &&
+                    !child.name?.toLowerCase().includes('conveyor400mm') &&
+                    !child.name?.toLowerCase().includes('pathway') &&
+                    !child.name?.toLowerCase().includes('cabletray') &&
+                    !child.name?.toLowerCase().includes('cableline') &&
+                    !child.userData?.isPathway &&
+                    !child.userData?.isCableTray &&
+                    !child.userData?.isCableTrayAssembly &&
                     child !== osnapBoxMesh &&
                     child !== transformControls &&
                     child.type === 'Group'
                 ) {
+                    if (isViewerModeActive()) {
+                        const cName = (child.name || '').toLowerCase();
+                        const aName = (child.userData?.assemblyName || '').toLowerCase();
+                        if (cName.includes('cable') || cName.includes('kablo') || cName.includes('tava') || cName.includes('tray') ||
+                            aName.includes('cable') || aName.includes('kablo') || aName.includes('tava') || aName.includes('tray')) {
+                            return;
+                        }
+                    }
                     child.visible = true;
                 }
             });
@@ -5413,6 +5459,12 @@
                 );
 
                 if (!isDiscreteModel && (obj.type === 'Group' || obj.children.length > 0)) {
+                    if (isViewerModeActive()) {
+                        const oName = (obj.name || '').toLowerCase();
+                        if (oName.includes('conveyor400mm') || oName.includes('pathway') || oName.includes('cable') || oName.includes('kablo') || oName.includes('tava') || oName.includes('tray') || obj.userData?.isPathway || obj.userData?.isCableTray || obj.userData?.isCableTrayAssembly) {
+                            return;
+                        }
+                    }
                     obj.visible = true;
                     return;
                 }
@@ -9218,14 +9270,19 @@
 
             // Müşteri sunum modunda kablo kanallarını ağaçtan filtrele
             let visibleTreeEntries = modelTreeEntries;
-            if (document.body.classList.contains('viewer-mode')) {
+            if (isViewerModeActive()) {
                 visibleTreeEntries = modelTreeEntries.filter(entry => {
                     const aName = String(entry.assemblyName || '').toLowerCase();
                     const pName = String(entry.product?.name || '').toLowerCase();
-                    if (aName.includes('cable') || aName.includes('kablo') || pName.includes('kablo') || pName.includes('cable')) {
+                    const pType = String(entry.product?.type || '').toLowerCase();
+                    const pKind = String(entry.mesh?.userData?.parametricKind || '').toLowerCase();
+                    if (aName.includes('cable') || aName.includes('kablo') || aName.includes('tava') || aName.includes('tray') ||
+                        pName.includes('kablo') || pName.includes('cable') || pName.includes('tava') || pName.includes('tray') ||
+                        pType.includes('cable') || pType.includes('tava') || pType.includes('pathway') ||
+                        pKind.includes('cable') || pKind.includes('tray')) {
                         return false;
                     }
-                    if (entry.mesh && (entry.mesh.userData?.isCableTrayAssembly || entry.mesh.userData?.parametricKind === 'cable-tray')) {
+                    if (entry.mesh && (entry.mesh.userData?.isCableTrayAssembly || entry.mesh.userData?.isCableTray || entry.mesh.userData?.isPathway || entry.mesh.userData?.parametricKind?.startsWith('cable-tray'))) {
                         return false;
                     }
                     return true;
@@ -10292,41 +10349,79 @@
             // 1. 400mm konveyör altı tava yollarını kaldır
             if (window.conveyorPathwayGroup) {
                 window.conveyorPathwayGroup.visible = false;
-                if (typeof scene !== 'undefined' && scene) scene.remove(window.conveyorPathwayGroup);
+                if (typeof scene !== 'undefined' && scene) {
+                    scene.remove(window.conveyorPathwayGroup);
+                }
                 window.conveyorPathwayGroup = null;
             }
-            // 2. Kablo bağlantı çizgilerini ve tüplerini gizle
+
+            // 2. Kablo bağlantı çizgilerini ve tüplerini kaldır
             if (typeof pathCableLinks !== 'undefined' && Array.isArray(pathCableLinks)) {
                 pathCableLinks.forEach(l => {
-                    if (l.cableGroup) l.cableGroup.visible = false;
+                    if (l.cableGroup) {
+                        l.cableGroup.visible = false;
+                        if (typeof scene !== 'undefined' && scene) {
+                            scene.remove(l.cableGroup);
+                        }
+                    }
                 });
             }
-            // 3. Sahnede kayıtlı tüm kablo kanalı / tava nesnelerini gizle
+
+            // 3. Sahnede kayıtlı tüm kablo kanalı / tava / pathway nesnelerini ve parçalarını gizle ve sahneden temizle
             if (typeof scene !== 'undefined' && scene) {
+                const toRemoveFromScene = [];
                 scene.traverse((node) => {
                     if (!node) return;
                     const name = String(node.name || '').toLowerCase();
                     const uName = String(node.userData?.product?.name || '').toLowerCase();
+                    const uType = String(node.userData?.type || '').toLowerCase();
+                    const pKind = String(node.userData?.parametricKind || '').toLowerCase();
                     const assName = String(node.userData?.assemblyName || '').toLowerCase();
-                    if (name.includes('conveyor400mmpathwaysgroup') || 
+
+                    const isCableOrTray = 
+                        name.includes('conveyor400mm') || 
+                        name.includes('pathway') || 
                         name.includes('cableline') || 
                         name.includes('cabletraysystem') ||
                         name.includes('cabletray') ||
                         name.includes('kablo') ||
+                        name.includes('tava') ||
                         uName.includes('kablo') ||
                         uName.includes('cable') ||
+                        uName.includes('tava') ||
+                        uName.includes('tray') ||
+                        uType.includes('cable') ||
+                        uType.includes('pathway') ||
+                        pKind.includes('cable') ||
+                        pKind.includes('tray') ||
                         assName.includes('cable') ||
                         assName.includes('kablo') ||
+                        assName.includes('tava') ||
                         node.userData?.isCableTrayAssembly ||
-                        node.userData?.parametricKind === 'cable-tray' ||
-                        node.userData?.isCable) {
+                        node.userData?.isCableTray ||
+                        node.userData?.isPathway ||
+                        node.userData?.isCable;
+
+                    if (isCableOrTray) {
                         node.visible = false;
+                        if (node.children && node.children.length > 0) {
+                            node.children.forEach(c => { if (c) c.visible = false; });
+                        }
+                        if (node.parent && node.parent === scene) {
+                            toRemoveFromScene.push(node);
+                        }
                     }
+                });
+
+                toRemoveFromScene.forEach(item => {
+                    try { scene.remove(item); } catch(e) {}
                 });
             }
         }
 
         function initViewerMode(projectName) {
+            window.IS_VIEWER_MODE = true;
+            document.documentElement.classList.add('viewer-mode');
             document.body.classList.add('viewer-mode');
 
             if (transformControls) {
@@ -10348,17 +10443,26 @@
             }
             document.title = `${displayTitle} - 3D Yerleşim Görüntüleyici | WEDO`;
 
-            // Müşteri modunda kablo yollarını gizle
+            // Müşteri modunda kablo yollarını ve tavalarını tamamen gizle
             hideCablePathwaysForViewer();
             setTimeout(() => {
                 hideCablePathwaysForViewer();
                 if (typeof renderModelTree === 'function') {
                     renderModelTree();
                 }
-            }, 300);
+            }, 100);
             setTimeout(() => {
                 hideCablePathwaysForViewer();
-            }, 800);
+                if (typeof renderModelTree === 'function') {
+                    renderModelTree();
+                }
+            }, 400);
+            setTimeout(() => {
+                hideCablePathwaysForViewer();
+            }, 1000);
+            setTimeout(() => {
+                hideCablePathwaysForViewer();
+            }, 2000);
 
             setTimeout(() => {
                 const targetObj = (typeof getViewportTarget === 'function' ? getViewportTarget() : null) || scene;
@@ -10589,7 +10693,7 @@
             importedProjectRoot = projectGroup;
             rebuildModelTreeFromScene();
             fitCameraToObject(projectGroup);
-            if (typeof generateAllConveyorPathways === 'function') {
+            if (typeof generateAllConveyorPathways === 'function' && !isViewerModeActive()) {
                 setTimeout(() => { generateAllConveyorPathways(); }, 250);
             }
             return projectGroup;
@@ -12014,7 +12118,7 @@
 
         function restoreAllCableLinks(savedCableLinks) {
             // Müşteri sunum modunda kablo bağlantıları gizlenir
-            if (document.body.classList.contains('viewer-mode')) {
+            if (isViewerModeActive()) {
                 return;
             }
             if (!Array.isArray(savedCableLinks) || savedCableLinks.length === 0) return;
@@ -12323,7 +12427,7 @@
 
             // 5. Kablo Hatlarını ve Ağlarını Geri Yükle
             const cableLinkList = data.cableLinks || sceneData.savedCableLinks || sceneData.cableLinks || data.savedCableLinks || [];
-            if (Array.isArray(cableLinkList) && cableLinkList.length > 0) {
+            if (!isViewerModeActive() && Array.isArray(cableLinkList) && cableLinkList.length > 0) {
                 setTimeout(() => {
                     restoreAllCableLinks(cableLinkList);
                 }, 200);
@@ -14231,7 +14335,7 @@
                     await loadXmlProjectFromText(content, file.name);
                     input.value = '';
                     setTimeout(() => {
-                        if (typeof generateAllConveyorPathways === 'function') {
+                        if (typeof generateAllConveyorPathways === 'function' && !isViewerModeActive()) {
                             generateAllConveyorPathways();
                         }
                     }, 300);
@@ -14780,10 +14884,11 @@
         }
 
         function generateAllConveyorPathways() {
-            // Müşteri sunum modunda kablo yolları gizlenir
-            if (document.body.classList.contains('viewer-mode')) {
+            // Müşteri sunum modunda kablo yolları ve tavaları tamamen gizlenir
+            if (isViewerModeActive()) {
                 if (window.conveyorPathwayGroup) {
-                    scene.remove(window.conveyorPathwayGroup);
+                    window.conveyorPathwayGroup.visible = false;
+                    if (typeof scene !== 'undefined' && scene) scene.remove(window.conveyorPathwayGroup);
                     window.conveyorPathwayGroup = null;
                 }
                 return;
@@ -14794,6 +14899,7 @@
             }
             window.conveyorPathwayGroup = new THREE.Group();
             window.conveyorPathwayGroup.name = 'Conveyor400mmPathwaysGroup';
+            window.conveyorPathwayGroup.userData = { isPathway: true, isCableTray: true };
 
             const assemblyMap = new Map();
             scene.traverse((node) => {
@@ -14888,6 +14994,8 @@
                     geo.computeVertexNormals();
 
                     const mesh = new THREE.Mesh(geo, trayMaterial);
+                    mesh.name = 'Conveyor400mmPathwayMesh';
+                    mesh.userData = { isPathway: true, isCableTray: true };
                     mesh.renderOrder = 5;
                     window.conveyorPathwayGroup.add(mesh);
 
@@ -14897,7 +15005,11 @@
                     const railGeo2 = new THREE.CylinderGeometry(railRadius, railRadius, length, 8);
 
                     const railMesh1 = new THREE.Mesh(railGeo1, railMaterial);
+                    railMesh1.name = 'Conveyor400mmPathwayRail';
+                    railMesh1.userData = { isPathway: true, isCableTray: true };
                     const railMesh2 = new THREE.Mesh(railGeo2, railMaterial);
+                    railMesh2.name = 'Conveyor400mmPathwayRail';
+                    railMesh2.userData = { isPathway: true, isCableTray: true };
 
                     const mid1 = v1.clone().add(v3).multiplyScalar(0.5);
                     const mid2 = v2.clone().add(v4).multiplyScalar(0.5);
@@ -14919,6 +15031,7 @@
         }
 
         function toggleConveyorPathwayVisibility() {
+            if (isViewerModeActive()) return;
             if (!window.conveyorPathwayGroup || window.conveyorPathwayGroup.children.length === 0) {
                 generateAllConveyorPathways();
             } else {
@@ -18100,7 +18213,7 @@ if (typeof window !== 'undefined') {
                 initViewerMode(targetProjName);
             }
 
-                if (typeof generateAllConveyorPathways === 'function' && restored) {
+                if (typeof generateAllConveyorPathways === 'function' && restored && !isViewerModeActive()) {
                     generateAllConveyorPathways();
                 }
 
