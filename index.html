@@ -34,7 +34,7 @@
                       (document.body?.classList.contains('viewer-mode') || document.documentElement?.classList.contains('viewer-mode'))));
         }
     </script>
-    <title>WEDO v1.5.0 - Model & Montaj Silme (X Kısayolu ve Bağımlılık Temizliği)</title>
+    <title>WEDO v1.6.0 - Özel GLB Model Yükleme & Optimize JSON Kaydı</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -219,7 +219,7 @@
             <div class="flex items-center gap-2 text-xs font-bold text-white tracking-wide">
                 <span class="text-blue-400 text-sm">🔷</span> WEDO App <span id="app-version-badge"
                     class="text-[10px] text-amber-300 font-mono bg-[#2a2a2a] px-2 py-0.5 rounded border border-amber-600/50 shadow-sm"
-                    title="Esnek Ürün Ağacı & Toplu Taşıma • Modeller toplu seçilip yeni veya var olan montajlara taşınabilir; üst montaj ve alt montaj oluşturma aktifleştirildi">v1.5.0 • Model & Montaj Silme (X Kısayolu)</span>
+                    title="GLB/GLTF 3D Model İçe Aktarma & Sahne/JSON Kaydı • Sürükle-bırak / Menü ile GLB yükleme, IndexedDB önbellekleme ve optimize DXF/JSON serileştirme">v1.6.0 • GLB Model Import & Optimize JSON</span>
             </div>
             <span id="fusion-doc-title" class="hidden"></span>
         </div>
@@ -6459,6 +6459,106 @@
             };
             reader.readAsText(file);
         }
+
+        // ==========================================
+        // 📐 DXF GEOMETRİ SIKIŞTIRMA & SERİLEŞTİRME YARDIMCILARI (Seçenek B)
+        // ==========================================
+        function float32ArrayToBase64(float32Array) {
+            if (!float32Array || !(float32Array instanceof Float32Array)) return null;
+            const uint8 = new Uint8Array(float32Array.buffer, float32Array.byteOffset, float32Array.byteLength);
+            const CHUNK_SIZE = 0x8000; // 32768
+            let binary = '';
+            for (let i = 0; i < uint8.length; i += CHUNK_SIZE) {
+                binary += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK_SIZE));
+            }
+            return btoa(binary);
+        }
+        window.float32ArrayToBase64 = float32ArrayToBase64;
+
+        function base64ToFloat32Array(base64) {
+            if (!base64 || typeof base64 !== 'string') return null;
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new Float32Array(bytes.buffer);
+        }
+        window.base64ToFloat32Array = base64ToFloat32Array;
+
+        function createDXFGroupFromGeometryData(geometryData, filename = 'DXF Model', activeElev = 0.0) {
+            if (!geometryData || !geometryData.positionsBase64) return null;
+
+            const dxfGroup = new THREE.Group();
+            const cleanName = (filename || 'DXF Model').replace(/\.dxf$/i, '');
+            dxfGroup.name = `DXF_Model_${cleanName}_${Date.now()}`;
+            dxfGroup.position.set(0, 0, activeElev);
+
+            const positions = base64ToFloat32Array(geometryData.positionsBase64);
+            if (!positions || positions.length === 0) return null;
+
+            const lineGeo = new THREE.BufferGeometry();
+            lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            if (geometryData.colorsBase64) {
+                const colors = base64ToFloat32Array(geometryData.colorsBase64);
+                if (colors && colors.length === positions.length) {
+                    lineGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                }
+            }
+
+            const lineMat = new THREE.LineBasicMaterial({
+                color: 0x1e293b,
+                transparent: true,
+                opacity: 0.85,
+                depthTest: !isDxfXRayMode,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -1.0,
+                polygonOffsetUnits: -4.0,
+                linewidth: 1.5
+            });
+
+            const linesMesh = new THREE.LineSegments(lineGeo, lineMat);
+            linesMesh.name = `DXF_Lines_${cleanName}`;
+            linesMesh.position.z = 0.003;
+            linesMesh.renderOrder = isDxfXRayMode ? 999 : 1;
+            linesMesh.visible = isDxfVisible;
+            linesMesh.raycast = () => {};
+            dxfGroup.add(linesMesh);
+            dxfGroup.visible = isDxfVisible;
+            dxfGroup.raycast = () => {};
+            dxfGroup.traverse((child) => { child.raycast = () => {}; });
+
+            dxfGroup.userData = {
+                type: 'xml-product',
+                isParametric: true,
+                parametricKind: 'dxf-drawing',
+                isDXFModel: true,
+                filename: cleanName,
+                elevation: activeElev,
+                product: {
+                    name: `📐 DXF: ${cleanName}`,
+                    type: 'dxf-drawing',
+                    group: '📐 DXF Referans Çizimleri',
+                    assemblyName: '📐 DXF Referans Çizimleri',
+                    position: { x: 0, y: 0, z: activeElev }
+                }
+            };
+
+            scene.add(dxfGroup);
+
+            addedManualModels.push({
+                path: 'parametric:dxf-drawing',
+                label: `📐 DXF: ${cleanName}`,
+                point: new THREE.Vector3(0, 0, activeElev),
+                ref: dxfGroup
+            });
+
+            return dxfGroup;
+        }
+        window.createDXFGroupFromGeometryData = createDXFGroupFromGeometryData;
+
 
         // ==========================================
         // 📐 DXF ZEMİN PLANI DERİNLİK & GÖRÜNÜRLÜK MOTORU
@@ -12888,9 +12988,21 @@
                 if (m.path === 'parametric:dxf-drawing' || m.ref?.userData?.isDXFModel) {
                     const ref = m.ref;
                     if (ref) {
+                        let geometryData = null;
+                        const linesMesh = (ref.children || []).find(c => c.isLineSegments || c.isLine);
+                        if (linesMesh && linesMesh.geometry && linesMesh.geometry.getAttribute('position')) {
+                            const posAttr = linesMesh.geometry.getAttribute('position');
+                            const colorAttr = linesMesh.geometry.getAttribute('color');
+                            if (typeof float32ArrayToBase64 === 'function') {
+                                geometryData = {
+                                    positionsBase64: float32ArrayToBase64(posAttr.array),
+                                    colorsBase64: colorAttr ? float32ArrayToBase64(colorAttr.array) : null
+                                };
+                            }
+                        }
                         serializableDxfDrawings.push({
                             filename: ref.userData?.filename || m.label || 'DXF_Model.dxf',
-                            dxfText: ref.userData?.rawDxfText || null,
+                            geometryData: geometryData,
                             position: { x: ref.position.x, y: ref.position.y, z: ref.position.z },
                             rotation: { x: ref.rotation.x, y: ref.rotation.y, z: ref.rotation.z },
                             quaternion: ref.quaternion ? { x: ref.quaternion.x, y: ref.quaternion.y, z: ref.quaternion.z, w: ref.quaternion.w } : null,
@@ -12961,8 +13073,7 @@
                 addedCables: addedCables || [],
                 addedSensors: addedSensors || [],
                 addedMachines: addedMachines || [],
-                addedManualModels: manualModelsData,
-                addedDxfDrawings: serializableDxfDrawings
+                addedManualModels: manualModelsData
             };
         }
 
@@ -13292,23 +13403,28 @@
             }
 
             // 4. Eklenen DXF Çizim Modellerini Geri Yükle
-            const dxfList = sceneData.addedDxfDrawings || sceneData.dxfDrawings || [];
+            const dxfList = sceneData.dxfDrawings || sceneData.addedDxfDrawings || [];
             if (Array.isArray(dxfList) && dxfList.length > 0) {
                 for (const dxf of dxfList) {
                     try {
-                        if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
+                        let dxfGroup = null;
+                        if (dxf.geometryData && dxf.geometryData.positionsBase64 && typeof createDXFGroupFromGeometryData === 'function') {
+                            dxfGroup = createDXFGroupFromGeometryData(dxf.geometryData, dxf.filename || 'DXF Model', dxf.position?.z || 0);
+                        } else if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
                             const parsed = parseASCII_DXF(dxf.dxfText);
-                            const dxfGroup = renderDXFToThreeGroup(parsed, dxf.filename || 'DXF Model');
+                            dxfGroup = renderDXFToThreeGroup(parsed, dxf.filename || 'DXF Model');
                             if (dxfGroup) {
-                                if (dxf.position) dxfGroup.position.set(dxf.position.x, dxf.position.y, dxf.position.z);
-                                if (dxf.quaternion && typeof dxf.quaternion.w === 'number') {
-                                    dxfGroup.quaternion.set(dxf.quaternion.x, dxf.quaternion.y, dxf.quaternion.z, dxf.quaternion.w).normalize();
-                                } else if (dxf.rotation) {
-                                    dxfGroup.rotation.set(dxf.rotation.x || 0, dxf.rotation.y || 0, dxf.rotation.z || 0);
-                                }
-                                if (dxf.scale) dxfGroup.scale.set(dxf.scale.x || 1, dxf.scale.y || 1, dxf.scale.z || 1);
                                 dxfGroup.userData.rawDxfText = dxf.dxfText;
                             }
+                        }
+                        if (dxfGroup) {
+                            if (dxf.position) dxfGroup.position.set(dxf.position.x, dxf.position.y, dxf.position.z);
+                            if (dxf.quaternion && typeof dxf.quaternion.w === 'number') {
+                                dxfGroup.quaternion.set(dxf.quaternion.x, dxf.quaternion.y, dxf.quaternion.z, dxf.quaternion.w).normalize();
+                            } else if (dxf.rotation) {
+                                dxfGroup.rotation.set(dxf.rotation.x || 0, dxf.rotation.y || 0, dxf.rotation.z || 0);
+                            }
+                            if (dxf.scale) dxfGroup.scale.set(dxf.scale.x || 1, dxf.scale.y || 1, dxf.scale.z || 1);
                         }
                     } catch (err) {
                         console.warn('DXF çizim modeli geri yükleme hatası:', dxf, err);
