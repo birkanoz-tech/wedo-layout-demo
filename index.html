@@ -34,7 +34,7 @@
                       (document.body?.classList.contains('viewer-mode') || document.documentElement?.classList.contains('viewer-mode'))));
         }
     </script>
-    <title>WEDO v1.6.0 - Özel GLB Model Yükleme & Optimize JSON Kaydı</title>
+    <title>WEDO v1.6.1 - Tek Kopya Ham DXF & Optimize JSON Depolama</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -3917,6 +3917,19 @@
                                 targetPos = groundHit;
                             }
                             await importCustomGLBFile(file, targetPos);
+                        } else if (file.name.toLowerCase().endsWith('.dxf')) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                                window._PENDING_DXF_FILE = {
+                                    name: file.name,
+                                    text: evt.target.result,
+                                    size: file.size
+                                };
+                                if (typeof openDXFImportOptionsModal === 'function') {
+                                    openDXFImportOptionsModal(file.name, file.size);
+                                }
+                            };
+                            reader.readAsText(file);
                         }
                     }
                 }
@@ -3934,6 +3947,14 @@
                 }
 
                 if (event.key === 'Escape') {
+                    const dxfModal = document.getElementById('modal-dxf-import-options');
+                    if (dxfModal && !dxfModal.classList.contains('hidden')) {
+                        event.preventDefault();
+                        if (typeof closeDXFImportOptionsModal === 'function') {
+                            closeDXFImportOptionsModal();
+                        }
+                        return;
+                    }
                     if (typeof isDeleteConfirmationModalOpen === 'function' && isDeleteConfirmationModalOpen()) {
                         event.preventDefault();
                         closeDeleteConfirmationModal();
@@ -6227,11 +6248,54 @@
             return { entities, blocks };
         }
 
-        function renderDXFToThreeGroup(dxfData, filename = 'DXF Model') {
+        function renderDXFToThreeGroup(dxfData, filename = 'DXF Model', importOptions = null) {
             if (!dxfData || (!Array.isArray(dxfData.entities) && !dxfData.blocks)) {
                 if (typeof showNotice === 'function') showNotice('⚠️ DXF dosyasında geçerli çizim elemanı bulunamadı.');
                 return null;
             }
+
+            const opts = Object.assign({
+                mode: 'lightweight',
+                minThresholdCm: 10,
+                filterHoles: true
+            }, importOptions || {});
+
+            const isLightweight = opts.mode === 'lightweight';
+            const minThresholdCm = opts.minThresholdCm || 10;
+
+            // 1. Çizim Alanı Boyutunu Hızlıca Tara & Ölçek Faktörünü (mm vs m) Belirle
+            let preMinX = Infinity, preMaxX = -Infinity, preMinY = Infinity, preMaxY = -Infinity;
+            function scanPt(x, y) {
+                if (typeof x === 'number' && !isNaN(x)) {
+                    if (x < preMinX) preMinX = x; if (x > preMaxX) preMaxX = x;
+                }
+                if (typeof y === 'number' && !isNaN(y)) {
+                    if (y < preMinY) preMinY = y; if (y > preMaxY) preMaxY = y;
+                }
+            }
+            if (Array.isArray(dxfData.entities)) {
+                for (let i = 0; i < dxfData.entities.length; i++) {
+                    const ent = dxfData.entities[i];
+                    if (ent.type === 'LINE') {
+                        scanPt(ent.x1, ent.y1); scanPt(ent.x2, ent.y2);
+                    } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
+                        const v = ent.vertices;
+                        if (v && v.length) {
+                            scanPt(v[0].x, v[0].y);
+                            scanPt(v[v.length - 1].x, v[v.length - 1].y);
+                        }
+                    } else if (ent.type === 'CIRCLE' || ent.type === 'ARC') {
+                        scanPt(ent.cx - (ent.r || 1), ent.cy - (ent.r || 1));
+                        scanPt(ent.cx + (ent.r || 1), ent.cy + (ent.r || 1));
+                    } else if (ent.type === 'INSERT') {
+                        scanPt(ent.insertX, ent.insertY);
+                    }
+                }
+            }
+            const preSpan = Math.max(preMaxX - preMinX, preMaxY - preMinY);
+            const estimatedScaleFactor = preSpan > 250 ? 0.001 : 1.0;
+            // Eşik değerini çizim birimine dönüştür (Örn: 10 cm mm çizimde 100mm, m çizimde 0.10m)
+            const minThresholdUnits = isLightweight ? ((minThresholdCm / 100) / estimatedScaleFactor) : 0;
 
             const dxfGroup = new THREE.Group();
             const cleanName = filename.replace(/\.dxf$/i, '');
@@ -6243,55 +6307,82 @@
             const rawLinePositions = [];
             const rawLineColors = [];
             const colorObj = new THREE.Color();
+            let totalRawSegmentsCount = 0;
+            let filteredSegmentsCount = 0;
+            let acceptedSegmentsCount = 0;
 
             function processEntity(ent, transformMatrix = null) {
                 const hexColor = convertACIColorToHex(ent.color);
                 colorObj.setHex(hexColor);
 
-                function addTransformedPoint(x, y, z) {
-                    let pt = new THREE.Vector3(x, y, z);
+                function addTransformedSegment(x1, y1, z1, x2, y2, z2) {
+                    let pt1 = new THREE.Vector3(x1, y1, z1);
+                    let pt2 = new THREE.Vector3(x2, y2, z2);
                     if (transformMatrix) {
-                        pt.applyMatrix4(transformMatrix);
+                        pt1.applyMatrix4(transformMatrix);
+                        pt2.applyMatrix4(transformMatrix);
                     }
-                    rawLinePositions.push(pt.x, pt.y, pt.z);
+                    totalRawSegmentsCount++;
+                    if (isLightweight && minThresholdUnits > 0) {
+                        const segLen = pt1.distanceTo(pt2);
+                        if (segLen < minThresholdUnits) {
+                            filteredSegmentsCount++;
+                            return;
+                        }
+                    }
+                    rawLinePositions.push(pt1.x, pt1.y, pt1.z);
+                    rawLinePositions.push(pt2.x, pt2.y, pt2.z);
                     rawLineColors.push(colorObj.r, colorObj.g, colorObj.b);
+                    rawLineColors.push(colorObj.r, colorObj.g, colorObj.b);
+                    acceptedSegmentsCount++;
                 }
 
                 if (ent.type === 'LINE') {
-                    addTransformedPoint(ent.x1, ent.y1, ent.z1);
-                    addTransformedPoint(ent.x2, ent.y2, ent.z2);
+                    addTransformedSegment(ent.x1, ent.y1, ent.z1, ent.x2, ent.y2, ent.z2);
                 } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
                     const verts = ent.vertices || [];
                     for (let i = 0; i < verts.length - 1; i++) {
                         const v1 = verts[i], v2 = verts[i + 1];
-                        addTransformedPoint(v1.x, v1.y, v1.z || 0);
-                        addTransformedPoint(v2.x, v2.y, v2.z || 0);
+                        addTransformedSegment(v1.x, v1.y, v1.z || 0, v2.x, v2.y, v2.z || 0);
                     }
                     if (ent.closed && verts.length > 2) {
                         const v1 = verts[verts.length - 1], v2 = verts[0];
-                        addTransformedPoint(v1.x, v1.y, v1.z || 0);
-                        addTransformedPoint(v2.x, v2.y, v2.z || 0);
+                        addTransformedSegment(v1.x, v1.y, v1.z || 0, v2.x, v2.y, v2.z || 0);
                     }
                 } else if (ent.type === 'CIRCLE') {
                     const cx = ent.cx || 0, cy = ent.cy || 0, cz = ent.cz || 0, r = ent.r || 1;
-                    const segments = 32;
+                    totalRawSegmentsCount += 32;
+                    if (isLightweight && opts.filterHoles && (r < minThresholdUnits)) {
+                        filteredSegmentsCount += 32;
+                        return;
+                    }
+                    const segments = isLightweight ? 16 : 32;
                     for (let i = 0; i < segments; i++) {
                         const a1 = (i / segments) * Math.PI * 2;
                         const a2 = ((i + 1) / segments) * Math.PI * 2;
-                        addTransformedPoint(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz);
-                        addTransformedPoint(cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz);
+                        addTransformedSegment(
+                            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz,
+                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz
+                        );
                     }
                 } else if (ent.type === 'ARC') {
                     const cx = ent.cx || 0, cy = ent.cy || 0, cz = ent.cz || 0, r = ent.r || 1;
+                    totalRawSegmentsCount += 24;
+                    if (isLightweight && opts.filterHoles && (r < minThresholdUnits)) {
+                        filteredSegmentsCount += 24;
+                        return;
+                    }
                     let start = (ent.startAngle || 0) * (Math.PI / 180);
                     let end = (ent.endAngle || 360) * (Math.PI / 180);
                     if (end < start) end += Math.PI * 2;
-                    const segments = 24;
+                    const segments = isLightweight ? 12 : 24;
                     for (let i = 0; i < segments; i++) {
                         const a1 = start + (i / segments) * (end - start);
                         const a2 = start + ((i + 1) / segments) * (end - start);
-                        addTransformedPoint(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz);
-                        addTransformedPoint(cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz);
+                        addTransformedSegment(
+                            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz,
+                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz
+                        );
                     }
                 } else if (ent.type === 'INSERT' && dxfData.blocks && ent.blockName && dxfData.blocks[ent.blockName]) {
                     const blockEntities = dxfData.blocks[ent.blockName];
@@ -6314,7 +6405,7 @@
             }
 
             if (rawLinePositions.length === 0) {
-                if (typeof showNotice === 'function') showNotice('⚠️ DXF dosyasında çizilebilir çizgi/blok bulunamadı.');
+                if (typeof showNotice === 'function') showNotice('⚠️ Seçilen filtreleme ile çizilebilir sınır çizgisi bulunamadı.');
                 return null;
             }
 
@@ -6376,10 +6467,10 @@
             linesMesh.position.z = 0.003;
             linesMesh.renderOrder = isDxfXRayMode ? 999 : 1;
             linesMesh.visible = isDxfVisible;
-            linesMesh.raycast = () => {}; // Sahneden doğrudan fareyle seçilmeyi engeller
+            linesMesh.raycast = () => {};
             dxfGroup.add(linesMesh);
             dxfGroup.visible = isDxfVisible;
-            dxfGroup.raycast = () => {}; // Sadece ürün ağacından seçilebilir
+            dxfGroup.raycast = () => {};
             dxfGroup.traverse((child) => {
                 child.raycast = () => {};
             });
@@ -6391,7 +6482,9 @@
                 isDXFModel: true,
                 filename: cleanName,
                 elevation: activeElev,
-                rawDxfText: window._CURRENT_RAW_DXF_TEXT || dxfGroup.userData?.rawDxfText || null,
+                isLightweight: isLightweight,
+                minThresholdCm: minThresholdCm,
+                rawDxfText: isLightweight ? null : (window._CURRENT_RAW_DXF_TEXT || dxfGroup.userData?.rawDxfText || null),
                 product: {
                     name: `📐 DXF: ${cleanName}`,
                     type: 'dxf-drawing',
@@ -6422,9 +6515,14 @@
 
             if (typeof showNotice === 'function') {
                 const totalLinesCount = linePositions.length / 6;
-                const scaleMsg = scaleFactor < 1.0 ? ' [mm → m Ölçeklendi]' : '';
-                const centerMsg = (offsetX !== 0 || offsetY !== 0) ? ' [Orjin Merkeze Hizalandı]' : '';
-                showNotice(`📐 DXF Çizim Modeli İçe Aktarıldı: ${cleanName} (${Math.round(totalLinesCount)} Çizgi Segmenti${scaleMsg}${centerMsg}, Kot: +${activeElev}m)`);
+                const scaleMsg = scaleFactor < 1.0 ? ' [mm → m]' : '';
+                const centerMsg = (offsetX !== 0 || offsetY !== 0) ? ' [Ortalandı]' : '';
+                if (isLightweight) {
+                    const pct = totalRawSegmentsCount > 0 ? Math.round((filteredSegmentsCount / totalRawSegmentsCount) * 100) : 0;
+                    showNotice(`🚀 DXF Hafif Sınır Modu: ${cleanName} (${Math.round(totalLinesCount)} Ana Sınır Çizgisi, %${pct} Detay Filtrelendi [Min: ${minThresholdCm} cm]${scaleMsg}${centerMsg}, Kot: +${activeElev}m)`);
+                } else {
+                    showNotice(`📐 DXF Tam Detay Modu: ${cleanName} (${Math.round(totalLinesCount)} Çizgi Segmenti${scaleMsg}${centerMsg}, Kot: +${activeElev}m)`);
+                }
             }
 
             return dxfGroup;
@@ -6438,6 +6536,8 @@
             }
         }
 
+        window._PENDING_DXF_FILE = null;
+
         function handleDXFFileSelect(e) {
             const file = e.target?.files?.[0];
             if (!file) return;
@@ -6446,13 +6546,12 @@
             reader.onload = (evt) => {
                 try {
                     const dxfText = evt.target.result;
-                    window._CURRENT_RAW_DXF_TEXT = dxfText;
-                    const parsedData = parseASCII_DXF(dxfText);
-                    const dxfGroup = renderDXFToThreeGroup(parsedData, file.name);
-                    if (dxfGroup) {
-                        dxfGroup.userData.rawDxfText = dxfText;
-                    }
-                    window._CURRENT_RAW_DXF_TEXT = null;
+                    window._PENDING_DXF_FILE = {
+                        name: file.name,
+                        text: dxfText,
+                        size: file.size
+                    };
+                    openDXFImportOptionsModal(file.name, file.size);
                 } catch (err) {
                     console.error('DXF parse error:', err);
                     if (typeof showNotice === 'function') {
@@ -6461,6 +6560,91 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        function openDXFImportOptionsModal(filename, fileSize) {
+            const modal = document.getElementById('modal-dxf-import-options');
+            if (!modal) return;
+            const fileInfoEl = document.getElementById('dxf-modal-file-info');
+            if (fileInfoEl) {
+                const sizeMb = fileSize ? (fileSize / (1024 * 1024)).toFixed(2) : '0.00';
+                fileInfoEl.innerText = `Dosya: ${filename} (${sizeMb} MB)`;
+            }
+            const lightRadio = document.getElementById('dxf-mode-light');
+            if (lightRadio) lightRadio.checked = true;
+            const threshInput = document.getElementById('dxf-threshold-input');
+            if (threshInput) threshInput.value = '10';
+            updateDxfModalSelectionUI();
+            modal.classList.remove('hidden');
+        }
+
+        function closeDXFImportOptionsModal() {
+            const modal = document.getElementById('modal-dxf-import-options');
+            if (modal) modal.classList.add('hidden');
+            window._PENDING_DXF_FILE = null;
+            const fileInput = document.getElementById('dxf-file-input');
+            if (fileInput) fileInput.value = '';
+        }
+
+        function setDxfThreshold(val) {
+            const threshInput = document.getElementById('dxf-threshold-input');
+            if (threshInput) {
+                threshInput.value = val;
+            }
+            const lightRadio = document.getElementById('dxf-mode-light');
+            if (lightRadio) lightRadio.checked = true;
+            updateDxfModalSelectionUI();
+        }
+
+        function updateDxfModalSelectionUI() {
+            const lightRadio = document.getElementById('dxf-mode-light');
+            const isLight = lightRadio ? lightRadio.checked : true;
+            const cardLight = document.getElementById('dxf-opt-card-light');
+            const cardFull = document.getElementById('dxf-opt-card-full');
+            if (cardLight && cardFull) {
+                if (isLight) {
+                    cardLight.className = 'relative flex items-start gap-3 p-3.5 rounded-lg border-2 border-purple-500/80 bg-purple-950/20 hover:bg-purple-950/30 cursor-pointer transition';
+                    cardFull.className = 'relative flex items-start gap-3 p-3.5 rounded-lg border border-gray-700 bg-gray-800/40 hover:bg-gray-800/70 cursor-pointer transition';
+                } else {
+                    cardLight.className = 'relative flex items-start gap-3 p-3.5 rounded-lg border border-gray-700 bg-gray-800/40 hover:bg-gray-800/70 cursor-pointer transition';
+                    cardFull.className = 'relative flex items-start gap-3 p-3.5 rounded-lg border-2 border-purple-500/80 bg-purple-950/20 hover:bg-purple-950/30 cursor-pointer transition';
+                }
+            }
+        }
+
+        function confirmDXFImport() {
+            if (!window._PENDING_DXF_FILE || !window._PENDING_DXF_FILE.text) {
+                closeDXFImportOptionsModal();
+                return;
+            }
+            const pending = window._PENDING_DXF_FILE;
+            const lightRadio = document.getElementById('dxf-mode-light');
+            const isLightweight = lightRadio ? lightRadio.checked : true;
+            const threshInput = document.getElementById('dxf-threshold-input');
+            const thresholdCm = Math.max(1, Number(threshInput?.value || 10));
+
+            const options = {
+                mode: isLightweight ? 'lightweight' : 'full',
+                minThresholdCm: thresholdCm,
+                filterHoles: true
+            };
+
+            closeDXFImportOptionsModal();
+
+            try {
+                window._CURRENT_RAW_DXF_TEXT = isLightweight ? null : pending.text;
+                const parsedData = parseASCII_DXF(pending.text);
+                const dxfGroup = renderDXFToThreeGroup(parsedData, pending.name, options);
+                if (dxfGroup && !isLightweight) {
+                    dxfGroup.userData.rawDxfText = pending.text;
+                }
+                window._CURRENT_RAW_DXF_TEXT = null;
+            } catch (err) {
+                console.error('DXF parse error:', err);
+                if (typeof showNotice === 'function') {
+                    showNotice(`⚠️ DXF İçe Aktarma Hatası: ${err.message || 'Dosya işlenemedi'}`);
+                }
+            }
         }
 
         // ==========================================
@@ -6540,6 +6724,9 @@
                 isDXFModel: true,
                 filename: cleanName,
                 elevation: activeElev,
+                isLightweight: !!geometryData.isLightweight,
+                minThresholdCm: geometryData.minThresholdCm || null,
+                rawDxfText: null,
                 product: {
                     name: `📐 DXF: ${cleanName}`,
                     type: 'dxf-drawing',
@@ -6649,6 +6836,11 @@
 
         window.triggerDXFFileImport = triggerDXFFileImport;
         window.handleDXFFileSelect = handleDXFFileSelect;
+        window.openDXFImportOptionsModal = openDXFImportOptionsModal;
+        window.closeDXFImportOptionsModal = closeDXFImportOptionsModal;
+        window.setDxfThreshold = setDxfThreshold;
+        window.updateDxfModalSelectionUI = updateDxfModalSelectionUI;
+        window.confirmDXFImport = confirmDXFImport;
         window.parseASCII_DXF = parseASCII_DXF;
         window.renderDXFToThreeGroup = renderDXFToThreeGroup;
 
@@ -12999,13 +13191,17 @@
                             if (typeof float32ArrayToBase64 === 'function') {
                                 geometryData = {
                                     positionsBase64: float32ArrayToBase64(posAttr.array),
-                                    colorsBase64: colorAttr ? float32ArrayToBase64(colorAttr.array) : null
+                                    colorsBase64: colorAttr ? float32ArrayToBase64(colorAttr.array) : null,
+                                    isLightweight: !!ref.userData?.isLightweight,
+                                    minThresholdCm: ref.userData?.minThresholdCm || null
                                 };
                             }
                         }
                         serializableDxfDrawings.push({
                             filename: ref.userData?.filename || m.label || 'DXF_Model.dxf',
-                            dxfText: ref.userData?.rawDxfText || null,
+                            dxfText: ref.userData?.isLightweight ? null : (ref.userData?.rawDxfText || null),
+                            isLightweight: !!ref.userData?.isLightweight,
+                            minThresholdCm: ref.userData?.minThresholdCm || null,
                             geometryData: geometryData,
                             position: { x: ref.position.x, y: ref.position.y, z: ref.position.z },
                             rotation: { x: ref.rotation.x, y: ref.rotation.y, z: ref.rotation.z },
@@ -13420,8 +13616,10 @@
                             }
                         } else if (dxf.geometryData && dxf.geometryData.positionsBase64 && typeof createDXFGroupFromGeometryData === 'function') {
                             dxfGroup = createDXFGroupFromGeometryData(dxf.geometryData, dxf.filename || 'DXF Model', dxf.position?.z || 0);
-                            if (dxfGroup && dxf.dxfText) {
-                                dxfGroup.userData.rawDxfText = dxf.dxfText;
+                            if (dxfGroup) {
+                                if (dxf.dxfText) dxfGroup.userData.rawDxfText = dxf.dxfText;
+                                dxfGroup.userData.isLightweight = !!(dxf.isLightweight || dxf.geometryData?.isLightweight);
+                                dxfGroup.userData.minThresholdCm = dxf.minThresholdCm || dxf.geometryData?.minThresholdCm || null;
                             }
                         }
                         if (dxfGroup) {
@@ -20016,6 +20214,90 @@ if (typeof window !== 'undefined') {
         window.encryptXmlAes256 = encryptXmlAes256;
         window.decryptXmlAes256 = decryptXmlAes256;
     </script>
+    <!-- DXF Import Options Modal (Hafif Sınır Modu vs Tam Detay) -->
+    <div id="modal-dxf-import-options"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div
+            class="bg-gray-900 border border-purple-500/50 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col text-xs text-gray-200">
+            <!-- Header -->
+            <div class="bg-gray-850 px-5 py-3.5 border-b border-gray-800 flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">📐</span>
+                    <div>
+                        <h2 class="text-sm font-bold text-purple-300">DXF İçe Aktarma Seçenekleri</h2>
+                        <p id="dxf-modal-file-info" class="text-[10px] text-gray-400">Dosya: Seçilen_Çizim.dxf (0 MB)</p>
+                    </div>
+                </div>
+                <button onclick="closeDXFImportOptionsModal()"
+                    class="text-gray-400 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-gray-800 transition">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5 space-y-3.5">
+                <!-- Option 1: Lightweight Boundary Mode (Recommended) -->
+                <label id="dxf-opt-card-light"
+                    class="relative flex items-start gap-3 p-3.5 rounded-lg border-2 border-purple-500/80 bg-purple-950/20 hover:bg-purple-950/30 cursor-pointer transition">
+                    <input type="radio" name="dxf-import-mode" id="dxf-mode-light" value="lightweight" checked
+                        class="mt-1 text-purple-600 focus:ring-purple-500 cursor-pointer" onchange="updateDxfModalSelectionUI()">
+                    <div class="flex-1 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-purple-200 text-xs flex items-center gap-1.5">
+                                🚀 Hafif Sınır Modu
+                                <span class="bg-purple-800/80 text-purple-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Önerilen</span>
+                            </span>
+                            <span class="text-[10px] text-emerald-400 font-semibold">%99 Daha Küçük JSON</span>
+                        </div>
+                        <p class="text-[11px] text-gray-300 leading-relaxed">
+                            Bina duvarları, kolonlar ve makinelerin <strong>ana sınır konturlarını</strong> aktarır. Civata, vida, montaj delikleri ve tarama gibi mikro detayları eler.
+                        </p>
+
+                        <!-- Threshold Setting -->
+                        <div class="pt-2 flex items-center gap-2 text-[11px]">
+                            <span class="text-gray-300 font-medium">Min. Detay Eşiği:</span>
+                            <div class="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-1">
+                                <input type="number" id="dxf-threshold-input" value="10" min="1" max="200"
+                                    class="w-12 bg-transparent text-center font-bold text-purple-300 focus:outline-none">
+                                <span class="text-gray-400">cm</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="setDxfThreshold(5)"
+                                    class="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] transition cursor-pointer">5 cm</button>
+                                <button type="button" onclick="setDxfThreshold(10)"
+                                    class="px-2 py-0.5 rounded bg-purple-900/60 hover:bg-purple-800 text-purple-200 text-[10px] font-bold border border-purple-400/40 transition cursor-pointer">10 cm</button>
+                                <button type="button" onclick="setDxfThreshold(20)"
+                                    class="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] transition cursor-pointer">20 cm</button>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-400 italic">💡 10 cm altındaki mikro çizgiler ve vida/montaj delikleri elenir.</p>
+                    </div>
+                </label>
+
+                <!-- Option 2: Full Detail Mode -->
+                <label id="dxf-opt-card-full"
+                    class="relative flex items-start gap-3 p-3.5 rounded-lg border border-gray-700 bg-gray-800/40 hover:bg-gray-800/70 cursor-pointer transition">
+                    <input type="radio" name="dxf-import-mode" id="dxf-mode-full" value="full"
+                        class="mt-1 text-gray-600 focus:ring-gray-500 cursor-pointer" onchange="updateDxfModalSelectionUI()">
+                    <div class="flex-1 space-y-1">
+                        <span class="font-bold text-gray-200 text-xs">📐 Tam Çizim (Tüm Detaylar)</span>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Filtreleme yapmadan tüm civata, vida, montaj deliği ve mikro çizgileri aktarır. Büyük dosyalarda 3D sahneyi yavaşlatabilir ve proje JSON boyutunu megabaytlarca artırır.
+                        </p>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="bg-gray-850 px-5 py-3 border-t border-gray-800 flex justify-end gap-2.5">
+                <button type="button" onclick="closeDXFImportOptionsModal()"
+                    class="px-4 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 text-xs transition cursor-pointer">İptal</button>
+                <button type="button" onclick="confirmDXFImport()"
+                    class="px-5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 flex items-center gap-1.5 transition cursor-pointer">
+                    <span>📐</span> İçe Aktar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Building Levels Manager Modal (Şeffaf Zemin & Kat Yöneticisi) -->
     <div id="modal-building-levels"
         class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
