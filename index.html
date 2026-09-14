@@ -6391,6 +6391,7 @@
                 isDXFModel: true,
                 filename: cleanName,
                 elevation: activeElev,
+                rawDxfText: window._CURRENT_RAW_DXF_TEXT || dxfGroup.userData?.rawDxfText || null,
                 product: {
                     name: `📐 DXF: ${cleanName}`,
                     type: 'dxf-drawing',
@@ -6445,11 +6446,13 @@
             reader.onload = (evt) => {
                 try {
                     const dxfText = evt.target.result;
+                    window._CURRENT_RAW_DXF_TEXT = dxfText;
                     const parsedData = parseASCII_DXF(dxfText);
                     const dxfGroup = renderDXFToThreeGroup(parsedData, file.name);
                     if (dxfGroup) {
                         dxfGroup.userData.rawDxfText = dxfText;
                     }
+                    window._CURRENT_RAW_DXF_TEXT = null;
                 } catch (err) {
                     console.error('DXF parse error:', err);
                     if (typeof showNotice === 'function') {
@@ -13002,6 +13005,7 @@
                         }
                         serializableDxfDrawings.push({
                             filename: ref.userData?.filename || m.label || 'DXF_Model.dxf',
+                            dxfText: ref.userData?.rawDxfText || null,
                             geometryData: geometryData,
                             position: { x: ref.position.x, y: ref.position.y, z: ref.position.z },
                             rotation: { x: ref.rotation.x, y: ref.rotation.y, z: ref.rotation.z },
@@ -13408,12 +13412,15 @@
                 for (const dxf of dxfList) {
                     try {
                         let dxfGroup = null;
-                        if (dxf.geometryData && dxf.geometryData.positionsBase64 && typeof createDXFGroupFromGeometryData === 'function') {
-                            dxfGroup = createDXFGroupFromGeometryData(dxf.geometryData, dxf.filename || 'DXF Model', dxf.position?.z || 0);
-                        } else if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
+                        if (dxf.dxfText && typeof parseASCII_DXF === 'function' && typeof renderDXFToThreeGroup === 'function') {
                             const parsed = parseASCII_DXF(dxf.dxfText);
                             dxfGroup = renderDXFToThreeGroup(parsed, dxf.filename || 'DXF Model');
                             if (dxfGroup) {
+                                dxfGroup.userData.rawDxfText = dxf.dxfText;
+                            }
+                        } else if (dxf.geometryData && dxf.geometryData.positionsBase64 && typeof createDXFGroupFromGeometryData === 'function') {
+                            dxfGroup = createDXFGroupFromGeometryData(dxf.geometryData, dxf.filename || 'DXF Model', dxf.position?.z || 0);
+                            if (dxfGroup && dxf.dxfText) {
                                 dxfGroup.userData.rawDxfText = dxf.dxfText;
                             }
                         }
