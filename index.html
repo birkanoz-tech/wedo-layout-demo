@@ -313,8 +313,15 @@
                     <label
                         class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm">
                         <span>📥</span> Proje Aç (.json / .xml)
-                        <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json" class="hidden"
+                        <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json,.glb,.gltf" class="hidden"
                             onchange="loadXmlProjectFromFile(this)">
+                    </label>
+                    <label
+                        class="bg-indigo-700 hover:bg-indigo-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm border border-indigo-500/40"
+                        title="Bilgisayarınızdan bir 3D .glb / .gltf dosyasını içe aktarır ve sahneye ekler">
+                        <span>📦</span> GLB Model Ekle (.glb)
+                        <input type="file" accept=".glb,.gltf" class="hidden"
+                            onchange="handleCustomGLBFileInput(this)">
                     </label>
                     <label
                         class="bg-cyan-700 hover:bg-cyan-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm border border-cyan-500/40"
@@ -463,9 +470,13 @@
                 <div class="flex items-center gap-1.5 border-r border-[#3a3a3a] pr-3">
                     <span class="text-gray-400 text-[10px] font-semibold">GLB Model:</span>
                     <select id="glb-library-model-select"
-                        class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 outline-none cursor-pointer">
+                        class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 outline-none cursor-pointer max-w-[200px]">
                     </select>
-                    <input type="file" id="custom-glb-file-input" accept=".glb,.gltf" class="hidden">
+
+                    <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded text-xs font-bold cursor-pointer transition flex items-center gap-1 shadow" title="Bilgisayarınızdan .glb / .gltf 3D modeli içe aktarır">
+                        <span>📂</span> GLB İçe Aktar
+                        <input type="file" id="custom-glb-file-input" accept=".glb,.gltf" class="hidden" onchange="handleCustomGLBFileInput(this)">
+                    </label>
 
                     <button id="add-glb-model-btn" onclick="addSelectedGLBModelFromLibrary()" type="button"
                         class="bg-cyan-700 hover:bg-cyan-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold cursor-pointer transition flex items-center gap-1 shadow">
@@ -3872,6 +3883,45 @@
                 }
             });
 
+            // GLB / GLTF Dosyalarını 3D Sahneye Sürükle - Bırak (Drag & Drop) Desteği
+            const viewportDropTarget = document.getElementById('viewport-container') || renderer.domElement;
+            ['dragenter', 'dragover'].forEach(evtName => {
+                viewportDropTarget.addEventListener(evtName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'copy';
+                    renderer.domElement.style.outline = '3px dashed #06b6d4';
+                });
+            });
+            ['dragleave', 'dragend'].forEach(evtName => {
+                viewportDropTarget.addEventListener(evtName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    renderer.domElement.style.outline = 'none';
+                });
+            });
+            viewportDropTarget.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                renderer.domElement.style.outline = 'none';
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                        const file = e.dataTransfer.files[i];
+                        if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
+                            updateMouseCoordinates({ clientX: e.clientX, clientY: e.clientY });
+                            raycaster.setFromCamera(mouse, camera);
+                            const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                            const groundHit = new THREE.Vector3();
+                            let targetPos = null;
+                            if (raycaster.ray.intersectPlane(planeZ, groundHit)) {
+                                targetPos = groundHit;
+                            }
+                            await importCustomGLBFile(file, targetPos);
+                        }
+                    }
+                }
+            });
+
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('keydown', (event) => {
                 const targetTag = event.target?.tagName;
@@ -4900,6 +4950,10 @@
                 return false;
             }
 
+            if (assetPath.startsWith('custom_glb_') || assetPath.startsWith('data:') || assetPath.startsWith('blob:') || (window.EMBEDDED_GLB_ASSETS && window.EMBEDDED_GLB_ASSETS[assetPath])) {
+                return true;
+            }
+
             if (window.location.protocol === 'file:') {
                 return true;
             }
@@ -4922,13 +4976,291 @@
             return true;
         }
 
+        // =========================================================================
+        // ÖZEL GLB MODEL İÇE AKTARMA, INDEXEDDB ÖNBELLEĞİ VE SAHNE MOTORU
+        // =========================================================================
+        window.CUSTOM_GLB_DEFINITIONS = window.CUSTOM_GLB_DEFINITIONS || {};
+        window.CUSTOM_IMPORTED_GLB_MODELS = window.CUSTOM_IMPORTED_GLB_MODELS || [];
+
+        const GLB_DB_NAME = 'ProposalApp_CustomModels_DB';
+        const GLB_STORE_NAME = 'models';
+
+        function openGlbDatabase() {
+            return new Promise((resolve) => {
+                if (!window.indexedDB) {
+                    resolve(null);
+                    return;
+                }
+                const request = window.indexedDB.open(GLB_DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(GLB_STORE_NAME)) {
+                        db.createObjectStore(GLB_STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => {
+                    console.warn('IndexedDB açılamadı:', e);
+                    resolve(null);
+                };
+            });
+        }
+
+        async function saveGlbToIndexedDB(id, name, base64) {
+            try {
+                const db = await openGlbDatabase();
+                if (!db) return;
+                const tx = db.transaction(GLB_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(GLB_STORE_NAME);
+                store.put({ id, name, base64, timestamp: Date.now() });
+            } catch (e) {
+                console.warn('IndexedDB kayıt hatası:', e);
+            }
+        }
+
+        async function getGlbFromIndexedDB(id) {
+            try {
+                const db = await openGlbDatabase();
+                if (!db) return null;
+                return new Promise((resolve) => {
+                    const tx = db.transaction(GLB_STORE_NAME, 'readonly');
+                    const store = tx.objectStore(GLB_STORE_NAME);
+                    const req = store.get(id);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function getAllGlbsFromIndexedDB() {
+            try {
+                const db = await openGlbDatabase();
+                if (!db) return [];
+                return new Promise((resolve) => {
+                    const tx = db.transaction(GLB_STORE_NAME, 'readonly');
+                    const store = tx.objectStore(GLB_STORE_NAME);
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                });
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function addCustomModelToLibraryDropdown(defId, name) {
+            window.CUSTOM_IMPORTED_GLB_MODELS = window.CUSTOM_IMPORTED_GLB_MODELS || [];
+            const existing = window.CUSTOM_IMPORTED_GLB_MODELS.find(m => m.path === defId);
+            if (!existing) {
+                window.CUSTOM_IMPORTED_GLB_MODELS.push({
+                    label: `⭐ ${name} (Özel)`,
+                    path: defId,
+                    isCustomGlb: true
+                });
+            }
+            initManualLibraryModelPicker();
+            if (typeof loadCachedCustomGlbsOnStartup === 'function') {
+                loadCachedCustomGlbsOnStartup();
+            }
+        }
+
+        async function loadCachedCustomGlbsOnStartup() {
+            try {
+                const cachedList = await getAllGlbsFromIndexedDB();
+                if (Array.isArray(cachedList) && cachedList.length > 0) {
+                    window.CUSTOM_GLB_DEFINITIONS = window.CUSTOM_GLB_DEFINITIONS || {};
+                    window.EMBEDDED_GLB_ASSETS = window.EMBEDDED_GLB_ASSETS || {};
+                    cachedList.forEach(item => {
+                        window.CUSTOM_GLB_DEFINITIONS[item.id] = item;
+                        window.EMBEDDED_GLB_ASSETS[item.id] = item.base64;
+                        addCustomModelToLibraryDropdown(item.id, item.name);
+                    });
+                    console.log(`📦 [IndexedDB] ${cachedList.length} adet yerel GLB modeli önbellekten yüklendi.`);
+                }
+            } catch (e) {
+                console.warn('Startup IndexedDB GLB load failed:', e);
+            }
+        }
+
+        async function instantiateCustomGLBMesh(defId, name, base64OrBuffer, targetPos = null, savedTransform = null) {
+            if (!gltfLoader) {
+                gltfLoader = new THREE.GLTFLoader();
+            }
+
+            return new Promise((resolve) => {
+                const onLoaded = (gltf) => {
+                    const rawScene = gltf.scene;
+                    const model = cloneModelWithUniqueMaterials(rawScene);
+
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+
+                    if (!savedTransform) {
+                        const box = new THREE.Box3().setFromObject(model);
+                        const size = box.getSize(new THREE.Vector3());
+                        const maxDim = Math.max(size.x, size.y, size.z);
+                        // Eğer model boyutları 40'tan büyükse milimetre kabul et ve 0.001 ölçekle
+                        const autoScale = (maxDim > 40) ? 0.001 : 1.0;
+                        model.scale.set(autoScale, autoScale, autoScale);
+
+                        const scaledBox = new THREE.Box3().setFromObject(model);
+                        const minZ = scaledBox.min.z;
+                        let pos = targetPos ? targetPos.clone() : (controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0));
+                        model.position.set(pos.x, pos.y, pos.z - minZ);
+                    } else {
+                        if (savedTransform.position) {
+                            model.position.set(savedTransform.position.x, savedTransform.position.y, savedTransform.position.z);
+                        }
+                        if (savedTransform.quaternion && typeof savedTransform.quaternion.w === 'number') {
+                            model.quaternion.set(savedTransform.quaternion.x, savedTransform.quaternion.y, savedTransform.quaternion.z, savedTransform.quaternion.w).normalize();
+                        } else if (savedTransform.rotation) {
+                            model.rotation.set(savedTransform.rotation.x || 0, savedTransform.rotation.y || 0, savedTransform.rotation.z || 0);
+                        }
+                        if (savedTransform.scale) {
+                            model.scale.set(savedTransform.scale.x || 1, savedTransform.scale.y || 1, savedTransform.scale.z || 1);
+                        }
+                    }
+
+                    const instanceId = 'custom_inst_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                    const assemblyName = (savedTransform && savedTransform.assemblyName) ? savedTransform.assemblyName : 'Özel Modeller';
+
+                    model.name = name;
+                    model.userData = {
+                        type: 'xml-product',
+                        isCustomGlb: true,
+                        customDefId: defId,
+                        instanceId: instanceId,
+                        displayName: name,
+                        assemblyName: assemblyName,
+                        product: {
+                            name: name,
+                            productno: name,
+                            type: 'custom-glb',
+                            guid: instanceId,
+                            assemblyName: assemblyName,
+                            position: { x: model.position.x, y: model.position.y, z: model.position.z },
+                            rotation: { x: model.rotation.x, y: model.rotation.y, z: model.rotation.z },
+                            scale: { x: model.scale.x, y: model.scale.y, z: model.scale.z }
+                        }
+                    };
+
+                    scene.add(model);
+
+                    addedManualModels = addedManualModels || [];
+                    addedManualModels.push({
+                        path: defId,
+                        label: name,
+                        ref: model,
+                        isCustomGlb: true,
+                        customDefId: defId
+                    });
+
+                    if (Array.isArray(window.modelTreeEntries)) {
+                        window.modelTreeEntries.push({
+                            assemblyName: assemblyName,
+                            product: model.userData.product,
+                            mesh: model
+                        });
+                    }
+
+                    if (typeof rebuildModelTreeFromScene === 'function') rebuildModelTreeFromScene();
+                    if (typeof renderModelTree === 'function') renderModelTree();
+                    if (typeof updateGLBModelCountBadge === 'function') updateGLBModelCountBadge();
+
+                    resolve(model);
+                };
+
+                if (typeof base64OrBuffer === 'string' && (base64OrBuffer.startsWith('data:') || base64OrBuffer.startsWith('blob:'))) {
+                    gltfLoader.load(base64OrBuffer, onLoaded, undefined, (err) => {
+                        console.error('Custom GLB URL yükleme hatası:', err);
+                        resolve(null);
+                    });
+                } else if (base64OrBuffer instanceof ArrayBuffer) {
+                    gltfLoader.parse(base64OrBuffer, '', onLoaded, (err) => {
+                        console.error('Custom GLB ArrayBuffer parse hatası:', err);
+                        resolve(null);
+                    });
+                } else {
+                    console.warn('Geçersiz GLB verisi:', base64OrBuffer);
+                    resolve(null);
+                }
+            });
+        }
+
+        async function importCustomGLBFile(file, optionalTargetPos = null) {
+            if (!file) return;
+            const filename = file.name || 'Özel_Model.glb';
+            const cleanName = filename.replace(/\.(glb|gltf)$/i, '');
+
+            if (typeof showToastNotice === 'function') {
+                showToastNotice(`⏳ "${filename}" içe aktarılıyor...`, 'info');
+            }
+
+            try {
+                const base64DataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(file);
+                });
+
+                const defId = 'custom_glb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+                window.CUSTOM_GLB_DEFINITIONS = window.CUSTOM_GLB_DEFINITIONS || {};
+                window.CUSTOM_GLB_DEFINITIONS[defId] = {
+                    id: defId,
+                    name: cleanName,
+                    filename: filename,
+                    base64: base64DataUrl
+                };
+
+                await saveGlbToIndexedDB(defId, cleanName, base64DataUrl);
+
+                window.EMBEDDED_GLB_ASSETS = window.EMBEDDED_GLB_ASSETS || {};
+                window.EMBEDDED_GLB_ASSETS[defId] = base64DataUrl;
+
+                addCustomModelToLibraryDropdown(defId, cleanName);
+
+                const mesh = await instantiateCustomGLBMesh(defId, cleanName, base64DataUrl, optionalTargetPos);
+                if (mesh) {
+                    selectMesh(mesh);
+                    if (typeof showToastNotice === 'function') {
+                        showToastNotice(`✅ "${cleanName}" başarıyla içe aktarıldı ve sahneye eklendi.`, 'success');
+                    }
+                }
+            } catch (err) {
+                console.error('GLB içe aktarma hatası:', err);
+                if (typeof showToastNotice === 'function') {
+                    showToastNotice(`❌ Model içe aktarılamadı: ${err.message}`, 'error');
+                }
+            }
+        }
+        window.importCustomGLBFile = importCustomGLBFile;
+
+        function handleCustomGLBFileInput(input) {
+            if (input && input.files && input.files.length > 0) {
+                for (let i = 0; i < input.files.length; i++) {
+                    importCustomGLBFile(input.files[i]);
+                }
+                input.value = '';
+            }
+        }
+        window.handleCustomGLBFileInput = handleCustomGLBFileInput;
+
         function initManualLibraryModelPicker() {
             const selectEl = document.getElementById('glb-library-model-select') || document.getElementById('manual-library-model-select');
             if (!selectEl) {
                 return;
             }
 
-            selectEl.innerHTML = MANUAL_LIBRARY_MODELS
+            const allModels = [...MANUAL_LIBRARY_MODELS, ...(window.CUSTOM_IMPORTED_GLB_MODELS || [])];
+            selectEl.innerHTML = allModels
                 .map((item, index) => `<option value="${item.path}" ${index === 0 ? 'selected' : ''}>${item.label}</option>`)
                 .join('');
         }
@@ -4944,7 +5276,8 @@
                 return null;
             }
 
-            return MANUAL_LIBRARY_MODELS.find((item) => item.path === selectedPath) || null;
+            const allModels = [...MANUAL_LIBRARY_MODELS, ...(window.CUSTOM_IMPORTED_GLB_MODELS || [])];
+            return allModels.find((item) => item.path === selectedPath) || null;
         }
 
         async function addSelectedGLBModelFromLibrary() {
@@ -4957,6 +5290,22 @@
             const statusEl = document.getElementById('import-status');
             if (statusEl) {
                 statusEl.innerText = `⏳ ${model.label} modeli ekleniyor...`;
+            }
+
+            if (model.isCustomGlb || (window.CUSTOM_GLB_DEFINITIONS && window.CUSTOM_GLB_DEFINITIONS[model.path])) {
+                const def = window.CUSTOM_GLB_DEFINITIONS[model.path];
+                const base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS?.[model.path];
+                const cleanName = def?.name || model.label.replace(/^⭐\s*/, '').replace(/\s*\(Özel\)$/, '');
+                const targetPos = controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
+                const mesh = await instantiateCustomGLBMesh(model.path, cleanName, base64, targetPos);
+                if (mesh) {
+                    selectMesh(mesh);
+                    if (statusEl) statusEl.innerText = `✅ ${cleanName} sahneye eklendi.`;
+                    if (typeof showToastNotice === 'function') {
+                        showToastNotice(`✅ "${cleanName}" sahneye eklendi.`, 'success');
+                    }
+                }
+                return;
             }
 
             const mesh = await loadPartModel({
@@ -12551,6 +12900,44 @@
                 }
             });
 
+            // Özel İçe Aktarılmış GLB Modelleri (Base64 gömülü - Self-contained JSON)
+            const serializableCustomGlbModels = [];
+            const customGlbDefinitions = {};
+
+            (addedManualModels || []).forEach(m => {
+                if (m.isCustomGlb || (m.ref && m.ref.userData?.isCustomGlb)) {
+                    const ref = m.ref;
+                    const defId = ref?.userData?.customDefId || m.customDefId || m.path;
+                    const def = window.CUSTOM_GLB_DEFINITIONS?.[defId];
+                    const base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS?.[defId] || null;
+
+                    if (base64 && defId) {
+                        customGlbDefinitions[defId] = {
+                            id: defId,
+                            name: def?.name || ref?.name || m.label || 'Özel Model',
+                            base64: base64
+                        };
+                    }
+
+                    if (ref) {
+                        serializableCustomGlbModels.push({
+                            defId: defId,
+                            name: ref.name || m.label || 'Özel Model',
+                            assemblyName: ref.userData?.assemblyName || ref.userData?.product?.assemblyName || 'Özel Modeller',
+                            position: { x: Number(ref.position.x.toFixed(4)), y: Number(ref.position.y.toFixed(4)), z: Number(ref.position.z.toFixed(4)) },
+                            rotation: { x: Number(ref.rotation.x.toFixed(4)), y: Number(ref.rotation.y.toFixed(4)), z: Number(ref.rotation.z.toFixed(4)) },
+                            quaternion: ref.quaternion ? { 
+                                x: Number(ref.quaternion.x.toFixed(6)), 
+                                y: Number(ref.quaternion.y.toFixed(6)), 
+                                z: Number(ref.quaternion.z.toFixed(6)), 
+                                w: Number(ref.quaternion.w.toFixed(6)) 
+                            } : null,
+                            scale: { x: Number(ref.scale.x.toFixed(4)), y: Number(ref.scale.y.toFixed(4)), z: Number(ref.scale.z.toFixed(4)) }
+                        });
+                    }
+                }
+            });
+
             return {
                 format: "ProposalApp_3D_Scene_Document",
                 version: "2.1.0",
@@ -12561,6 +12948,8 @@
                 panels: serializablePanels,
                 cableLinks: serializableCableLinks,
                 dxfDrawings: serializableDxfDrawings,
+                customGlbModels: serializableCustomGlbModels,
+                customGlbDefinitions: customGlbDefinitions,
                 manualModels: manualModelsData,
                 buildingLevels: buildingLevels || [],
                 assemblyHierarchy: {
@@ -12860,6 +13249,44 @@
                         }
                     } catch (err) {
                         console.warn('Manuel model geri yükleme hatası:', m, err);
+                    }
+                }
+            }
+
+            // 3.5. Özel İçe Aktarılmış GLB Modellerini Geri Yükle (Embedded Base64 JSON)
+            const customDefs = sceneData.customGlbDefinitions || data.customGlbDefinitions || {};
+            window.CUSTOM_GLB_DEFINITIONS = window.CUSTOM_GLB_DEFINITIONS || {};
+            window.EMBEDDED_GLB_ASSETS = window.EMBEDDED_GLB_ASSETS || {};
+
+            Object.keys(customDefs).forEach(defId => {
+                const def = customDefs[defId];
+                window.CUSTOM_GLB_DEFINITIONS[defId] = def;
+                if (def.base64) {
+                    window.EMBEDDED_GLB_ASSETS[defId] = def.base64;
+                    saveGlbToIndexedDB(defId, def.name, def.base64);
+                }
+                addCustomModelToLibraryDropdown(defId, def.name);
+            });
+
+            const customModelInstances = sceneData.customGlbModels || data.customGlbModels || [];
+            if (Array.isArray(customModelInstances) && customModelInstances.length > 0) {
+                for (const inst of customModelInstances) {
+                    try {
+                        const def = window.CUSTOM_GLB_DEFINITIONS[inst.defId] || null;
+                        let base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS[inst.defId] || null;
+                        if (!base64 && typeof getGlbFromIndexedDB === 'function') {
+                            const cached = await getGlbFromIndexedDB(inst.defId);
+                            if (cached?.base64) {
+                                base64 = cached.base64;
+                                window.CUSTOM_GLB_DEFINITIONS[inst.defId] = cached;
+                                window.EMBEDDED_GLB_ASSETS[inst.defId] = base64;
+                            }
+                        }
+                        if (base64) {
+                            await instantiateCustomGLBMesh(inst.defId, inst.name, base64, null, inst);
+                        }
+                    } catch (customLoadErr) {
+                        console.warn('Özel GLB modeli geri yüklenirken hata:', inst, customLoadErr);
                     }
                 }
             }
@@ -13846,6 +14273,11 @@
         function loadXmlProjectFromFile(input) {
             if (input && input.files && input.files.length > 0) {
                 const file = input.files[0];
+                if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
+                    importCustomGLBFile(file);
+                    input.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const content = e.target.result;
