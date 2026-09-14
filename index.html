@@ -5027,13 +5027,19 @@
             });
         }
 
-        async function saveGlbToIndexedDB(id, name, base64) {
+        async function saveGlbToIndexedDB(id, name, dataOrBase64) {
             try {
                 const db = await openGlbDatabase();
                 if (!db) return;
                 const tx = db.transaction(GLB_STORE_NAME, 'readwrite');
                 const store = tx.objectStore(GLB_STORE_NAME);
-                store.put({ id, name, base64, timestamp: Date.now() });
+                store.put({
+                    id,
+                    name,
+                    data: dataOrBase64,
+                    base64: typeof dataOrBase64 === 'string' ? dataOrBase64 : null,
+                    timestamp: Date.now()
+                });
             } catch (e) {
                 console.warn('IndexedDB kayıt hatası:', e);
             }
@@ -5095,7 +5101,10 @@
                     window.EMBEDDED_GLB_ASSETS = window.EMBEDDED_GLB_ASSETS || {};
                     cachedList.forEach(item => {
                         window.CUSTOM_GLB_DEFINITIONS[item.id] = item;
-                        window.EMBEDDED_GLB_ASSETS[item.id] = item.base64;
+                        const data = item.data || item.base64;
+                        if (data) {
+                            window.EMBEDDED_GLB_ASSETS[item.id] = data;
+                        }
                         addCustomModelToLibraryDropdown(item.id, item.name);
                     });
                     console.log(`📦 [IndexedDB] ${cachedList.length} adet yerel GLB modeli önbellekten yüklendi.`);
@@ -5224,12 +5233,8 @@
             }
 
             try {
-                const base64DataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = (e) => reject(e);
-                    reader.readAsDataURL(file);
-                });
+                // ArrayBuffer olarak doğrudan oku - Bellekte megabaytlarca Base64 string oluşmasını engeller
+                const arrayBuffer = await file.arrayBuffer();
 
                 const defId = 'custom_glb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 
@@ -5238,23 +5243,29 @@
                     id: defId,
                     name: cleanName,
                     filename: filename,
-                    base64: base64DataUrl
+                    buffer: arrayBuffer,
+                    data: arrayBuffer
                 };
 
-                await saveGlbToIndexedDB(defId, cleanName, base64DataUrl);
-
                 window.EMBEDDED_GLB_ASSETS = window.EMBEDDED_GLB_ASSETS || {};
-                window.EMBEDDED_GLB_ASSETS[defId] = base64DataUrl;
+                window.EMBEDDED_GLB_ASSETS[defId] = arrayBuffer;
 
                 addCustomModelToLibraryDropdown(defId, cleanName);
 
-                const mesh = await instantiateCustomGLBMesh(defId, cleanName, base64DataUrl, optionalTargetPos);
+                // THREE.GLTFLoader.parse'a doğrudan ArrayBuffer ver (anında parse & düşük bellek)
+                const mesh = await instantiateCustomGLBMesh(defId, cleanName, arrayBuffer, optionalTargetPos);
                 if (mesh) {
                     selectMesh(mesh);
                     if (typeof showToastNotice === 'function') {
                         showToastNotice(`✅ "${cleanName}" başarıyla içe aktarıldı ve sahneye eklendi.`, 'success');
                     }
                 }
+
+                // IndexedDB'ye arka planda kaydet (Three.js ve ana iş parçacığını bekletmeden)
+                setTimeout(() => {
+                    saveGlbToIndexedDB(defId, cleanName, arrayBuffer);
+                }, 100);
+
             } catch (err) {
                 console.error('GLB içe aktarma hatası:', err);
                 if (typeof showToastNotice === 'function') {
@@ -5315,10 +5326,10 @@
 
             if (model.isCustomGlb || (window.CUSTOM_GLB_DEFINITIONS && window.CUSTOM_GLB_DEFINITIONS[model.path])) {
                 const def = window.CUSTOM_GLB_DEFINITIONS[model.path];
-                const base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS?.[model.path];
+                const modelData = def?.buffer || def?.data || def?.base64 || window.EMBEDDED_GLB_ASSETS?.[model.path];
                 const cleanName = def?.name || model.label.replace(/^⭐\s*/, '').replace(/\s*\(Özel\)$/, '');
                 const targetPos = controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
-                const mesh = await instantiateCustomGLBMesh(model.path, cleanName, base64, targetPos);
+                const mesh = await instantiateCustomGLBMesh(model.path, cleanName, modelData, targetPos);
                 if (mesh) {
                     selectMesh(mesh);
                     if (statusEl) statusEl.innerText = `✅ ${cleanName} sahneye eklendi.`;
@@ -6112,20 +6123,7 @@
 
             const cleanedText = dxfText.replace(/^\uFEFF/, '');
             const rawLines = cleanedText.split(/\r?\n/);
-
-            const pairs = [];
-            let i = 0;
-            while (i < rawLines.length - 1) {
-                const codeStr = rawLines[i].trim();
-                const valStr = rawLines[i + 1] !== undefined ? rawLines[i + 1].trim() : '';
-
-                if (/^-?\d+$/.test(codeStr)) {
-                    pairs.push({ code: parseInt(codeStr, 10), value: valStr });
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-            }
+            const totalLines = rawLines.length;
 
             const entities = [];
             const blocks = {};
@@ -6136,8 +6134,14 @@
             let expectingSectionName = false;
             let expectingBlockName = false;
 
-            for (let i = 0; i < pairs.length; i++) {
-                const { code, value } = pairs[i];
+            let i = 0;
+            while (i < totalLines - 1) {
+                const codeStr = rawLines[i].trim();
+                i++;
+                if (!/^-?\d+$/.test(codeStr)) continue;
+                const code = parseInt(codeStr, 10);
+                const value = rawLines[i] !== undefined ? rawLines[i].trim() : '';
+                i++;
 
                 if (code === 0) {
                     if (currentEntity) {
@@ -6248,6 +6252,10 @@
             return { entities, blocks };
         }
 
+        // Module-level scratch vectors to prevent thousands of garbage collection allocations
+        const _dxfTmpPt1 = new THREE.Vector3();
+        const _dxfTmpPt2 = new THREE.Vector3();
+
         function renderDXFToThreeGroup(dxfData, filename = 'DXF Model', importOptions = null) {
             if (!dxfData || (!Array.isArray(dxfData.entities) && !dxfData.blocks)) {
                 if (typeof showNotice === 'function') showNotice('⚠️ DXF dosyasında geçerli çizim elemanı bulunamadı.');
@@ -6274,7 +6282,8 @@
                 }
             }
             if (Array.isArray(dxfData.entities)) {
-                for (let i = 0; i < dxfData.entities.length; i++) {
+                const sampleStep = dxfData.entities.length > 5000 ? Math.ceil(dxfData.entities.length / 5000) : 1;
+                for (let i = 0; i < dxfData.entities.length; i += sampleStep) {
                     const ent = dxfData.entities[i];
                     if (ent.type === 'LINE') {
                         scanPt(ent.x1, ent.y1); scanPt(ent.x2, ent.y2);
@@ -6293,9 +6302,9 @@
                 }
             }
             const preSpan = Math.max(preMaxX - preMinX, preMaxY - preMinY);
-            const estimatedScaleFactor = preSpan > 250 ? 0.001 : 1.0;
-            // Eşik değerini çizim birimine dönüştür (Örn: 10 cm mm çizimde 100mm, m çizimde 0.10m)
+            const estimatedScaleFactor = (preSpan > 250) ? 0.001 : 1.0;
             const minThresholdUnits = isLightweight ? ((minThresholdCm / 100) / estimatedScaleFactor) : 0;
+            const minThresholdUnitsSq = minThresholdUnits * minThresholdUnits;
 
             const dxfGroup = new THREE.Group();
             const cleanName = filename.replace(/\.dxf$/i, '');
@@ -6310,28 +6319,35 @@
             let totalRawSegmentsCount = 0;
             let filteredSegmentsCount = 0;
             let acceptedSegmentsCount = 0;
+            const MAX_SEGMENTS_CAP = 35000; // Tarayıcı çökmesini (OOM) önleyici sert güvenlik tavanı
 
-            function processEntity(ent, transformMatrix = null) {
+            function processEntity(ent, transformMatrix = null, depth = 0, visitedBlocks = null) {
+                if (depth > 6) return; // Sonsuz blok iç içe geçmesini engelle
+                if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) return;
+
                 const hexColor = convertACIColorToHex(ent.color);
                 colorObj.setHex(hexColor);
 
-                function addTransformedSegment(x1, y1, z1, x2, y2, z2) {
-                    let pt1 = new THREE.Vector3(x1, y1, z1);
-                    let pt2 = new THREE.Vector3(x2, y2, z2);
-                    if (transformMatrix) {
-                        pt1.applyMatrix4(transformMatrix);
-                        pt2.applyMatrix4(transformMatrix);
-                    }
+                function addTransformedSegment(x1, y1, z1, x2, y2, z2, isCircleOrArc = false) {
                     totalRawSegmentsCount++;
-                    if (isLightweight && minThresholdUnits > 0) {
-                        const segLen = pt1.distanceTo(pt2);
-                        if (segLen < minThresholdUnits) {
+                    if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) {
+                        return;
+                    }
+                    if (isLightweight && minThresholdUnitsSq > 0 && !isCircleOrArc) {
+                        const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+                        if ((dx * dx + dy * dy + dz * dz) < minThresholdUnitsSq) {
                             filteredSegmentsCount++;
                             return;
                         }
                     }
-                    rawLinePositions.push(pt1.x, pt1.y, pt1.z);
-                    rawLinePositions.push(pt2.x, pt2.y, pt2.z);
+                    _dxfTmpPt1.set(x1, y1, z1);
+                    _dxfTmpPt2.set(x2, y2, z2);
+                    if (transformMatrix) {
+                        _dxfTmpPt1.applyMatrix4(transformMatrix);
+                        _dxfTmpPt2.applyMatrix4(transformMatrix);
+                    }
+                    rawLinePositions.push(_dxfTmpPt1.x, _dxfTmpPt1.y, _dxfTmpPt1.z);
+                    rawLinePositions.push(_dxfTmpPt2.x, _dxfTmpPt2.y, _dxfTmpPt2.z);
                     rawLineColors.push(colorObj.r, colorObj.g, colorObj.b);
                     rawLineColors.push(colorObj.r, colorObj.g, colorObj.b);
                     acceptedSegmentsCount++;
@@ -6342,10 +6358,11 @@
                 } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
                     const verts = ent.vertices || [];
                     for (let i = 0; i < verts.length - 1; i++) {
+                        if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) break;
                         const v1 = verts[i], v2 = verts[i + 1];
                         addTransformedSegment(v1.x, v1.y, v1.z || 0, v2.x, v2.y, v2.z || 0);
                     }
-                    if (ent.closed && verts.length > 2) {
+                    if (ent.closed && verts.length > 2 && acceptedSegmentsCount < MAX_SEGMENTS_CAP) {
                         const v1 = verts[verts.length - 1], v2 = verts[0];
                         addTransformedSegment(v1.x, v1.y, v1.z || 0, v2.x, v2.y, v2.z || 0);
                     }
@@ -6358,11 +6375,13 @@
                     }
                     const segments = isLightweight ? 16 : 32;
                     for (let i = 0; i < segments; i++) {
+                        if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) break;
                         const a1 = (i / segments) * Math.PI * 2;
                         const a2 = ((i + 1) / segments) * Math.PI * 2;
                         addTransformedSegment(
                             cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz,
-                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz
+                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz,
+                            true
                         );
                     }
                 } else if (ent.type === 'ARC') {
@@ -6377,14 +6396,20 @@
                     if (end < start) end += Math.PI * 2;
                     const segments = isLightweight ? 12 : 24;
                     for (let i = 0; i < segments; i++) {
+                        if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) break;
                         const a1 = start + (i / segments) * (end - start);
                         const a2 = start + ((i + 1) / segments) * (end - start);
                         addTransformedSegment(
                             cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz,
-                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz
+                            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz,
+                            true
                         );
                     }
                 } else if (ent.type === 'INSERT' && dxfData.blocks && ent.blockName && dxfData.blocks[ent.blockName]) {
+                    const visited = visitedBlocks ? new Set(visitedBlocks) : new Set();
+                    if (visited.has(ent.blockName)) return; // Dairesel blok referansını engelle (Out of Memory koruması)
+                    visited.add(ent.blockName);
+
                     const blockEntities = dxfData.blocks[ent.blockName];
                     const mat = new THREE.Matrix4();
                     const translation = new THREE.Vector3(ent.insertX, ent.insertY, ent.insertZ);
@@ -6396,12 +6421,18 @@
                         mat.premultiply(transformMatrix);
                     }
 
-                    blockEntities.forEach(bEnt => processEntity(bEnt, mat));
+                    for (let b = 0; b < blockEntities.length; b++) {
+                        if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) break;
+                        processEntity(blockEntities[b], mat, depth + 1, visited);
+                    }
                 }
             }
 
             if (Array.isArray(dxfData.entities)) {
-                dxfData.entities.forEach(ent => processEntity(ent));
+                for (let e = 0; e < dxfData.entities.length; e++) {
+                    if (acceptedSegmentsCount >= MAX_SEGMENTS_CAP) break;
+                    processEntity(dxfData.entities[e]);
+                }
             }
 
             if (rawLinePositions.length === 0) {
@@ -6437,17 +6468,16 @@
                 offsetY = -((minY + maxY) / 2) * scaleFactor;
             }
 
-            const linePositions = [];
+            const linePositions = new Float32Array(rawLinePositions.length);
             for (let i = 0; i < rawLinePositions.length; i += 3) {
-                linePositions.push(
-                    rawLinePositions[i] * scaleFactor + offsetX,
-                    rawLinePositions[i + 1] * scaleFactor + offsetY,
-                    rawLinePositions[i + 2] * scaleFactor
-                );
+                linePositions[i] = rawLinePositions[i] * scaleFactor + offsetX;
+                linePositions[i + 1] = rawLinePositions[i + 1] * scaleFactor + offsetY;
+                linePositions[i + 2] = rawLinePositions[i + 2] * scaleFactor;
             }
 
             const lineGeo = new THREE.BufferGeometry();
-            lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+            lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+            lineGeo.setAttribute('color', new THREE.Float32BufferAttribute(rawLineColors, 3));
             lineGeo.setAttribute('color', new THREE.Float32BufferAttribute(rawLineColors, 3));
 
             const lineMat = new THREE.LineBasicMaterial({
@@ -6673,6 +6703,18 @@
             return new Float32Array(bytes.buffer);
         }
         window.base64ToFloat32Array = base64ToFloat32Array;
+
+        function arrayBufferToBase64(buffer) {
+            if (!buffer) return null;
+            const uint8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+            const CHUNK_SIZE = 0x8000;
+            let binary = '';
+            for (let i = 0; i < uint8.length; i += CHUNK_SIZE) {
+                binary += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK_SIZE));
+            }
+            return btoa(binary);
+        }
+        window.arrayBufferToBase64 = arrayBufferToBase64;
 
         function createDXFGroupFromGeometryData(geometryData, filename = 'DXF Model', activeElev = 0.0) {
             if (!geometryData || !geometryData.positionsBase64) return null;
@@ -13221,7 +13263,15 @@
                     const ref = m.ref;
                     const defId = ref?.userData?.customDefId || m.customDefId || m.path;
                     const def = window.CUSTOM_GLB_DEFINITIONS?.[defId];
-                    const base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS?.[defId] || null;
+                    let base64 = def?.base64 || (typeof window.EMBEDDED_GLB_ASSETS?.[defId] === 'string' ? window.EMBEDDED_GLB_ASSETS[defId] : null);
+
+                    if (!base64 && (def?.buffer || def?.data || window.EMBEDDED_GLB_ASSETS?.[defId])) {
+                        const rawBuf = def?.buffer || def?.data || window.EMBEDDED_GLB_ASSETS?.[defId];
+                        if (rawBuf instanceof ArrayBuffer && typeof arrayBufferToBase64 === 'function') {
+                            base64 = 'data:model/gltf-binary;base64,' + arrayBufferToBase64(rawBuf);
+                            if (def) def.base64 = base64;
+                        }
+                    }
 
                     if (base64 && defId) {
                         customGlbDefinitions[defId] = {
@@ -13572,9 +13622,10 @@
             Object.keys(customDefs).forEach(defId => {
                 const def = customDefs[defId];
                 window.CUSTOM_GLB_DEFINITIONS[defId] = def;
-                if (def.base64) {
-                    window.EMBEDDED_GLB_ASSETS[defId] = def.base64;
-                    saveGlbToIndexedDB(defId, def.name, def.base64);
+                const assetData = def.buffer || def.data || def.base64;
+                if (assetData) {
+                    window.EMBEDDED_GLB_ASSETS[defId] = assetData;
+                    saveGlbToIndexedDB(defId, def.name, assetData);
                 }
                 addCustomModelToLibraryDropdown(defId, def.name);
             });
@@ -13584,17 +13635,17 @@
                 for (const inst of customModelInstances) {
                     try {
                         const def = window.CUSTOM_GLB_DEFINITIONS[inst.defId] || null;
-                        let base64 = def?.base64 || window.EMBEDDED_GLB_ASSETS[inst.defId] || null;
-                        if (!base64 && typeof getGlbFromIndexedDB === 'function') {
+                        let modelData = def?.buffer || def?.data || def?.base64 || window.EMBEDDED_GLB_ASSETS[inst.defId] || null;
+                        if (!modelData && typeof getGlbFromIndexedDB === 'function') {
                             const cached = await getGlbFromIndexedDB(inst.defId);
-                            if (cached?.base64) {
-                                base64 = cached.base64;
+                            if (cached) {
+                                modelData = cached.data || cached.base64;
                                 window.CUSTOM_GLB_DEFINITIONS[inst.defId] = cached;
-                                window.EMBEDDED_GLB_ASSETS[inst.defId] = base64;
+                                window.EMBEDDED_GLB_ASSETS[inst.defId] = modelData;
                             }
                         }
-                        if (base64) {
-                            await instantiateCustomGLBMesh(inst.defId, inst.name, base64, null, inst);
+                        if (modelData) {
+                            await instantiateCustomGLBMesh(inst.defId, inst.name, modelData, null, inst);
                         }
                     } catch (customLoadErr) {
                         console.warn('Özel GLB modeli geri yüklenirken hata:', inst, customLoadErr);
@@ -13660,12 +13711,48 @@
 
         function saveLayoutToLocalStorage() {
             try {
-                if (!currentRawXmlText) return;
+                if (!currentRawXmlText && !importedProjectRoot && (!addedPanels || addedPanels.length === 0)) return;
 
-                const stateData = getSerializableState();
+                // LocalStorage için optimize durum nesnesi al (büyük XML ve Base64'leri ayıkla)
+                const stateData = getSerializableStateWithoutXmlText();
+
+                // customGlbDefinitions içindeki devasa base64 verilerini localStorage'a koyma (IndexedDB'de zaten saklı)
+                if (stateData.customGlbDefinitions) {
+                    const strippedDefs = {};
+                    Object.keys(stateData.customGlbDefinitions).forEach(k => {
+                        const item = stateData.customGlbDefinitions[k];
+                        strippedDefs[k] = {
+                            id: item.id,
+                            name: item.name,
+                            filename: item.filename,
+                            hasIndexedDB: true
+                        };
+                    });
+                    stateData.customGlbDefinitions = strippedDefs;
+                }
+
+                // DXF çizimlerinde rawDxfText varsa localStorage için temizle (geometryData yeterli)
+                if (Array.isArray(stateData.dxfDrawings)) {
+                    stateData.dxfDrawings = stateData.dxfDrawings.map(d => ({
+                        ...d,
+                        dxfText: null
+                    }));
+                }
+
+                // rawXmlText'i sadece makul boyuttaysa ekle (1MB altı)
+                if (currentRawXmlText && currentRawXmlText.length < 1000000) {
+                    stateData.rawXmlText = currentRawXmlText;
+                }
+
+                const serialized = JSON.stringify(stateData);
+                // LocalStorage 5MB kotası: 2.5MB üzerindeyse kotayı ve tarayıcı belleğini korumak için atla
+                if (serialized.length > 2500000) {
+                    console.warn(`[AutoSave] Sahne verisi boyutu (${(serialized.length / 1024 / 1024).toFixed(2)} MB) localStorage sınırını aşacağı için atlandı.`);
+                    return;
+                }
 
                 localStorage.setItem('PROPOSAL_APP_SCENE_STATE', 'SAVED');
-                localStorage.setItem('PROPOSAL_APP_AUTOSAVE', JSON.stringify(stateData));
+                localStorage.setItem('PROPOSAL_APP_AUTOSAVE', serialized);
 
                 const autoSaveStatus = document.getElementById('autosave-status');
                 if (autoSaveStatus) {
@@ -13673,7 +13760,7 @@
                     autoSaveStatus.innerText = '💾 Değişiklikler otomatik kaydedildi.';
                 }
             } catch (e) {
-                console.warn('AutoSave hatası:', e);
+                console.warn('AutoSave hatası (LocalStorage kotası veya bellek):', e);
             }
         }
 
@@ -13683,7 +13770,7 @@
 
             try {
                 const data = JSON.parse(savedJSON);
-                if (!data || !data.rawXmlText) return false;
+                if (!data) return false;
                 return await restoreStateData(data);
             } catch (err) {
                 console.warn('Oturum geri yükleme hatası:', err);
