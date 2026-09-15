@@ -5122,7 +5122,7 @@
             return new Promise((resolve) => {
                 const onLoaded = (gltf) => {
                     const rawScene = gltf.scene;
-                    const model = cloneModelWithUniqueMaterials(rawScene);
+                    const model = cloneModelWithUniqueMaterials(rawScene, true);
 
                     model.traverse((child) => {
                         if (child.isMesh) {
@@ -5223,8 +5223,18 @@
             });
         }
 
+        let customGLBImportInProgress = false;
+
         async function importCustomGLBFile(file, optionalTargetPos = null) {
             if (!file) return;
+            if (customGLBImportInProgress) {
+                if (typeof showToastNotice === 'function') {
+                    showToastNotice('⏳ Başka bir GLB modeli hâlâ içe aktarılıyor.', 'info');
+                }
+                return;
+            }
+
+            customGLBImportInProgress = true;
             const filename = file.name || 'Özel_Model.glb';
             const cleanName = filename.replace(/\.(glb|gltf)$/i, '');
 
@@ -5271,6 +5281,8 @@
                 if (typeof showToastNotice === 'function') {
                     showToastNotice(`❌ Model içe aktarılamadı: ${err.message}`, 'error');
                 }
+            } finally {
+                customGLBImportInProgress = false;
             }
         }
         window.importCustomGLBFile = importCustomGLBFile;
@@ -9231,19 +9243,29 @@
 
         window.applySelectedWorldPosition = applySelectedWorldPosition;
 
-        function cloneModelWithUniqueMaterials(object) {
+        function cloneModelWithUniqueMaterials(object, shareMaterials = false) {
             if (!object) return null;
             const cloned = object.clone(true);
+            const materialClones = new WeakMap();
             cloned.traverse((node) => {
                 if (node.isMesh && node.material) {
                     if (Array.isArray(node.material)) {
-                        node.material = node.material.map((mat) => mat.clone());
+                        node.material = node.material.map((mat) => shareMaterials ? getSharedMaterialClone(mat, materialClones) : mat.clone());
                     } else {
-                        node.material = node.material.clone();
+                        node.material = shareMaterials
+                            ? getSharedMaterialClone(node.material, materialClones)
+                            : node.material.clone();
                     }
                 }
             });
             return cloned;
+        }
+
+        function getSharedMaterialClone(material, materialClones) {
+            if (!materialClones.has(material)) {
+                materialClones.set(material, material.clone());
+            }
+            return materialClones.get(material);
         }
 
         let activeParametricCSParams = null;
