@@ -45,6 +45,9 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    <!-- Gömülü 3D Kütüphane Modelleri ve XML Yedeği -->
+    <script src="library_assets.js"></script>
+
     <!-- EmailJS SDK Real SMTP Email Dispatch -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
@@ -310,14 +313,14 @@
                     <label
                         class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm">
                         <span>📥</span> Proje Aç (.json / .xml)
-                        <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json,.glb" class="hidden"
+                        <input type="file" id="xml-file-input" accept=".json,.xml,text/xml,application/json,.glb,.gltf" class="hidden"
                             onchange="loadXmlProjectFromFile(this)">
                     </label>
                     <label
                         class="bg-indigo-700 hover:bg-indigo-600 text-white px-2.5 py-1.5 rounded text-xs transition cursor-pointer font-bold flex items-center gap-1.5 shadow-sm border border-indigo-500/40"
-                        title="Bilgisayarınızdan bir 3D .glb dosyasını içe aktarır ve sahneye ekler">
+                        title="Bilgisayarınızdan bir 3D .glb / .gltf dosyasını içe aktarır ve sahneye ekler">
                         <span>📦</span> GLB Model Ekle (.glb)
-                        <input type="file" accept=".glb" class="hidden"
+                        <input type="file" accept=".glb,.gltf" class="hidden"
                             onchange="handleCustomGLBFileInput(this)">
                     </label>
                     <label
@@ -470,9 +473,9 @@
                         class="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1 text-gray-200 outline-none cursor-pointer max-w-[200px]">
                     </select>
 
-                    <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded text-xs font-bold cursor-pointer transition flex items-center gap-1 shadow" title="Bilgisayarınızdan .glb 3D modeli içe aktarır">
+                    <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded text-xs font-bold cursor-pointer transition flex items-center gap-1 shadow" title="Bilgisayarınızdan .glb / .gltf 3D modeli içe aktarır">
                         <span>📂</span> GLB İçe Aktar
-                        <input type="file" id="custom-glb-file-input" accept=".glb" class="hidden" onchange="handleCustomGLBFileInput(this)">
+                        <input type="file" id="custom-glb-file-input" accept=".glb,.gltf" class="hidden" onchange="handleCustomGLBFileInput(this)">
                     </label>
 
                     <button id="add-glb-model-btn" onclick="addSelectedGLBModelFromLibrary()" type="button"
@@ -3880,7 +3883,7 @@
                 }
             });
 
-            // Binary GLB Dosyalarını 3D Sahneye Sürükle - Bırak (Drag & Drop) Desteği
+            // GLB / GLTF Dosyalarını 3D Sahneye Sürükle - Bırak (Drag & Drop) Desteği
             const viewportDropTarget = document.getElementById('viewport-container') || renderer.domElement;
             ['dragenter', 'dragover'].forEach(evtName => {
                 viewportDropTarget.addEventListener(evtName, (e) => {
@@ -3904,7 +3907,7 @@
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     for (let i = 0; i < e.dataTransfer.files.length; i++) {
                         const file = e.dataTransfer.files[i];
-                        if (file.name.toLowerCase().endsWith('.glb')) {
+                        if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
                             updateMouseCoordinates({ clientX: e.clientX, clientY: e.clientY });
                             raycaster.setFromCamera(mouse, camera);
                             const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -4955,15 +4958,6 @@
         }
 
         function resolveModelUrl(assetPath) {
-            const libraryAssetAliases = {
-                'Library/XBEBA180HNLP.glb': 'Library/XBEBA180HNRP.glb',
-                'Library/XCBL 1X44X88.glb': 'Library/FlexLink XCBL 1X44X88.glb',
-                'Library/XCBL.glb': 'Library/FlexLink XCBL 1X44X88.glb',
-                'Library/XHCB.glb': 'Library/XHCB L.glb',
-                'Library/XHEB0HNLP.glb': 'Library/XHEBHNLP.glb',
-                'Library/XHEB0HNRP.glb': 'Library/XHEBHNRP.glb'
-            };
-            assetPath = libraryAssetAliases[assetPath] || assetPath;
             try {
                 const url = new URL(assetPath, window.location.href).href;
                 return encodeURI(url);
@@ -14709,7 +14703,7 @@
         function loadXmlProjectFromFile(input) {
             if (input && input.files && input.files.length > 0) {
                 const file = input.files[0];
-                if (file.name.toLowerCase().endsWith('.glb')) {
+                if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
                     importCustomGLBFile(file);
                     input.value = '';
                     return;
